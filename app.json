@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Smart Barber",
+    "slug": "smart-barber-frontend-mobile-web",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/brand/icon-obsidian-crimson.png",
+    "description": "Gestão e descoberta para barbearias, profissionais e clientes.",
+    "scheme": "smartbarber",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.smartbarber.app",
+      "icon": {
+        "light": "./assets/images/brand/icon-ivory-obsidian.png",
+        "dark": "./assets/images/brand/icon-obsidian-crimson.png",
+        "tinted": "./assets/images/brand/icon-obsidian-crimson.png"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/brand/adaptive-foreground-crimson.png",
+        "backgroundColor": "#0B0B0B",
+        "monochromeImage": "./assets/images/brand/adaptive-monochrome-ivory.png"
+      },
+      "package": "com.smartbarber.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/brand/icon-obsidian-crimson.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/brand/splash-light.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F5F3",
+          "dark": {
+            "image": "./assets/images/brand/splash-dark.png",
+            "backgroundColor": "#0B0B0B"
+          }
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
