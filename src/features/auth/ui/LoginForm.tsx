@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Controller } from 'react-hook-form';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
-import { fontFamilies } from '@/shared/theme/typography';
 import { Button, TextInput, PasswordInput, FormField, Text } from '@/shared/ui';
 import { useLoginViewModel } from '../model/use-login-view-model';
 import { AuthError } from './AuthError';
@@ -79,15 +78,7 @@ export function LoginForm() {
       />
 
       <View style={styles.footerRow}>
-        <Text
-          variant="bodySm"
-          style={{
-            fontFamily: fontFamilies.inter.medium,
-            fontSize: 14,
-            fontWeight: Platform.OS === 'web' ? '500' : undefined,
-            color: colors.brand.silver,
-          }}
-        >
+        <Text variant="bodySm" color={colors.brand.silver}>
           Ainda não é cadastrado?{' '}
         </Text>
         <Pressable
@@ -99,13 +90,9 @@ export function LoginForm() {
         >
           <Text
             variant="bodySm"
-            style={{
-              fontFamily: fontFamilies.inter.semiBold,
-              fontSize: 14,
-              fontWeight: Platform.OS === 'web' ? '600' : undefined,
-              color: colors.brand.primary,
-              letterSpacing: 0.2,
-            }}
+            weight="semibold"
+            color={colors.brand.primary}
+            style={{ letterSpacing: 0.2 }}
           >
             Cadastrar Barbearia
           </Text>
