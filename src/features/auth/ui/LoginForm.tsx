@@ -68,6 +68,25 @@ export function LoginForm() {
         )}
       />
 
+      <View style={styles.forgotPasswordRow}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Navegar para recuperação de senha"
+          onPress={() => router.push('/(auth)/forgot-password')}
+          disabled={isSubmitting}
+          hitSlop={8}
+        >
+          <Text
+            variant="caption"
+            weight="medium"
+            color={colors.brand.silver}
+            style={{ textDecorationLine: 'underline' }}
+          >
+            Esqueceu sua senha?
+          </Text>
+        </Pressable>
+      </View>
+
       <Button
         title="Entrar"
         variant="primary"
@@ -111,5 +130,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  forgotPasswordRow: {
+    width: '100%',
+    alignItems: 'flex-end',
+    marginTop: 4,
+    marginBottom: 8,
   },
 });

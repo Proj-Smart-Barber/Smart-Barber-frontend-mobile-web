@@ -9,6 +9,8 @@ export default function AppLayoutGroup() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="change-password" />
     </Stack>
   );
 }

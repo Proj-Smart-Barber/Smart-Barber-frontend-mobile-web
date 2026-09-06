@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -14,6 +15,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ staff, greeting, isOwner, onSignOut }: DashboardHeaderProps) {
+  const router = useRouter();
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const { isCompact } = useAdaptiveLayout();
 
@@ -82,24 +84,28 @@ export function DashboardHeader({ staff, greeting, isOwner, onSignOut }: Dashboa
           tone={isOwner ? 'brand' : 'success'}
         />
 
-        {/* Avatar Circular com Monograma */}
-        <View
-          accessibilityLabel={`Avatar de ${staff?.name ?? 'Profissional'}`}
-          style={{
+        {/* Avatar Circular com Monograma clicável para abrir Perfil */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Perfil de ${staff?.name ?? 'Profissional'}`}
+          onPress={() => router.push('/(app)/profile')}
+          hitSlop={6}
+          style={({ pressed }) => ({
             width: 38,
             height: 38,
             borderRadius: radius.full,
-            backgroundColor: colors.surface.elevated,
+            backgroundColor: pressed ? colors.surface.selected : colors.surface.elevated,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 1.5,
             borderColor: colors.brand.primary,
-          }}
+            opacity: pressed ? 0.85 : 1,
+          })}
         >
           <Text variant="badge" color={colors.text.primary} weight="bold">
             {initials}
           </Text>
-        </View>
+        </Pressable>
 
         {/* Alternador de Tema */}
         <Pressable

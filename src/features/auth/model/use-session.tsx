@@ -14,6 +14,7 @@ interface SessionContextData extends SessionState {
   signUp: (values: RegisterFormValues) => Promise<void>;
   signOut: () => Promise<void>;
   restoreSession: () => Promise<void>;
+  updateProfile: (data: { name: string; avatarUrl?: string | null }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -222,6 +223,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [queryClient]);
 
+  const updateProfile = useCallback(
+    async (data: { name: string; avatarUrl?: string | null }) => {
+      setState((prev) => {
+        if (!prev.staff) return prev;
+        const updatedStaff: Staff = {
+          ...prev.staff,
+          name: data.name,
+          avatarUrl: data.avatarUrl !== undefined ? data.avatarUrl : prev.staff.avatarUrl,
+        };
+        queryClient.setQueryData(['auth', 'me'], updatedStaff);
+        return {
+          ...prev,
+          staff: updatedStaff,
+        };
+      });
+    },
+    [queryClient]
+  );
+
   // Inicializa sessão ao carregar
   useEffect(() => {
     restoreSession();
@@ -235,6 +255,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         restoreSession,
+        updateProfile,
         clearError,
       }}
     >
