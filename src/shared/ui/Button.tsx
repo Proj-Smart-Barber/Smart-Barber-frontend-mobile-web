@@ -47,7 +47,7 @@ export function Button({ title, variant = 'primary', loading = false, disabled =
       onPress={handlePress}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={({ pressed, hovered }) => [
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
         {
           minHeight: 52,
           paddingHorizontal: spacing[6],
