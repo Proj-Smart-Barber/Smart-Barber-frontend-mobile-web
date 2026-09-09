@@ -47,7 +47,7 @@ export function Button({ title, variant = 'primary', loading = false, disabled =
       onPress={handlePress}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={({ pressed, hovered }) => [
+      style={({ pressed }) => [
         {
           minHeight: 52,
           paddingHorizontal: spacing[6],
@@ -60,7 +60,7 @@ export function Button({ title, variant = 'primary', loading = false, disabled =
           borderCurve: 'continuous',
           borderWidth: variant === 'outline' || focused ? 2 : 1,
           borderColor: focused ? components.button.focus : intent.border,
-          backgroundColor: pressed || (hovered && Platform.OS === 'web') ? intent.pressed : intent.background,
+          backgroundColor: pressed ? intent.pressed : intent.background,
           opacity: isDisabled ? 0.5 : 1,
           transform: pressed && !reducedMotion ? [{ scale: 0.99 }] : undefined,
         },

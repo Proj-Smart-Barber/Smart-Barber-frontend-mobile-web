@@ -1,17 +1,5 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { useSession } from '@/features/auth';
-import { useTheme } from '@/shared/theme';
-import { BootstrapScreen } from '@/shared/ui';
+import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return <BootstrapScreen />;
+  return <Redirect href="/availability" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
