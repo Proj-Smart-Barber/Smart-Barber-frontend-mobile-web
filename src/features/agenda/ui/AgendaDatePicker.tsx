@@ -3,6 +3,7 @@ import { Modal, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useReducedMotion, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
+import { AgendaActionButton } from './AgendaActionButton';
 import {
   addMonths,
   formatMonthLabel,
@@ -241,26 +242,12 @@ export function AgendaDatePicker({
             ))}
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Fechar calendário"
+          <AgendaActionButton
+            tone="destructive"
+            title="Cancelar"
             onPress={onClose}
-            style={({ pressed }) => ({
-              minHeight: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: radius.md,
-              marginTop: spacing[2],
-              marginHorizontal: spacing[2],
-              backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-            })}
-          >
-            <Text variant="bodySm" color={colors.text.primary}>
-              Cancelar
-            </Text>
-          </Pressable>
+            style={{ alignSelf: 'stretch', marginTop: spacing[2], marginHorizontal: spacing[2] }}
+          />
         </Pressable>
       </Pressable>
     </Modal>

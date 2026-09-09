@@ -13,9 +13,9 @@ describe('Appointment Presentation', () => {
   });
 
   it('deve mapear status para tons semânticos de badge do design system', () => {
-    const cases: [AppointmentStatus, 'brand' | 'success' | 'warning' | 'error'][] = [
-      ['WAITING', 'brand'],
-      ['CONFIRMED', 'brand'],
+    const cases: [AppointmentStatus, 'brand' | 'success' | 'successAlt' | 'warning' | 'error' | 'info'][] = [
+      ['WAITING', 'info'],
+      ['CONFIRMED', 'successAlt'],
       ['IN_SERVICE', 'warning'],
       ['COMPLETED', 'success'],
       ['CANCELLED', 'error'],

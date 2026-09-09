@@ -48,7 +48,8 @@ describe('Dashboard Presentation Helpers', () => {
     });
 
     it('deve mapear status para tons semânticos de badge do design system', () => {
-      expect(mapStatusBadgeTone('CONFIRMED')).toBe('brand');
+      expect(mapStatusBadgeTone('CONFIRMED')).toBe('successAlt');
+      expect(mapStatusBadgeTone('WAITING')).toBe('info');
       expect(mapStatusBadgeTone('IN_SERVICE')).toBe('warning');
       expect(mapStatusBadgeTone('COMPLETED')).toBe('success');
       expect(mapStatusBadgeTone('CANCELLED')).toBe('error');

@@ -1,7 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useTheme } from '@/shared/theme';
-import { Alert, Button } from '@/shared/ui';
+import { Alert } from '@/shared/ui';
+import { AgendaActionButton } from './AgendaActionButton';
 
 interface AgendaSyncBannerProps {
   isErrorWithCachedData: boolean;
@@ -31,11 +32,11 @@ export function AgendaSyncBanner({
     return (
       <View style={{ gap: spacing[2], width: '100%' }}>
         <Alert variant="error" title={errorTitle} message={errorDescription} />
-        <Button
-          variant="outline"
+        <AgendaActionButton
+          tone="success"
           title="Tentar novamente"
           onPress={onRetry}
-          style={{ minHeight: 44, alignSelf: 'flex-start', paddingVertical: spacing[2] }}
+          style={{ alignSelf: 'flex-start' }}
         />
       </View>
     );
@@ -60,11 +61,11 @@ export function AgendaSyncBanner({
           title="Dados podem estar desatualizados"
           message="Faz alguns minutos sem sincronizar esta agenda. Confirme os horários ao decidir."
         />
-        <Button
-          variant="outline"
+        <AgendaActionButton
+          tone="success"
           title="Atualizar agora"
           onPress={onRetry}
-          style={{ minHeight: 44, alignSelf: 'flex-start', paddingVertical: spacing[2] }}
+          style={{ alignSelf: 'flex-start' }}
         />
       </View>
     );

@@ -14,6 +14,10 @@ function statusToneColor(
   switch (tone) {
     case 'success':
       return colors.feedback.success;
+    case 'successAlt':
+      return colors.feedback.successAlt;
+    case 'info':
+      return colors.feedback.info;
     case 'warning':
       return colors.feedback.warning;
     case 'error':
