@@ -62,13 +62,24 @@ export function Button({ title, variant = 'primary', loading = false, disabled =
           borderColor: focused ? components.button.focus : intent.border,
           backgroundColor: pressed ? intent.pressed : intent.background,
           opacity: isDisabled ? 0.5 : 1,
-          transform: pressed && !reducedMotion ? [{ scale: 0.99 }] : undefined,
+          // Aplicação segura da escala apenas se permitido, sem retornar undefined quebrado
+          transform: pressed && !reducedMotion ? [{ scale: 0.99 }] : [],
         },
         style,
       ]}
       {...rest}
     >
-      {loading ? <Spinner color={intent.foreground} size="small" /> : <><>{leftIcon}</><Text variant="button" color={intent.foreground} style={textStyle}>{title}</Text><>{rightIcon}</></>}
+      {loading ? (
+        <Spinner color={intent.foreground} size="small" />
+      ) : (
+        <>
+          {leftIcon}
+          <Text color={intent.foreground} weight="medium" style={textStyle}>
+            {title}
+          </Text>
+          {rightIcon}
+        </>
+      )}
     </Pressable>
   );
 }

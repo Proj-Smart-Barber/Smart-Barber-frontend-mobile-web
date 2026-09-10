@@ -57,6 +57,14 @@ export const availabilityExceptionSchema = z
     { message: 'O horário de fechamento deve ser depois do de abertura.', path: ['closeTime'] },
   );
 
+
+
 export type TimeRangeFormValues = z.infer<typeof timeRangeSchema>;
 export type WeeklyScheduleEntryFormValues = z.infer<typeof weeklyScheduleEntrySchema>;
 export type AvailabilityExceptionFormValues = z.infer<typeof availabilityExceptionSchema>;
+export type AvailabilityFormData = {
+  days: {
+    weekday: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+    entries: WeeklyScheduleEntryFormValues[];
+  }[];
+};

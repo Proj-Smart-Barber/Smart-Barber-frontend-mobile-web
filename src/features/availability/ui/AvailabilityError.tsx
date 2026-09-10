@@ -5,14 +5,13 @@ interface AvailabilityErrorProps {
   error: NormalizedAvailabilityError;
 }
 
-/** Área de alerta de erros — Critério de Aceite 4. */
+/** Área de alerta global de erros — Critério de Aceite 4. */
 export function AvailabilityError({ error }: AvailabilityErrorProps) {
   return (
     <Alert
       variant="error"
       title={error.title}
-      description={error.description}
-      accessibilityLiveRegion="assertive"
+      message={error.description}
     />
   );
 }

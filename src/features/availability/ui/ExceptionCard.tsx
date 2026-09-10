@@ -15,10 +15,10 @@ export function ExceptionCard({ exception, onRemove, disabled }: ExceptionCardPr
   const hoursLabel = formatExceptionLabel(exception);
 
   return (
-    <Card accessibilityRole="group" accessibilityLabel={`Exceção em ${dateLabel}`}>
+    <Card>
       <View style={styles.row}>
         <View style={styles.info}>
-          <Text variant="label">{dateLabel}</Text>
+          <Text variant="bodySm" weight="semibold">{dateLabel}</Text>
           <Badge
             label={hoursLabel}
             tone={exception.openTime ? 'warning' : 'error'}
@@ -28,14 +28,11 @@ export function ExceptionCard({ exception, onRemove, disabled }: ExceptionCardPr
           ) : null}
         </View>
         <Button
+          title="Remover"
           variant="ghost"
-          size="sm"
           onPress={() => onRemove(exception.id)}
           disabled={disabled}
-          accessibilityLabel={`Remover exceção de ${dateLabel}`}
-        >
-          Remover
-        </Button>
+        />
       </View>
     </Card>
   );

@@ -1,19 +1,20 @@
 import { View, StyleSheet } from 'react-native';
-import { useController, type Control } from 'react-hook-form';
+import { useController, useFormContext } from 'react-hook-form';
 import { FormField, TextInput } from '@/shared/ui';
 
 interface TimeRangeInputProps {
-  control: Control<any>;
   startPath: string;
   endPath: string;
   disabled?: boolean;
 }
 
 /**
- * Par de inputs de horário (início / fim) integrado ao React Hook Form.
- * Reutilizável em jornada recorrente e exceções.
+ * Par de inputs de horário integrado ao React Hook Form via useFormContext.
+ * Não recebe Control como prop — usa o contexto do FormProvider do pai.
  */
-export function TimeRangeInput({ control, startPath, endPath, disabled }: TimeRangeInputProps) {
+export function TimeRangeInput({ startPath, endPath, disabled }: TimeRangeInputProps) {
+  const { control } = useFormContext();
+
   const { field: startField, fieldState: startState } = useController({ control, name: startPath });
   const { field: endField, fieldState: endState } = useController({ control, name: endPath });
 
