@@ -53,8 +53,10 @@ export function useAvailabilityViewModel() {
       setFormError(null);
       try {
         await saveScheduleMutation.mutateAsync(entries);
+        return true;
       } catch (error) {
         setFormError(normalizeAvailabilityError(error));
+        return false;
       }
     },
     [saveScheduleMutation],

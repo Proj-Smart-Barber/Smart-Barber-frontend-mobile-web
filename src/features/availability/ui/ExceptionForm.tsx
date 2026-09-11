@@ -1,8 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, FormField, TextInput, Text } from '@/shared/ui';
+import { Button, Card, FormField, TextInput, Text } from '@/shared/ui';
+import { DatePickerInput } from './DatePickerInput';
+import { maskTimeInput } from './input-masks';
+import { useTheme } from '@/shared/theme';
 import {
   availabilityExceptionSchema,
   type AvailabilityExceptionFormValues,
@@ -21,6 +25,7 @@ interface ExceptionFormProps {
  */
 export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
   const [open, setOpen] = useState(false);
+  const { colors, spacing, radius } = useTheme();
 
   const {
     control,
@@ -47,19 +52,65 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
   if (!open) {
     return (
       <Button
-        title="+ Nova exceção"
+        title="Adicionar exceção"
         variant="outline"
+        leftIcon={<Ionicons name="add" size={20} color={colors.brand.primary} />}
         onPress={() => setOpen(true)}
         disabled={disabled}
+        style={styles.openButton}
       />
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text variant="bodySm" weight="semibold">
-        Nova exceção
-      </Text>
+    <Card
+      elevated
+      style={[
+        styles.container,
+        {
+          borderColor: colors.border.subtle,
+          borderRadius: radius.lg,
+          padding: spacing[5],
+        },
+      ]}
+    >
+      <View style={styles.header}>
+        <View
+          style={[
+            styles.headerIcon,
+            {
+              backgroundColor: colors.surface.selected,
+              borderRadius: radius.md,
+            },
+          ]}
+        >
+          <Ionicons name="calendar-outline" size={20} color={colors.brand.primary} />
+        </View>
+        <View style={styles.headerCopy}>
+          <Text variant="h3" color={colors.text.primary}>
+            Nova exceção
+          </Text>
+          <Text variant="caption" color={colors.text.secondary}>
+            Ajuste uma data sem alterar a jornada semanal.
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={[
+          styles.helperBox,
+          {
+            backgroundColor: colors.surface.default,
+            borderColor: colors.border.subtle,
+            borderRadius: radius.md,
+          },
+        ]}
+      >
+        <Ionicons name="information-circle-outline" size={18} color={colors.text.secondary} />
+        <Text variant="caption" color={colors.text.secondary} style={styles.helperText}>
+          Deixe abertura e fechamento vazios para fechar a unidade durante o dia inteiro.
+        </Text>
+      </View>
 
       {/* Data */}
       <Controller
@@ -72,66 +123,71 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
             error={errors.date?.message}
             helperText="Formato: AAAA-MM-DD"
           >
-            <TextInput
+            <DatePickerInput
               value={field.value}
-              onChangeText={field.onChange}
+              onChange={field.onChange}
               onBlur={field.onBlur}
-              placeholder="2026-12-25"
-              keyboardType="numeric"
-              maxLength={10}
-              editable={!disabled}
-              accessibilityLabel="Data da exceção"
+              disabled={disabled}
             />
           </FormField>
         )}
       />
 
-      {/* Horário de abertura */}
-      <Controller
-        control={control}
-        name="openTime"
-        render={({ field }) => (
-          <FormField
-            label="Abertura (opcional)"
-            error={errors.openTime?.message}
-            helperText="Deixe em branco para dia fechado"
-          >
-            <TextInput
-              value={field.value ?? ''}
-              onChangeText={(v) => field.onChange(v === '' ? null : v)}
-              onBlur={field.onBlur}
-              placeholder="08:00"
-              keyboardType="numeric"
-              maxLength={5}
-              editable={!disabled}
-              accessibilityLabel="Horário de abertura da exceção"
-            />
-          </FormField>
-        )}
-      />
+      <View style={styles.timeFields}>
+        {/* Horário de abertura */}
+        <View style={styles.timeField}>
+          <Controller
+            control={control}
+            name="openTime"
+            render={({ field }) => (
+              <FormField label="Abertura" error={errors.openTime?.message}>
+                <TextInput
+                  value={field.value ?? ''}
+                  onChangeText={(v) => {
+                    const masked = maskTimeInput(v);
+                    field.onChange(masked === '' ? null : masked);
+                  }}
+                  onBlur={field.onBlur}
+                  placeholder="08:00"
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!disabled}
+                  accessibilityLabel="Horário de abertura da exceção"
+                  leftIcon={<Ionicons name="time-outline" size={18} color={colors.text.secondary} />}
+                  inputStyle={styles.numericInput}
+                />
+              </FormField>
+            )}
+          />
+        </View>
 
-      {/* Horário de fechamento */}
-      <Controller
-        control={control}
-        name="closeTime"
-        render={({ field }) => (
-          <FormField
-            label="Fechamento (opcional)"
-            error={errors.closeTime?.message}
-          >
-            <TextInput
-              value={field.value ?? ''}
-              onChangeText={(v) => field.onChange(v === '' ? null : v)}
-              onBlur={field.onBlur}
-              placeholder="14:00"
-              keyboardType="numeric"
-              maxLength={5}
-              editable={!disabled}
-              accessibilityLabel="Horário de fechamento da exceção"
-            />
-          </FormField>
-        )}
-      />
+        {/* Horário de fechamento */}
+        <View style={styles.timeField}>
+          <Controller
+            control={control}
+            name="closeTime"
+            render={({ field }) => (
+              <FormField label="Fechamento" error={errors.closeTime?.message}>
+                <TextInput
+                  value={field.value ?? ''}
+                  onChangeText={(v) => {
+                    const masked = maskTimeInput(v);
+                    field.onChange(masked === '' ? null : masked);
+                  }}
+                  onBlur={field.onBlur}
+                  placeholder="14:00"
+                  keyboardType="numeric"
+                  maxLength={5}
+                  editable={!disabled}
+                  accessibilityLabel="Horário de fechamento da exceção"
+                  leftIcon={<Ionicons name="time-outline" size={18} color={colors.text.secondary} />}
+                  inputStyle={styles.numericInput}
+                />
+              </FormField>
+            )}
+          />
+        </View>
+      </View>
 
       {/* Motivo */}
       <Controller
@@ -143,9 +199,10 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
               value={field.value ?? ''}
               onChangeText={(v) => field.onChange(v === '' ? null : v)}
               onBlur={field.onBlur}
-              placeholder="Feriado nacional, consulta médica..."
+              placeholder="Feriado, folga, manutenção..."
               editable={!disabled}
               accessibilityLabel="Motivo da exceção"
+              leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.text.secondary} />}
             />
           </FormField>
         )}
@@ -157,31 +214,41 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
           variant="ghost"
           onPress={() => { reset(); setOpen(false); }}
           disabled={disabled}
+          style={styles.cancelButton}
         />
         <Button
           title="Salvar exceção"
           variant="primary"
+          leftIcon={<Ionicons name="checkmark" size={20} color={colors.text.inverse} />}
           onPress={handleSubmit(handleSave)}
           loading={disabled}
           disabled={disabled}
+          style={styles.saveButton}
         />
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 4,
-    padding: 16,
-    borderRadius: 8,
+  openButton: { width: '100%' },
+  container: { gap: 16, borderWidth: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerCopy: { flex: 1, gap: 2 },
+  helperBox: {
+    minHeight: 52,
+    padding: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  actions: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
-    justifyContent: 'flex-end',
-    marginTop: 8,
   },
+  helperText: { flex: 1 },
+  timeFields: { flexDirection: 'row', gap: 12 },
+  timeField: { flex: 1, minWidth: 0 },
+  numericInput: { fontVariant: ['tabular-nums'] },
+  actions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 4 },
+  cancelButton: { flex: 1 },
+  saveButton: { flex: 1.35 },
 });
