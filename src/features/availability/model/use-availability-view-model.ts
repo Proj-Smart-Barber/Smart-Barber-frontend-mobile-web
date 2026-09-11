@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useSession } from '@/features/auth';
+import { ENV } from '@/shared/config/env';
 import {
   useBarbershopQuery,
   useWeeklyScheduleQuery,
@@ -10,16 +10,16 @@ import {
 } from '../api/availability.api';
 import { normalizeAvailabilityError } from '../api/normalize-availability-error';
 import { buildScheduleDayViews } from './availability.types';
-import { SEED_BARBERSHOP_ID } from '../api/availability.mock';
 import type { WeeklyScheduleEntry, AvailabilityException } from '../api/availability.contract';
 import type { NormalizedAvailabilityError } from '../api/normalize-availability-error';
 
 export function useAvailabilityViewModel() {
-  const { staff } = useSession();
-
-  // TODO: substituir por staff.barbershopId quando a Issue de empresa
-  // for mergeada na main e o contrato de sessão fornecer essa info.
-  const barbershopId = SEED_BARBERSHOP_ID;
+  /**
+   * O backend atual ainda não devolve a barbearia associada ao staff em /me.
+   * O ID fica em configuração pública, em vez de depender do adapter mock.
+   * Quando o backend expuser essa associação, apenas esta origem precisa mudar.
+   */
+  const barbershopId = ENV.BARBERSHOP_ID;
 
   const barbershopQuery = useBarbershopQuery(barbershopId);
   const scheduleQuery = useWeeklyScheduleQuery(barbershopId);
@@ -67,8 +67,10 @@ export function useAvailabilityViewModel() {
       setFormError(null);
       try {
         await createExceptionMutation.mutateAsync(exception);
+        return true;
       } catch (error) {
         setFormError(normalizeAvailabilityError(error));
+        return false;
       }
     },
     [createExceptionMutation],

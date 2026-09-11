@@ -28,12 +28,27 @@ function isWeekday(value: unknown): value is Weekday {
   return typeof value === 'string' && (WEEKDAYS_RAW as readonly string[]).includes(value);
 }
 
-export function mapBarbershopDto(dto: BarbershopRawDto): Barbershop | null {
-  if (typeof dto.id !== 'string' || typeof dto.name !== 'string' || typeof dto.timezone !== 'string') {
+export function mapBarbershopDto(
+  dto: BarbershopRawDto,
+): Barbershop | null {
+  if (
+    typeof dto.id !== 'string' ||
+    dto.id.trim().length === 0 ||
+    typeof dto.name !== 'string' ||
+    dto.name.trim().length === 0 ||
+    typeof dto.timezone !== 'string' ||
+    dto.timezone.trim().length === 0
+  ) {
     return null;
   }
-  return { id: dto.id, name: dto.name, timezone: dto.timezone };
+
+  return {
+    id: dto.id,
+    name: dto.name,
+    timezone: dto.timezone,
+  };
 }
+
 
 export function mapWeeklyScheduleEntryDto(dto: WeeklyScheduleEntryRawDto): WeeklyScheduleEntry | null {
   if (typeof dto.id !== 'string' || !isWeekday(dto.day_of_week)) return null;

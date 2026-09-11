@@ -143,7 +143,7 @@ export function AvailabilityScreen() {
   }
 
   async function onSubmitException(values: AvailabilityExceptionFormValues) {
-    await vm.handleCreateException({
+    return vm.handleCreateException({
       date: values.date,
       barbermanId: values.barbermanId ?? null,
       openTime: values.openTime ?? null,

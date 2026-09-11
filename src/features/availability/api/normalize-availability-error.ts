@@ -34,11 +34,18 @@ export function normalizeAvailabilityError(error: unknown): NormalizedAvailabili
     }
 
     if (error.status === 400) {
+      const backendMessage =
+        typeof error.data?.error === 'string'
+          ? error.data.error
+          : typeof error.message === 'string' && error.message.length > 0
+            ? error.message
+            : null;
+
       return {
-        title: 'Horário inválido.',
+        title: 'Dados inválidos.',
         description:
-          error.data?.message ??
-          'Verifique se o horário final é depois do inicial e se não há conflitos.',
+          backendMessage ??
+          'Verifique os campos preenchidos, os horários e possíveis conflitos.',
         isNetworkError: false,
         isSessionExpired: false,
       };

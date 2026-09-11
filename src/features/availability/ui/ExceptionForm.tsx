@@ -13,7 +13,7 @@ import {
 } from '../model/availability.schema';
 
 interface ExceptionFormProps {
-  onSubmit: (values: AvailabilityExceptionFormValues) => Promise<void>;
+  onSubmit: (values: AvailabilityExceptionFormValues) => Promise<boolean>;
   disabled?: boolean;
 }
 
@@ -44,7 +44,9 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
   });
 
   async function handleSave(values: AvailabilityExceptionFormValues) {
-    await onSubmit(values);
+    const saved = await onSubmit(values);
+    if (!saved) return;
+
     reset();
     setOpen(false);
   }

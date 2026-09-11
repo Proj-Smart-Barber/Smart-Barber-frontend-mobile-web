@@ -5,13 +5,10 @@
  * duração dos serviços são consolidados no servidor. O frontend NÃO
  * recalcula disponibilidade.
  *
- * Contrato v1 — fechado com a dupla de backend em 2026-09-08, pós-aprovação
- * das migrations: services.durationInMinutes, barbershops.timezone,
- * barbershop_schedules.barbermanId (nullable), nova tabela
- * barbershop_schedule_exceptions, bookings.startTime/endTime.
- *
- * Enquanto o contrato real não existe, um adapter de desenvolvimento
- * (availability.mock.ts) simula as respostas do servidor.
+ * O contrato HTTP real da branch `feat/availability-engine` foi auditado em
+ * 2026-09-11. A porta abaixo continua independente de transporte: detalhes
+ * como `startTime/endTime`, wrappers de resposta e query `serviceIds` ficam
+ * encapsulados no AvailabilityHttpAdapter.
  */
 
 import type { Barbershop } from '@/entities/barbershop';
@@ -96,6 +93,6 @@ export interface IAvailabilityRepository {
 
   getCalculatedAvailability(
     barbershopId: string,
-    params: { serviceId: string; date: string; barbermanId?: string },
+    params: { serviceIds: string[]; date: string; barbermanId?: string },
   ): Promise<AvailabilitySlot[]>;
 }

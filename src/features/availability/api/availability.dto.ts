@@ -1,11 +1,10 @@
 /**
  * DTOs brutos da Disponibilidade.
  *
- * ATENÇÃO: formato de desenvolvimento usado pelo adapter mock
- * (availability.mock.ts) para exercitar o pipeline completo
- * (DTO bruto -> mapper -> domínio -> UI). Será substituído pelo
- * contrato real da API quando o backend publicar os endpoints.
- * A UI nunca consome estes tipos diretamente.
+ * ATENÇÃO: estes DTOs snake_case pertencem ao adapter MOCK e exercitam o
+ * pipeline DTO -> mapper -> domínio -> UI. O backend HTTP real usa outro
+ * contrato, tipado em `availability.backend.dto.ts`. A UI nunca consome
+ * nenhum dos dois formatos diretamente.
  */
 
 export type WeekdayRaw =

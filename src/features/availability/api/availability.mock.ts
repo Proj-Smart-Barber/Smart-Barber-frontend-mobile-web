@@ -1,10 +1,9 @@
 /**
  * Adapter de DESENVOLVIMENTO da Disponibilidade.
  *
- * Simula o backend: armazena jornada recorrente e exceções em memória,
- * passando tudo pelo mapper antes de devolver ao domínio — exatamente
- * como o adapter HTTP real fará. Substituir por AvailabilityHttpAdapter
- * quando a API publicar o contrato.
+ * Simula o domínio de disponibilidade em memória e passa os DTOs de mock
+ * pelo mapper antes de devolver à UI. O adapter HTTP real possui seu próprio
+ * contrato de transporte, pois a API atual usa camelCase e wrappers distintos.
  */
 import type {
   AvailabilityException,
@@ -13,6 +12,7 @@ import type {
   WeeklyScheduleEntry,
 } from './availability.contract';
 import type { Barbershop } from '@/entities/barbershop';
+import { ENV } from '@/shared/config/env';
 import {
   mapBarbershopDto,
   mapWeeklyScheduleList,
@@ -26,7 +26,7 @@ import type {
 } from './availability.dto';
 
 /** Seed fixo até barbershopId existir de verdade na sessão (Issue empresa pendente na main). */
-export const SEED_BARBERSHOP_ID = 'barbershop-seed-0001';
+export const SEED_BARBERSHOP_ID = ENV.BARBERSHOP_ID;
 
 const MOCK_BARBERSHOP_RAW: BarbershopRawDto = {
   id: SEED_BARBERSHOP_ID,
@@ -175,7 +175,7 @@ export class AvailabilityMockAdapter implements IAvailabilityRepository {
 
   async getCalculatedAvailability(
     _barbershopId: string,
-    params: { serviceId: string; date: string; barbermanId?: string },
+    params: { serviceIds: string[]; date: string; barbermanId?: string },
   ): Promise<AvailabilitySlot[]> {
     await this.delay();
     // Mock simplificado: gera slots de 30 min dentro do período da manhã.

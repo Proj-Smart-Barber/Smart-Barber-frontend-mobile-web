@@ -1,14 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ENV } from '@/shared/config/env';
 import type {
   AvailabilityException,
   AvailabilitySlot,
   IAvailabilityRepository,
   WeeklyScheduleEntry,
 } from './availability.contract';
+import { AvailabilityHttpAdapter } from './availability.http';
 import { AvailabilityMockAdapter } from './availability.mock';
 
-// Port / Adapter singleton — substituir por AvailabilityHttpAdapter quando a API estiver pronta.
-export const availabilityRepository: IAvailabilityRepository = new AvailabilityMockAdapter();
+/**
+ * Fonte de dados configurável.
+ *
+ * Mantemos mock como padrão para não quebrar o desenvolvimento visual. Para
+ * integrar com a API atual basta definir EXPO_PUBLIC_AVAILABILITY_SOURCE=http.
+ */
+export const availabilityRepository: IAvailabilityRepository =
+  ENV.AVAILABILITY_SOURCE === 'http'
+    ? new AvailabilityHttpAdapter()
+    : new AvailabilityMockAdapter();
 
 export const AVAILABILITY_QUERY_KEYS = {
   all: (barbershopId: string) => ['availability', barbershopId] as const,
@@ -17,15 +27,25 @@ export const AVAILABILITY_QUERY_KEYS = {
     ['availability', barbershopId, 'schedule', barbermanId ?? 'general'] as const,
   exceptions: (barbershopId: string, barbermanId?: string) =>
     ['availability', barbershopId, 'exceptions', barbermanId ?? 'general'] as const,
-  slots: (barbershopId: string, serviceId: string, date: string, barbermanId?: string) =>
-    ['availability', barbershopId, 'slots', serviceId, date, barbermanId ?? 'general'] as const,
+  slotsBase: (barbershopId: string) => ['availability', barbershopId, 'slots'] as const,
+  slots: (barbershopId: string, serviceIds: string[], date: string, barbermanId?: string) =>
+    [
+      'availability',
+      barbershopId,
+      'slots',
+      [...serviceIds].sort().join(','),
+      date,
+      barbermanId ?? 'general',
+    ] as const,
 };
+
+const keepHttpCompatibilityCache = ENV.AVAILABILITY_SOURCE === 'http';
 
 export function useBarbershopQuery(barbershopId: string) {
   return useQuery({
     queryKey: AVAILABILITY_QUERY_KEYS.barbershop(barbershopId),
     queryFn: () => availabilityRepository.getBarbershop(barbershopId),
-    staleTime: 5 * 60_000, // barbearia muda raramente
+    staleTime: 5 * 60_000,
     retry: false,
   });
 }
@@ -34,18 +54,33 @@ export function useWeeklyScheduleQuery(barbershopId: string, barbermanId?: strin
   return useQuery({
     queryKey: AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId),
     queryFn: () => availabilityRepository.getWeeklySchedule(barbershopId, barbermanId),
+    // O GET da branch atual responde sempre []: depois de um save, o cache é
+    // atualizado pela mutation e não deve ser sobrescrito em remount/focus.
+    staleTime: keepHttpCompatibilityCache ? Infinity : 0,
+    refetchOnWindowFocus: !keepHttpCompatibilityCache,
     retry: false,
   });
 }
 
-export function useSaveWeeklyScheduleMutation(barbershopId: string) {
+export function useSaveWeeklyScheduleMutation(
+  barbershopId: string,
+  barbermanId?: string,
+) {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (entries: Omit<WeeklyScheduleEntry, 'id'>[]) =>
       availabilityRepository.saveWeeklySchedule(barbershopId, entries),
-    onSuccess: () => {
+    onSuccess: (savedEntries) => {
+      // O backend atual não devolve a jornada no GET. Atualizamos diretamente
+      // o cache com a resposta do adapter para manter a UI coerente.
+      queryClient.setQueryData(
+        AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId),
+        savedEntries,
+      );
+
       void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.all(barbershopId),
+        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
       });
     },
   });
@@ -55,25 +90,43 @@ export function useExceptionsQuery(barbershopId: string, barbermanId?: string) {
   return useQuery({
     queryKey: AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
     queryFn: () => availabilityRepository.listExceptions(barbershopId, barbermanId),
+    staleTime: keepHttpCompatibilityCache ? Infinity : 0,
+    refetchOnWindowFocus: !keepHttpCompatibilityCache,
     retry: false,
   });
 }
 
-export function useCreateExceptionMutation(barbershopId: string) {
+export function useCreateExceptionMutation(
+  barbershopId: string,
+  barbermanId?: string,
+) {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (exception: Omit<AvailabilityException, 'id'>) =>
       availabilityRepository.createException(barbershopId, exception),
-    onSuccess: () => {
+    onSuccess: (created) => {
+      queryClient.setQueryData<AvailabilityException[]>(
+        AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
+        (current = []) => {
+          if (current.some((item) => item.id === created.id)) return current;
+          return [...current, created];
+        },
+      );
+
       void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.all(barbershopId),
+        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
       });
     },
   });
 }
 
-export function useUpdateExceptionMutation(barbershopId: string) {
+export function useUpdateExceptionMutation(
+  barbershopId: string,
+  barbermanId?: string,
+) {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: ({
       exceptionId,
@@ -82,22 +135,39 @@ export function useUpdateExceptionMutation(barbershopId: string) {
       exceptionId: string;
       exception: Partial<Omit<AvailabilityException, 'id'>>;
     }) => availabilityRepository.updateException(barbershopId, exceptionId, exception),
-    onSuccess: () => {
+    onSuccess: (updated, variables) => {
+      queryClient.setQueryData<AvailabilityException[]>(
+        AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
+        (current = []) => [
+          ...current.filter((item) => item.id !== variables.exceptionId),
+          updated,
+        ],
+      );
+
       void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.all(barbershopId),
+        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
       });
     },
   });
 }
 
-export function useRemoveExceptionMutation(barbershopId: string) {
+export function useRemoveExceptionMutation(
+  barbershopId: string,
+  barbermanId?: string,
+) {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: (exceptionId: string) =>
       availabilityRepository.removeException(barbershopId, exceptionId),
-    onSuccess: () => {
+    onSuccess: (_data, exceptionId) => {
+      queryClient.setQueryData<AvailabilityException[]>(
+        AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
+        (current = []) => current.filter((item) => item.id !== exceptionId),
+      );
+
       void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.all(barbershopId),
+        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
       });
     },
   });
@@ -105,18 +175,18 @@ export function useRemoveExceptionMutation(barbershopId: string) {
 
 export function useAvailabilitySlotsQuery(
   barbershopId: string,
-  params: { serviceId: string; date: string; barbermanId?: string },
+  params: { serviceIds: string[]; date: string; barbermanId?: string },
   enabled = true,
 ) {
   return useQuery<AvailabilitySlot[]>({
     queryKey: AVAILABILITY_QUERY_KEYS.slots(
       barbershopId,
-      params.serviceId,
+      params.serviceIds,
       params.date,
       params.barbermanId,
     ),
     queryFn: () => availabilityRepository.getCalculatedAvailability(barbershopId, params),
-    enabled,
+    enabled: enabled && params.serviceIds.length > 0,
     retry: false,
   });
 }
