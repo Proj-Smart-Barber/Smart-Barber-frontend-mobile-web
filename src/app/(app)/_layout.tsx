@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack } from 'expo-router';
 
 export default function AppLayoutGroup() {
@@ -9,6 +8,7 @@ export default function AppLayoutGroup() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="agenda" />
     </Stack>
   );
 }

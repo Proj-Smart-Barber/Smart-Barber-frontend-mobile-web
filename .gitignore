@@ -18,3 +18,7 @@ npm-debug.*
 
 expo-env.d.ts
 # @end expo-cli
+# Arquivos e configurações locais de agentes
+.agents/
+opencode.json
+skills-locl.json
