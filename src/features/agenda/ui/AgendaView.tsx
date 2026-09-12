@@ -12,8 +12,8 @@ import { AgendaSyncBanner } from './AgendaSyncBanner';
 import { AgendaTimeline } from './AgendaTimeline';
 
 /**
- * Agenda operacional: linha do tempo cronológica do dia selecionado
- * com agendamentos, buffers, holds e horários livres consolidados.
+ * Agenda do barbeiro (API de Booking): linha do tempo do dia
+ * selecionado, com modo detalhado (cliente + serviços) e simples.
  */
 export function AgendaView() {
   const { colors, spacing } = useTheme();
@@ -33,9 +33,11 @@ export function AgendaView() {
     goToNextDay,
     goToToday,
     goToDate,
-    entries,
+    mode,
+    setMode,
+    details,
+    simpleBookings,
     summary,
-    isClosed,
     isInitialLoading,
     isUpdatingDate,
     isRefreshing,
@@ -47,6 +49,10 @@ export function AgendaView() {
     isDataStale,
     isSlowSync,
     handleRefresh,
+    handleCancelBooking,
+    cancellingBookingId,
+    cancelErrorBookingId,
+    cancelErrorMessage,
   } = useAgendaViewModel();
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -138,11 +144,18 @@ export function AgendaView() {
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <AgendaTimeline
-                      entries={entries}
-                      isClosed={isClosed}
+                      mode={mode}
+                      onModeChange={setMode}
+                      details={details}
+                      simpleBookings={simpleBookings}
+                      isToday={isToday}
                       isLoading={isInitialLoading}
                       isUpdatingDate={isUpdatingDate}
                       onGoToToday={goToToday}
+                      onCancelBooking={handleCancelBooking}
+                      cancellingBookingId={cancellingBookingId}
+                      cancelErrorBookingId={cancelErrorBookingId}
+                      cancelErrorMessage={cancelErrorMessage}
                     />
                   </View>
                 </View>
@@ -150,11 +163,18 @@ export function AgendaView() {
                 <>
                   <AgendaSummary summary={summary} isLoading={isInitialLoading} />
                   <AgendaTimeline
-                    entries={entries}
-                    isClosed={isClosed}
+                    mode={mode}
+                    onModeChange={setMode}
+                    details={details}
+                    simpleBookings={simpleBookings}
+                    isToday={isToday}
                     isLoading={isInitialLoading}
                     isUpdatingDate={isUpdatingDate}
                     onGoToToday={goToToday}
+                    onCancelBooking={handleCancelBooking}
+                    cancellingBookingId={cancellingBookingId}
+                    cancelErrorBookingId={cancelErrorBookingId}
+                    cancelErrorMessage={cancelErrorMessage}
                   />
                 </>
               )}

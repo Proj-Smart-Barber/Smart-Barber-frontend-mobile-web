@@ -1,97 +1,58 @@
 /**
- * Contrato (porta) da Agenda operacional.
+ * Contrato (porta) da Agenda do barbeiro.
  *
- * A API é a fonte de verdade: jornada, buffers, holds e reservas são
- * consolidados no backend. O frontend NÃO recalcula disponibilidade.
+ * Fonte de verdade: API de Booking (`api-feat-booking`).
+ * Endpoints reais (o barbeiro é identificado pelo JWT `sub`):
+ *   GET /api/booking/barberman/schedule?date=YYYY-MM-DD
+ *   GET /api/booking/barberman/schedule/details?date=YYYY-MM-DD
+ *   DELETE /api/booking/:bookingId/cancel
  *
- * Os tipos abaixo representam o domínio já consolidado que chega à UI.
- * Enquanto o contrato real não existe, um adapter de desenvolvimento
- * (agenda.mock.ts) simula a resposta do servidor.
+ * Os tipos abaixo espelham `BookingMapper.toHTTP` e
+ * `BookingDetailsMapper.toHTTP` do backend. O frontend NÃO recalcula
+ * disponibilidade; apenas apresenta o que a API fornece.
  */
-import type { AppointmentStatus } from '@/entities/appointment';
 
-export type AgendaPaymentStatus = 'PAID' | 'PENDING' | 'REFUNDED';
-
-/** Escopo da consulta: OWNER = toda a unidade; BARBER = agenda própria. */
-export interface AgendaScope {
-  role: 'OWNER' | 'BARBER';
-  staffId: string;
-  // unitId: string — incluir quando o contrato de sessão/unidade fornecer.
-}
-
-export interface AgendaAppointmentEntry {
-  type: 'APPOINTMENT';
+/** Serviço de um agendamento (BookingDetailsMapper.toHTTP.services[]). */
+export interface AgendaBookingService {
   id: string;
-  /** "HH:mm" */
-  startTime: string;
-  /** "HH:mm" */
-  endTime: string;
-  customerName: string;
-  serviceTitle: string;
-  servicePriceInCents: number | null;
-  professionalId: string;
-  professionalName: string;
-  status: AppointmentStatus;
-  /** Presente apenas quando o contrato fornecer. */
-  paymentStatus: AgendaPaymentStatus | null;
-  /** "HH:mm" quando o cliente fez check-in. */
-  checkedInAt: string | null;
-  hasConflict: boolean;
+  title: string;
+  priceInCents: number;
+  durationInMinutes: number;
 }
 
-export interface AgendaFreeSlotEntry {
-  type: 'FREE_SLOT';
+/** Cliente de um agendamento (BookingDetailsMapper.toHTTP.customer). */
+export interface AgendaBookingCustomer {
   id: string;
-  startTime: string;
-  endTime: string;
+  name: string;
+  phoneNumber: string;
 }
 
-export interface AgendaHoldEntry {
-  type: 'HOLD';
+/** Booking simples (GET /schedule). */
+export interface AgendaBooking {
   id: string;
-  startTime: string;
-  endTime: string;
-  /** Expiração do bloqueio quando fornecida pelo backend  */
-  expiresAt: string | null;
-  reason: string | null;
-}
-
-export interface AgendaBufferEntry {
-  type: 'BUFFER';
-  id: string;
-  startTime: string;
-  endTime: string;
-  kind: string | null;
-}
-
-export type AgendaEntry =
-  | AgendaAppointmentEntry
-  | AgendaFreeSlotEntry
-  | AgendaHoldEntry
-  | AgendaBufferEntry;
-
-export interface AgendaNextAppointment {
-  startTime: string;
-  customerName: string;
-  serviceTitle: string;
-  professionalName: string;
-}
-
-export interface AgendaDaySummary {
-  totalSlots: number | null;
-  bookedSlots: number | null;
-  occupancyRatePercent: number | null;
-  nextAppointment: AgendaNextAppointment | null;
-  isClosed: boolean;
-}
-
-export interface AgendaDay {
-  /** "yyyy-MM-dd" */
+  barbershopId: string;
+  barbermanId: string;
+  shoppingCartId: string;
+  /** ISO 8601 (serialização JSON de Date). */
   date: string;
-  summary: AgendaDaySummary;
-  entries: AgendaEntry[];
+  /** "HH:mm" */
+  startTime: string;
+  /** "HH:mm" */
+  endTime: string;
+  createdAt: string | null;
 }
 
-export interface IAgendaRepository {
-  getAgendaDay(params: { scope: AgendaScope; date: string }): Promise<AgendaDay>;
+/** Booking detalhado (GET /schedule/details). */
+export interface AgendaBookingDetails extends AgendaBooking {
+  customer: AgendaBookingCustomer;
+  services: AgendaBookingService[];
+}
+
+/** Modo de exibição da agenda. */
+export type AgendaViewMode = 'simple' | 'details';
+
+export interface IBookingScheduleRepository {
+  getDailySchedule(params: { date: string }): Promise<AgendaBooking[]>;
+  getDailyScheduleWithDetails(params: { date: string }): Promise<AgendaBookingDetails[]>;
+  cancelBooking(bookingId: string): Promise<AgendaBooking>;
 }

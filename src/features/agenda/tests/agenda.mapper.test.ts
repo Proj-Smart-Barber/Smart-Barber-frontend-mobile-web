@@ -1,144 +1,155 @@
 import { describe, expect, it } from 'vitest';
-import { mapAgendaDayDto } from '../api/agenda.mapper';
-import type { AgendaDayRawDto } from '../api/agenda.dto';
+import {
+  mapBookingDetailsDto,
+  mapBookingDto,
+  mapDailyScheduleDetailsDto,
+  mapDailyScheduleDto,
+} from '../api/agenda.mapper';
+import type {
+  AgendaBookingDetailsHttpDto,
+  AgendaBookingHttpDto,
+  AgendaDailyScheduleDetailsResponseDto,
+  AgendaDailyScheduleResponseDto,
+} from '../api/agenda.dto';
 
-function buildValidDayDto(): AgendaDayRawDto {
+function buildBookingDto(
+  overrides: Partial<AgendaBookingHttpDto> = {},
+): AgendaBookingHttpDto {
   return {
-    date: '2026-10-05',
-    summary: {
-      total_slots: 18,
-      booked_slots: 6,
-      occupancy_rate_percent: 33,
-      next_appointment: {
-        start_time: '09:00',
-        customer_name: 'Ana Pereira',
-        service_title: 'Corte de cabelo',
-        professional_name: 'João Souza',
-      },
-      is_closed: false,
-    },
-    entries: [
-      {
-        type: 'APPOINTMENT',
-        id: 'apt-1',
-        start_time: '09:00',
-        end_time: '09:45',
-        customer_name: 'Ana Pereira',
-        service_title: 'Corte de cabelo',
-        service_price_in_cents: 4000,
-        professional_id: 'b-1',
-        professional_name: 'João Souza',
-        status: 'CONFIRMED',
-        payment_status: 'PAID',
-        checked_in_at: null,
-        has_conflict: false,
-      },
-      {
-        type: 'FREE_SLOT',
-        id: 'free-1',
-        start_time: '10:00',
-        end_time: '10:45',
-      },
-      {
-        type: 'HOLD',
-        id: 'hold-1',
-        start_time: '11:00',
-        end_time: '11:20',
-        expires_at: '2026-10-05T11:10:00.000Z',
-        reason: null,
-      },
-      {
-        type: 'BUFFER',
-        id: 'buf-1',
-        start_time: '11:20',
-        end_time: '11:30',
-        kind: 'Preparo',
-      },
-    ],
+    id: 'booking-1',
+    barbershopId: 'shop-1',
+    barbermanId: 'barber-1',
+    shoppingCartId: 'cart-1',
+    date: '2026-09-12T00:00:00.000Z',
+    startTime: '09:00',
+    endTime: '09:45',
+    createdAt: '2026-09-01T12:00:00.000Z',
+    ...overrides,
   };
 }
 
-describe('Agenda Mapper', () => {
-  it('deve mapear um dia válido para o domínio', () => {
-    const day = mapAgendaDayDto(buildValidDayDto());
+function buildDetailsDto(
+  overrides: Partial<AgendaBookingDetailsHttpDto> = {},
+): AgendaBookingDetailsHttpDto {
+  return {
+    ...buildBookingDto(),
+    customer: { id: 'customer-1', name: 'Ana Pereira', phoneNumber: '(11) 99999-1234' },
+    services: [
+      { id: 'service-1', title: 'Corte de cabelo', priceInCents: 4000, durationInMinutes: 45 },
+    ],
+    ...overrides,
+  };
+}
 
-    expect(day.date).toBe('2026-10-05');
-    expect(day.entries).toHaveLength(4);
-
-    const [appointment, freeSlot, hold, buffer] = day.entries;
-    expect(appointment).toMatchObject({
-      type: 'APPOINTMENT',
-      startTime: '09:00',
-      endTime: '09:45',
-      customerName: 'Ana Pereira',
-      paymentStatus: 'PAID',
-      checkedInAt: null,
-      hasConflict: false,
-    });
-    expect(freeSlot).toMatchObject({ type: 'FREE_SLOT', startTime: '10:00', endTime: '10:45' });
-    expect(hold).toMatchObject({ type: 'HOLD', expiresAt: '2026-10-05T11:10:00.000Z' });
-    expect(buffer).toMatchObject({ type: 'BUFFER', kind: 'Preparo' });
-
-    expect(day.summary.occupancyRatePercent).toBe(33);
-    expect(day.summary.nextAppointment).toMatchObject({
-      startTime: '09:00',
-      customerName: 'Ana Pereira',
-    });
-  });
-
-  it('deve descartar entradas com tipo desconhecido ou campos inválidos', () => {
-    const dto = buildValidDayDto();
-    (dto.entries as any[]).push(
-      { type: 'UNKNOWN', id: 'x', start_time: '12:00', end_time: '12:30' },
-      { type: 'APPOINTMENT', id: '', start_time: '12:00', end_time: '12:30' },
-      { type: 'FREE_SLOT', id: 'f-bad', start_time: '25:00', end_time: '12:30' },
-      { type: 'HOLD', id: 'h-bad', start_time: 'ok', end_time: '12:30' },
-    );
-
-    const day = mapAgendaDayDto(dto);
-    expect(day.entries).toHaveLength(4);
-  });
-
-  it('deve descartar agendamento com status inexistente', () => {
-    const dto = buildValidDayDto();
-    (dto.entries[0] as any).status = 'PENDING_MAGIC';
-
-    const day = mapAgendaDayDto(dto);
-    expect(day.entries.filter((e) => e.type === 'APPOINTMENT')).toHaveLength(0);
-  });
-
-  it('deve normalizar pagamento desconhecido e check-in inválido para null', () => {
-    const dto = buildValidDayDto();
-    const appointment = dto.entries[0] as any;
-    appointment.payment_status = 'MYSTERY';
-    appointment.checked_in_at = '99:99';
-
-    const day = mapAgendaDayDto(dto);
-    expect(day.entries[0]).toMatchObject({ paymentStatus: null, checkedInAt: null });
-  });
-
-  it('deve lidar com resumo incompleto e próximo atendimento inválido', () => {
-    const dto = buildValidDayDto();
-    dto.summary = {
-      total_slots: null,
-      booked_slots: null,
-      occupancy_rate_percent: null,
-      next_appointment: { start_time: 'banana', customer_name: 'x', service_title: 'y', professional_name: 'z' },
-      is_closed: false,
+describe('Agenda Mapper — agenda simples', () => {
+  it('deve mapear o envelope de bookings e ordenar por horário', () => {
+    const dto: AgendaDailyScheduleResponseDto = {
+      bookings: [
+        buildBookingDto({ id: 'b-2', startTime: '11:00', endTime: '11:30' }),
+        buildBookingDto({ id: 'b-1', startTime: '09:00', endTime: '09:45' }),
+      ],
     };
 
-    const day = mapAgendaDayDto(dto);
-    expect(day.summary.totalSlots).toBeNull();
-    expect(day.summary.occupancyRatePercent).toBeNull();
-    expect(day.summary.nextAppointment).toBeNull();
-    expect(day.summary.isClosed).toBe(false);
+    const bookings = mapDailyScheduleDto(dto);
+    expect(bookings.map((booking) => booking.id)).toEqual(['b-1', 'b-2']);
+    expect(bookings[0]).toMatchObject({
+      startTime: '09:00',
+      endTime: '09:45',
+      barbermanId: 'barber-1',
+    });
   });
 
-  it('deve tratar payload sem entradas como dia vazio', () => {
-    const dto = buildValidDayDto();
-    dto.entries = undefined as unknown as [];
+  it('deve descartar bookings com id ausente ou horário inválido', () => {
+    const dto = {
+      bookings: [
+        buildBookingDto(),
+        buildBookingDto({ id: '' }),
+        buildBookingDto({ startTime: '25:00' }),
+        buildBookingDto({ endTime: 'ok' }),
+      ],
+    } as AgendaDailyScheduleResponseDto;
 
-    const day = mapAgendaDayDto(dto);
-    expect(day.entries).toHaveLength(0);
+    expect(mapDailyScheduleDto(dto)).toHaveLength(1);
+  });
+
+  it('deve tratar payload sem lista de bookings como vazio', () => {
+    expect(
+      mapDailyScheduleDto(undefined as unknown as AgendaDailyScheduleResponseDto),
+    ).toEqual([]);
+    expect(mapDailyScheduleDto({} as AgendaDailyScheduleResponseDto)).toEqual([]);
+  });
+
+  it('deve normalizar date e createdAt ausentes', () => {
+    const booking = mapBookingDto(
+      buildBookingDto({
+        date: undefined as unknown as string,
+        createdAt: undefined as unknown as string,
+      }),
+    );
+
+    expect(booking?.date).toBe('');
+    expect(booking?.createdAt).toBeNull();
+  });
+});
+
+describe('Agenda Mapper — agenda detalhada', () => {
+  it('deve mapear cliente e serviços', () => {
+    const booking = mapBookingDetailsDto(buildDetailsDto());
+
+    expect(booking).not.toBeNull();
+    expect(booking?.customer).toEqual({
+      id: 'customer-1',
+      name: 'Ana Pereira',
+      phoneNumber: '(11) 99999-1234',
+    });
+    expect(booking?.services).toEqual([
+      { id: 'service-1', title: 'Corte de cabelo', priceInCents: 4000, durationInMinutes: 45 },
+    ]);
+  });
+
+  it('deve descartar detalhes sem cliente válido', () => {
+    expect(
+      mapBookingDetailsDto(
+        buildDetailsDto({ customer: { id: '', name: 'X', phoneNumber: '' } }),
+      ),
+    ).toBeNull();
+
+    expect(
+      mapBookingDetailsDto(
+        buildDetailsDto({
+          customer: undefined as unknown as AgendaBookingDetailsHttpDto['customer'],
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('deve filtrar serviços inválidos mantendo o booking', () => {
+    const booking = mapBookingDetailsDto(
+      buildDetailsDto({
+        services: [
+          { id: 's-1', title: 'Corte', priceInCents: 4000, durationInMinutes: 45 },
+          { id: '', title: 'Inválido', priceInCents: 1000, durationInMinutes: 10 },
+        ],
+      }),
+    );
+
+    expect(booking?.services).toHaveLength(1);
+  });
+
+  it('deve mapear o envelope detalhado ordenando por horário', () => {
+    const dto: AgendaDailyScheduleDetailsResponseDto = {
+      bookings: [
+        buildDetailsDto({ id: 'b-2', startTime: '10:00', endTime: '10:30' }),
+        buildDetailsDto({ id: 'b-1', startTime: '08:00', endTime: '08:30' }),
+      ],
+    };
+
+    expect(mapDailyScheduleDetailsDto(dto).map((booking) => booking.id)).toEqual(['b-1', 'b-2']);
+  });
+
+  it('deve tratar payload detalhado malformado como vazio', () => {
+    expect(
+      mapDailyScheduleDetailsDto(undefined as unknown as AgendaDailyScheduleDetailsResponseDto),
+    ).toEqual([]);
   });
 });
