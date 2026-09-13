@@ -9,12 +9,6 @@ import type {
 import { AvailabilityHttpAdapter } from './availability.http';
 import { AvailabilityMockAdapter } from './availability.mock';
 
-/**
- * Fonte de dados configurável.
- *
- * Mantemos mock como padrão para não quebrar o desenvolvimento visual. Para
- * integrar com a API atual basta definir EXPO_PUBLIC_AVAILABILITY_SOURCE=http.
- */
 export const availabilityRepository: IAvailabilityRepository =
   ENV.AVAILABILITY_SOURCE === 'http'
     ? new AvailabilityHttpAdapter()
@@ -39,12 +33,11 @@ export const AVAILABILITY_QUERY_KEYS = {
     ] as const,
 };
 
-const keepHttpCompatibilityCache = ENV.AVAILABILITY_SOURCE === 'http';
-
 export function useBarbershopQuery(barbershopId: string) {
   return useQuery({
     queryKey: AVAILABILITY_QUERY_KEYS.barbershop(barbershopId),
     queryFn: () => availabilityRepository.getBarbershop(barbershopId),
+    enabled: Boolean(barbershopId),
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -54,30 +47,34 @@ export function useWeeklyScheduleQuery(barbershopId: string, barbermanId?: strin
   return useQuery({
     queryKey: AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId),
     queryFn: () => availabilityRepository.getWeeklySchedule(barbershopId, barbermanId),
-    // O GET da branch atual responde sempre []: depois de um save, o cache é
-    // atualizado pela mutation e não deve ser sobrescrito em remount/focus.
-    staleTime: keepHttpCompatibilityCache ? Infinity : 0,
-    refetchOnWindowFocus: !keepHttpCompatibilityCache,
+    enabled: Boolean(barbershopId),
+    staleTime: 30_000,
     retry: false,
   });
 }
 
 export function useSaveWeeklyScheduleMutation(
   barbershopId: string,
+  actorId?: string | null,
   barbermanId?: string,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (entries: Omit<WeeklyScheduleEntry, 'id'>[]) =>
-      availabilityRepository.saveWeeklySchedule(barbershopId, entries),
+      availabilityRepository.saveWeeklySchedule(barbershopId, entries, { actorId }),
     onSuccess: (savedEntries) => {
-      // O backend atual não devolve a jornada no GET. Atualizamos diretamente
-      // o cache com a resposta do adapter para manter a UI coerente.
       queryClient.setQueryData(
         AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId),
         savedEntries,
       );
+
+      // Em HTTP, o GET agora é real; a invalidação confirma o estado persistido.
+      if (ENV.AVAILABILITY_SOURCE === 'http') {
+        void queryClient.invalidateQueries({
+          queryKey: AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId),
+        });
+      }
 
       void queryClient.invalidateQueries({
         queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
@@ -90,8 +87,8 @@ export function useExceptionsQuery(barbershopId: string, barbermanId?: string) {
   return useQuery({
     queryKey: AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
     queryFn: () => availabilityRepository.listExceptions(barbershopId, barbermanId),
-    staleTime: keepHttpCompatibilityCache ? Infinity : 0,
-    refetchOnWindowFocus: !keepHttpCompatibilityCache,
+    enabled: Boolean(barbershopId),
+    staleTime: 30_000,
     retry: false,
   });
 }
@@ -113,6 +110,12 @@ export function useCreateExceptionMutation(
           return [...current, created];
         },
       );
+
+      if (ENV.AVAILABILITY_SOURCE === 'http') {
+        void queryClient.invalidateQueries({
+          queryKey: AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
+        });
+      }
 
       void queryClient.invalidateQueries({
         queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
@@ -144,6 +147,12 @@ export function useUpdateExceptionMutation(
         ],
       );
 
+      if (ENV.AVAILABILITY_SOURCE === 'http') {
+        void queryClient.invalidateQueries({
+          queryKey: AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
+        });
+      }
+
       void queryClient.invalidateQueries({
         queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
       });
@@ -166,6 +175,12 @@ export function useRemoveExceptionMutation(
         (current = []) => current.filter((item) => item.id !== exceptionId),
       );
 
+      if (ENV.AVAILABILITY_SOURCE === 'http') {
+        void queryClient.invalidateQueries({
+          queryKey: AVAILABILITY_QUERY_KEYS.exceptions(barbershopId, barbermanId),
+        });
+      }
+
       void queryClient.invalidateQueries({
         queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
       });
@@ -186,7 +201,7 @@ export function useAvailabilitySlotsQuery(
       params.barbermanId,
     ),
     queryFn: () => availabilityRepository.getCalculatedAvailability(barbershopId, params),
-    enabled: enabled && params.serviceIds.length > 0,
+    enabled: enabled && Boolean(barbershopId) && params.serviceIds.length > 0,
     retry: false,
   });
 }

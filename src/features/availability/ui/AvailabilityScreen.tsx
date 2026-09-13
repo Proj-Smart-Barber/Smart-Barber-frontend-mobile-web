@@ -39,9 +39,9 @@ const formSchema = z.object({
 
 type AvailabilityFormValues = z.infer<typeof formSchema>;
 
-export function AvailabilityScreen() {
+export function AvailabilityScreen({ actorId }: { actorId?: string | null }) {
   const router = useRouter();
-  const vm = useAvailabilityViewModel();
+  const vm = useAvailabilityViewModel(actorId);
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
   const [saveFeedback, setSaveFeedback] = useState<
@@ -97,7 +97,7 @@ export function AvailabilityScreen() {
         <View style={[styles.stateContent, { paddingHorizontal: spacing[5] }]}>
           <ErrorState
             title="Não foi possível carregar a jornada"
-            description="Verifique sua conexão e tente novamente."
+            description={vm.configurationError ?? 'Verifique sua conexão e tente novamente.'}
           />
         </View>
       </SafeAreaView>

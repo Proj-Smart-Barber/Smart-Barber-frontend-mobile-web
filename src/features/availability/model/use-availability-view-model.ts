@@ -13,19 +13,27 @@ import { buildScheduleDayViews } from './availability.types';
 import type { WeeklyScheduleEntry, AvailabilityException } from '../api/availability.contract';
 import type { NormalizedAvailabilityError } from '../api/normalize-availability-error';
 
-export function useAvailabilityViewModel() {
+export function useAvailabilityViewModel(actorId?: string | null) {
   /**
-   * O backend atual ainda não devolve a barbearia associada ao staff em /me.
-   * O ID fica em configuração pública, em vez de depender do adapter mock.
-   * Quando o backend expuser essa associação, apenas esta origem precisa mudar.
+   * O backend atual possui GET /barbershops/:shopId, mas /staffs/me ainda não
+   * informa a unidade do staff. Por isso o UUID da barbearia segue configurado
+   * por ambiente no modo HTTP.
    */
   const barbershopId = ENV.BARBERSHOP_ID;
+  const configurationError =
+    ENV.AVAILABILITY_SOURCE === 'http' && !barbershopId
+      ? 'Defina EXPO_PUBLIC_BARBERSHOP_ID com o UUID real da unidade antes de ativar a integração HTTP.'
+      : ENV.AVAILABILITY_SOURCE === 'http' && !actorId
+        ? 'Não foi possível identificar o usuário autenticado responsável pela alteração.'
+        : null;
+
+  const hasHttpConfiguration = configurationError === null;
 
   const barbershopQuery = useBarbershopQuery(barbershopId);
   const scheduleQuery = useWeeklyScheduleQuery(barbershopId);
   const exceptionsQuery = useExceptionsQuery(barbershopId);
 
-  const saveScheduleMutation = useSaveWeeklyScheduleMutation(barbershopId);
+  const saveScheduleMutation = useSaveWeeklyScheduleMutation(barbershopId, actorId);
   const createExceptionMutation = useCreateExceptionMutation(barbershopId);
   const removeExceptionMutation = useRemoveExceptionMutation(barbershopId);
 
@@ -37,11 +45,13 @@ export function useAvailabilityViewModel() {
   );
 
   const isLoadingInitial =
-    barbershopQuery.isLoading || scheduleQuery.isLoading || exceptionsQuery.isLoading;
+    hasHttpConfiguration &&
+    (barbershopQuery.isLoading || scheduleQuery.isLoading || exceptionsQuery.isLoading);
 
   const isFatalError =
-    (barbershopQuery.isError || scheduleQuery.isError || exceptionsQuery.isError) &&
-    !isLoadingInitial;
+    !hasHttpConfiguration ||
+    ((barbershopQuery.isError || scheduleQuery.isError || exceptionsQuery.isError) &&
+      !isLoadingInitial);
 
   const isSaving =
     saveScheduleMutation.isPending ||
@@ -91,21 +101,18 @@ export function useAvailabilityViewModel() {
   const clearFormError = useCallback(() => setFormError(null), []);
 
   return {
-    // Dados
     barbershop: barbershopQuery.data ?? null,
     scheduleDays,
     exceptions: exceptionsQuery.data ?? [],
 
-    // Estados de carregamento
     isLoadingInitial,
     isSaving,
     isFatalError,
+    configurationError,
 
-    // Erros
     formError,
     clearFormError,
 
-    // Ações
     handleSaveSchedule,
     handleCreateException,
     handleRemoveException,

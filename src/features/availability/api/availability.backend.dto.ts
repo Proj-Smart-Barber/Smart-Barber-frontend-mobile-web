@@ -1,23 +1,44 @@
 import type { Weekday } from './availability.contract';
 
-/**
- * DTOs do backend REAL da branch feat/availability-engine.
- *
- * Estes tipos espelham os controllers Express atuais. Eles ficam separados
- * dos DTOs snake_case usados pelo mock para não contaminar a UI/domínio com
- * detalhes de transporte.
- */
+/** DTOs observados diretamente no backend `feat/availability-engine`. */
 
-export interface BackendScheduleListResponseDto {
-  schedules: unknown[];
+export interface BackendBarbershopResponseDto {
+  barbershop: {
+    id: string;
+    name: string;
+    timezone: string;
+    slug?: string;
+    ownerId?: string;
+    cnpj?: string;
+    location?: string;
+    status?: string;
+    avatarUrl?: string | null;
+  };
 }
 
+export interface BackendScheduleItemDto {
+  id: string;
+  barbershopId: string;
+  barbermanId: string | null;
+  dayOfWeek: string;
+  openTime: string;
+  closeTime: string;
+}
+
+export interface BackendScheduleListResponseDto {
+  schedules: BackendScheduleItemDto[];
+}
+
+/**
+ * Contrato REAL do controller atual: uma entrada por PUT.
+ * `createdBy` é necessário para evitar o fallback inválido "mock-user-id".
+ */
 export interface BackendUpdateScheduleRequestDto {
+  createdBy: string;
   dayOfWeek: Weekday;
   openTime: string;
   closeTime: string;
   barbermanId?: string | null;
-  createdBy?: string;
 }
 
 export interface BackendUpdateScheduleResponseDto {
@@ -25,8 +46,18 @@ export interface BackendUpdateScheduleResponseDto {
   message: string;
 }
 
+export interface BackendExceptionItemDto {
+  id: string;
+  barbershopId: string;
+  barbermanId: string | null;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  reason: string | null;
+}
+
 export interface BackendExceptionListResponseDto {
-  exceptions: unknown[];
+  exceptions: BackendExceptionItemDto[];
 }
 
 export interface BackendCreateExceptionRequestDto {
@@ -42,8 +73,11 @@ export interface BackendCreateExceptionResponseDto {
   message: string;
 }
 
-export interface BackendPatchExceptionResponseDto {
-  message: string;
+export interface BackendPatchExceptionRequestDto {
+  date?: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  reason?: string | null;
 }
 
 export interface BackendAvailabilityResponseDto {

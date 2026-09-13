@@ -1,70 +1,74 @@
-# Integração Availability — frontend x `feat/availability-engine`
+# Integração Availability — auditoria frontend x backend
 
-Este documento registra o contrato observado diretamente na branch de backend
-`feat/availability-engine` recebida em 11/09/2026 e as adaptações feitas apenas
-no frontend.
+**Auditoria do código real:** 13/09/2026  
+**Backend analisado:** `api-feat-availability-engine`  
+**Frontend analisado:** `feature/4-sprint-2-definicao-disponibilidade`
 
-## Contrato HTTP real observado
+## Estado confirmado do backend
 
-Base: `/api/barbershops/:shopId`
+Base HTTP: `/api/barbershops/:shopId`
 
-| Ação | Método | Endpoint | Contrato atual |
-|---|---|---|---|
-| Ler jornada | GET | `/schedules?barbermanId=` | responde `{ schedules: [] }` fixo |
-| Gravar intervalo | PUT | `/schedules` | **um intervalo por request**: `dayOfWeek`, `openTime`, `closeTime`, `barbermanId?` |
-| Ler exceções | GET | `/schedule-exceptions?barbermanId=` | responde `{ exceptions: [] }` fixo |
-| Criar exceção | POST | `/schedule-exceptions` | `date`, `startTime`, `endTime`, `reason`, `barbermanId?` |
-| Editar exceção | PATCH | `/schedule-exceptions/:exceptionId` | responde mensagem mock; não persiste alteração |
-| Remover exceção | DELETE | `/schedule-exceptions/:exceptionId` | remove do repository em memória |
-| Calcular slots | GET | `/availability` | query `date`, `serviceIds`, `barbermanId?`; resposta `{ slots }` |
+| Ação | Método | Estado real observado |
+|---|---|---|
+| Ler barbearia | GET `/:shopId` | ✅ Drizzle, retorna `{ barbershop }` com timezone |
+| Ler jornada | GET `/schedules` | ✅ Drizzle, retorna jornadas reais |
+| Salvar jornada | PUT `/schedules` | ⚠️ Ainda cria **uma entrada por request**; não substitui a grade antiga |
+| Ler exceções | GET `/schedule-exceptions` | ✅ Drizzle |
+| Criar exceção | POST `/schedule-exceptions` | ✅ Drizzle |
+| Editar exceção | PATCH `/schedule-exceptions/:id` | ✅ Drizzle, persiste alteração |
+| Excluir exceção | DELETE `/schedule-exceptions/:id` | ✅ Drizzle |
+| Calcular slots | GET `/availability` | ✅ múltiplos turnos/exceções; bookings ainda InMemory |
 
-## Adaptações feitas somente no frontend
+## Correções feitas no frontend nesta auditoria
 
-- `AvailabilityHttpAdapter` implementado para o contrato camelCase real.
-- `openTime/closeTime` do domínio são traduzidos para `startTime/endTime` apenas
-  no transporte de exceções.
-- `serviceId` foi corrigido para `serviceIds: string[]`; o adapter envia lista
-  separada por vírgulas, formato aceito pelo controller atual.
-- `PUT /schedules` é chamado uma vez para cada intervalo, pois o backend não
-  aceita array no body.
-- Query cache e espelho em memória preservam o que acabou de ser salvo porque
-  os GETs atuais devolvem listas vazias.
-- Edição de exceção usa DELETE + POST quando o item está no espelho, pois o
-  PATCH atual não altera o repository.
-- O `barbershopId`, nome e timezone deixaram de depender do mock e passaram a
-  ser configuráveis por variáveis `EXPO_PUBLIC_*`.
-- A escolha `mock`/`http` também é configurável, sem alterar UI/ViewModel.
+- `GET /barbershops/:shopId` passou a ser usado de verdade; nome/timezone não vêm mais do `.env`.
+- Removidos os espelhos em memória de jornadas/exceções: os GETs do backend agora são autoritativos.
+- `PATCH` de exceção passou a usar o endpoint real e recarregar a entidade persistida.
+- `dayOfWeek` recebido do backend é normalizado de forma case-insensitive (`monday` → `MONDAY`), necessário porque o seed atual usa minúsculas.
+- Sem `barbermanId`, o adapter mantém a semântica do frontend de "jornada geral", filtrando registros de profissionais que o GET do backend também pode retornar.
+- O `createdBy` do PUT atual passa a receber o `staff.id` autenticado através da camada `app`, evitando o fallback inválido `mock-user-id` do backend.
+- Cache do TanStack Query voltou a ser revalidável, pois os endpoints GET agora leem dados reais.
+- `EXPO_PUBLIC_BARBERSHOP_NAME` e `EXPO_PUBLIC_BARBERSHOP_TIMEZONE` foram removidos; apenas o ID temporário da unidade permanece configurável.
 
-## Limitações que NÃO podem ser eliminadas corretamente só pelo frontend
+## Bloqueador para integração definitiva
 
-1. **Jornada não possui operação de replace/delete no backend.** O PUT sempre
-   cria uma nova entidade. Alterar novamente um dia ou desativá-lo deixa a
-   jornada antiga no repository do servidor.
-2. **O cálculo usa apenas o primeiro intervalo encontrado do dia.** Se houver
-   dois intervalos (ex.: 08–12 e 13–18), o motor atual considera apenas o
-   primeiro.
-3. **GET de jornadas e exceções não lê o repository.** Em reload completo do
-   app, o frontend não consegue reconstruir os dados do servidor.
-4. **Não há GET `/barbershops/:id` nem barbershopId/timezone em `/staffs/me`.**
-   Portanto a unidade usada pela feature precisa ser configurada no frontend.
-5. **Repositories da feature são InMemory.** Reiniciar o servidor apaga os
-   dados de disponibilidade.
+O repositório `DrizzleSchedulesRepository` já possui `bulkReplace`, porém o controller/use case atual de `PUT /schedules` ainda chama `create()` para **uma única jornada**.
 
-Esses itens são limitações do contrato/implementação atual do backend. O
-frontend possui compatibilidade para desenvolvimento e integração HTTP, mas não
-pode tornar persistente ou recuperável uma informação que a API não expõe.
+Isso significa que o frontend não consegue, por HTTP:
 
-## Como ativar a integração HTTP
+- desativar um dia que já tinha horários;
+- remover um intervalo existente;
+- substituir `09:00–18:00` por `10:00–17:00` sem deixar o registro antigo;
+- salvar a grade semanal repetidamente sem acumular duplicatas.
 
-No `.env` do frontend:
+Não existe endpoint DELETE de schedules, então esse comportamento não pode ser corrigido corretamente apenas no frontend.
+
+### Ajuste mínimo necessário no backend antes de ativar HTTP
+
+Fazer `PUT /barbershops/:shopId/schedules` receber a grade do escopo e executar `bulkReplace` de forma atômica. O documento técnico final já descreve essa intenção, mas o ZIP atual ainda não a conecta ao controller/use case.
+
+Também é recomendável que `createdBy` seja obtido do usuário autenticado no backend em vez de vir do body. Enquanto isso não ocorrer, o frontend envia o `staff.id` para compatibilidade.
+
+## Pendências não bloqueantes para a tela de configuração
+
+- `/staffs/me` ainda não informa `barbershopId`; por isso `EXPO_PUBLIC_BARBERSHOP_ID` continua necessário temporariamente.
+- O motor de disponibilidade ainda monta ISO com offset `-03:00` fixo, apesar de a barbearia possuir `timezone`.
+- O cálculo usa `InMemoryBookingsRepository`; conflitos com bookings reais ainda não são lidos do banco.
+
+## Como deixar o frontend preparado
+
+Desenvolvimento isolado:
+
+```env
+EXPO_PUBLIC_AVAILABILITY_SOURCE=mock
+```
+
+Quando o backend corrigir o replace da jornada:
 
 ```env
 EXPO_PUBLIC_API_URL=http://SEU_HOST:PORT
 EXPO_PUBLIC_AVAILABILITY_SOURCE=http
-EXPO_PUBLIC_BARBERSHOP_ID=barbershop-seed-0001
-EXPO_PUBLIC_BARBERSHOP_NAME=Barbearia Exemplo
-EXPO_PUBLIC_BARBERSHOP_TIMEZONE=America/Sao_Paulo
+EXPO_PUBLIC_BARBERSHOP_ID=<UUID_REAL_DA_BARBEARIA>
 ```
 
-Em aparelho físico, `localhost` aponta para o próprio celular. Use o IP da
-máquina na rede local quando o backend estiver rodando no computador.
+Em Expo Go, não use `localhost` para um backend executando no PC; use o IP local da máquina na mesma rede.

@@ -1,44 +1,26 @@
 /**
  * Adapter HTTP da Disponibilidade.
  *
- * Compatível com a branch de backend `feat/availability-engine` recebida em
- * 2026-09-11. O backend atual expõe as rotas abaixo sob `/api`:
- *
- *   GET    /barbershops/:shopId/schedules
- *   PUT    /barbershops/:shopId/schedules
- *   GET    /barbershops/:shopId/schedule-exceptions
- *   POST   /barbershops/:shopId/schedule-exceptions
- *   PATCH  /barbershops/:shopId/schedule-exceptions/:exceptionId
- *   DELETE /barbershops/:shopId/schedule-exceptions/:exceptionId
- *   GET    /barbershops/:shopId/availability?date=&serviceIds=&barbermanId=
- *
- * Observações de compatibilidade importantes:
- * - PUT /schedules recebe UMA entrada por requisição; por isso o adapter envia
- *   uma requisição para cada intervalo do formulário.
- * - O backend atual retorna listas vazias nos GETs de jornada/exceções. O
- *   adapter mantém um espelho em memória durante a sessão para que a UI não
- *   perca imediatamente o que acabou de salvar.
- * - Não existe GET /barbershops/:id nesta branch. Nome/timezone vêm de config
- *   pública do frontend até o backend publicar esse recurso.
- * - PATCH de exceção do backend atual responde sucesso, mas não persiste a
- *   alteração. Quando o item existe no espelho local, o adapter implementa a
- *   edição como DELETE + POST, usando apenas endpoints reais já existentes.
+ * Auditada contra o ZIP real do backend `feat/availability-engine` em
+ * 2026-09-13. A UI/domínio continua independente dos detalhes de transporte.
  */
-import { httpClient } from '@/shared/api';
-import { ENV } from '@/shared/config/env';
+import { ApiError, httpClient } from '@/shared/api';
 import type { Barbershop } from '@/entities/barbershop';
 import type {
   AvailabilityException,
   AvailabilitySlot,
+  AvailabilityWriteContext,
   IAvailabilityRepository,
   WeeklyScheduleEntry,
   Weekday,
 } from './availability.contract';
 import type {
   BackendAvailabilityResponseDto,
+  BackendBarbershopResponseDto,
   BackendCreateExceptionRequestDto,
   BackendCreateExceptionResponseDto,
   BackendExceptionListResponseDto,
+  BackendPatchExceptionRequestDto,
   BackendScheduleListResponseDto,
   BackendUpdateScheduleRequestDto,
   BackendUpdateScheduleResponseDto,
@@ -55,16 +37,16 @@ const WEEKDAYS: readonly Weekday[] = [
   'SUNDAY',
 ];
 
-function isWeekday(value: unknown): value is Weekday {
-  return typeof value === 'string' && (WEEKDAYS as readonly string[]).includes(value);
+function normalizeWeekday(value: unknown): Weekday | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  return (WEEKDAYS as readonly string[]).includes(normalized)
+    ? (normalized as Weekday)
+    : null;
 }
 
 function isTime(value: unknown): value is string {
   return typeof value === 'string' && TIME_PATTERN.test(value);
-}
-
-function scopeKey(barbershopId: string, barbermanId?: string | null): string {
-  return `${barbershopId}::${barbermanId ?? 'general'}`;
 }
 
 function normalizeBackendScheduleItem(item: unknown): WeeklyScheduleEntry | null {
@@ -72,12 +54,12 @@ function normalizeBackendScheduleItem(item: unknown): WeeklyScheduleEntry | null
 
   const raw = item as Record<string, unknown>;
   const id = raw.id ?? raw.scheduleId ?? raw.schedule_id;
-  const weekday = raw.dayOfWeek ?? raw.day_of_week;
+  const weekday = normalizeWeekday(raw.dayOfWeek ?? raw.day_of_week);
   const barbermanId = raw.barbermanId ?? raw.barberman_id ?? null;
   const openTime = raw.openTime ?? raw.open_time;
   const closeTime = raw.closeTime ?? raw.close_time;
 
-  if (typeof id !== 'string' || !isWeekday(weekday) || !isTime(openTime) || !isTime(closeTime)) {
+  if (typeof id !== 'string' || !weekday || !isTime(openTime) || !isTime(closeTime)) {
     return null;
   }
 
@@ -113,17 +95,28 @@ function normalizeBackendExceptionItem(item: unknown): AvailabilityException | n
 }
 
 export class AvailabilityHttpAdapter implements IAvailabilityRepository {
-  private readonly scheduleMirror = new Map<string, WeeklyScheduleEntry[]>();
-  private readonly exceptionMirror = new Map<string, AvailabilityException[]>();
-
   async getBarbershop(barbershopId: string): Promise<Barbershop> {
-    // A branch atual do backend não expõe GET /barbershops/:id.
-    // Mantemos a informação configurável no frontend para não inventar uma
-    // chamada HTTP inexistente nem tocar no backend.
+    const response = await httpClient.get<BackendBarbershopResponseDto>(
+      `/api/barbershops/${encodeURIComponent(barbershopId)}`,
+    );
+
+    const raw = response?.barbershop;
+    if (
+      !raw ||
+      typeof raw.id !== 'string' ||
+      raw.id.trim().length === 0 ||
+      typeof raw.name !== 'string' ||
+      raw.name.trim().length === 0 ||
+      typeof raw.timezone !== 'string' ||
+      raw.timezone.trim().length === 0
+    ) {
+      throw new ApiError('Resposta de barbearia inválida.', 500, response, false);
+    }
+
     return {
-      id: barbershopId,
-      name: ENV.BARBERSHOP_NAME,
-      timezone: ENV.BARBERSHOP_TIMEZONE,
+      id: raw.id,
+      name: raw.name,
+      timezone: raw.timezone,
     };
   }
 
@@ -138,32 +131,60 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
       },
     );
 
-    const fromServer = Array.isArray(response?.schedules)
+    const normalized = Array.isArray(response?.schedules)
       ? response.schedules
           .map(normalizeBackendScheduleItem)
           .filter((entry): entry is WeeklyScheduleEntry => entry !== null)
       : [];
 
-    const key = scopeKey(barbershopId, barbermanId);
-
-    if (fromServer.length > 0) {
-      this.scheduleMirror.set(key, fromServer);
-      return fromServer;
-    }
-
-    // O GET atual devolve { schedules: [] } de forma fixa. Depois de um save,
-    // preservar o espelho evita apagar a UI por causa desse mock de leitura.
-    return this.scheduleMirror.get(key) ?? [];
+    // Na porta do frontend, ausência de barbermanId significa jornada geral.
+    // O GET do backend, sem filtro, devolve todos os registros da unidade.
+    return barbermanId
+      ? normalized.filter((entry) => entry.barbermanId === barbermanId)
+      : normalized.filter((entry) => entry.barbermanId === null);
   }
 
   async saveWeeklySchedule(
     barbershopId: string,
     entries: Omit<WeeklyScheduleEntry, 'id'>[],
+    context?: AvailabilityWriteContext,
   ): Promise<WeeklyScheduleEntry[]> {
+    const actorId = context?.actorId?.trim();
+
+    if (!actorId) {
+      throw new ApiError(
+        'Não foi possível identificar o usuário responsável pela alteração.',
+        400,
+        null,
+        false,
+      );
+    }
+
+    /**
+     * IMPORTANTE: o backend atual ainda aceita UMA entrada por PUT e faz
+     * `repository.create()`. Para não corromper a jornada acumulando registros,
+     * o frontend bloqueia uma sobrescrita enquanto o endpoint bulk/replace não
+     * estiver conectado no backend.
+     */
+    const scopeBarbermanId = entries[0]?.barbermanId ?? undefined;
+    const existing = await this.getWeeklySchedule(barbershopId, scopeBarbermanId ?? undefined);
+
+    if (existing.length > 0) {
+      throw new ApiError(
+        'A API atual ainda não permite substituir a jornada existente com segurança.',
+        409,
+        { code: 'SCHEDULE_REPLACE_NOT_SUPPORTED' },
+        false,
+      );
+    }
+
+    if (entries.length === 0) return [];
+
     const saved: WeeklyScheduleEntry[] = [];
 
     for (const entry of entries) {
       const body: BackendUpdateScheduleRequestDto = {
+        createdBy: actorId,
         dayOfWeek: entry.weekday,
         openTime: entry.range.start,
         closeTime: entry.range.end,
@@ -175,14 +196,15 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
         body,
       );
 
+      if (!response || typeof response.scheduleId !== 'string') {
+        throw new ApiError('Resposta inválida ao salvar jornada.', 500, response, false);
+      }
+
       saved.push({
         id: response.scheduleId,
         ...entry,
       });
     }
-
-    const barbermanId = entries[0]?.barbermanId ?? null;
-    this.scheduleMirror.set(scopeKey(barbershopId, barbermanId), saved);
 
     return saved;
   }
@@ -198,20 +220,15 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
       },
     );
 
-    const fromServer = Array.isArray(response?.exceptions)
+    const normalized = Array.isArray(response?.exceptions)
       ? response.exceptions
           .map(normalizeBackendExceptionItem)
           .filter((entry): entry is AvailabilityException => entry !== null)
       : [];
 
-    const key = scopeKey(barbershopId, barbermanId);
-
-    if (fromServer.length > 0) {
-      this.exceptionMirror.set(key, fromServer);
-      return fromServer;
-    }
-
-    return this.exceptionMirror.get(key) ?? [];
+    return barbermanId
+      ? normalized.filter((entry) => entry.barbermanId === barbermanId)
+      : normalized.filter((entry) => entry.barbermanId === null);
   }
 
   async createException(
@@ -231,16 +248,14 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
       body,
     );
 
-    const created: AvailabilityException = {
+    if (!response || typeof response.exceptionId !== 'string') {
+      throw new ApiError('Resposta inválida ao criar exceção.', 500, response, false);
+    }
+
+    return {
       id: response.exceptionId,
       ...exception,
     };
-
-    const key = scopeKey(barbershopId, exception.barbermanId);
-    const current = this.exceptionMirror.get(key) ?? [];
-    this.exceptionMirror.set(key, [...current, created]);
-
-    return created;
   }
 
   async updateException(
@@ -248,45 +263,42 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
     exceptionId: string,
     exception: Partial<Omit<AvailabilityException, 'id'>>,
   ): Promise<AvailabilityException> {
-    const candidateScopes = [...this.exceptionMirror.entries()];
-    let current: AvailabilityException | undefined;
-
-    for (const [, entries] of candidateScopes) {
-      current = entries.find((item) => item.id === exceptionId);
-      if (current) break;
-    }
-
-    if (!current) {
-      throw new Error(
-        'Não foi possível editar esta exceção porque o backend atual não retorna os dados completos no GET. Recarregue a tela e crie a exceção novamente.',
-      );
-    }
-
-    const merged: Omit<AvailabilityException, 'id'> = {
-      date: exception.date ?? current.date,
-      barbermanId: exception.barbermanId !== undefined ? exception.barbermanId : current.barbermanId,
-      openTime: exception.openTime !== undefined ? exception.openTime : current.openTime,
-      closeTime: exception.closeTime !== undefined ? exception.closeTime : current.closeTime,
-      reason: exception.reason !== undefined ? exception.reason : current.reason,
+    const body: BackendPatchExceptionRequestDto = {
+      ...(exception.date !== undefined && { date: exception.date }),
+      ...(exception.openTime !== undefined && { startTime: exception.openTime }),
+      ...(exception.closeTime !== undefined && { endTime: exception.closeTime }),
+      ...(exception.reason !== undefined && { reason: exception.reason }),
     };
 
-    // O PATCH atual é apenas um sucesso genérico e não altera o repositório.
-    // DELETE + POST é a única forma de efetivar a edição sem tocar no backend.
-    await this.removeException(barbershopId, exceptionId);
-    return this.createException(barbershopId, merged);
+    await httpClient.patch<void>(
+      `/api/barbershops/${encodeURIComponent(barbershopId)}/schedule-exceptions/${encodeURIComponent(exceptionId)}`,
+      body,
+    );
+
+    // O PATCH retorna 200 sem entidade. Releitura autoritativa evita manter
+    // um espelho local e confirma o que realmente foi persistido pelo Drizzle.
+    // Aqui buscamos a lista bruta (sem filtrar jornada geral/profissional), pois
+    // a exceção editada pode pertencer a qualquer escopo.
+    const refreshedResponse = await httpClient.get<BackendExceptionListResponseDto>(
+      `/api/barbershops/${encodeURIComponent(barbershopId)}/schedule-exceptions`,
+    );
+    const updated = Array.isArray(refreshedResponse?.exceptions)
+      ? refreshedResponse.exceptions
+          .map(normalizeBackendExceptionItem)
+          .find((item): item is AvailabilityException => item?.id === exceptionId)
+      : undefined;
+
+    if (!updated) {
+      throw new ApiError('A exceção foi atualizada, mas não pôde ser recarregada.', 500, null, false);
+    }
+
+    return updated;
   }
 
   async removeException(barbershopId: string, exceptionId: string): Promise<void> {
     await httpClient.delete<void>(
       `/api/barbershops/${encodeURIComponent(barbershopId)}/schedule-exceptions/${encodeURIComponent(exceptionId)}`,
     );
-
-    for (const [key, entries] of this.exceptionMirror.entries()) {
-      const next = entries.filter((entry) => entry.id !== exceptionId);
-      if (next.length !== entries.length) {
-        this.exceptionMirror.set(key, next);
-      }
-    }
   }
 
   async getCalculatedAvailability(

@@ -8,6 +8,7 @@
 import type {
   AvailabilityException,
   AvailabilitySlot,
+  AvailabilityWriteContext,
   IAvailabilityRepository,
   WeeklyScheduleEntry,
 } from './availability.contract';
@@ -99,6 +100,7 @@ export class AvailabilityMockAdapter implements IAvailabilityRepository {
   async saveWeeklySchedule(
     _barbershopId: string,
     entries: Omit<WeeklyScheduleEntry, 'id'>[],
+    _context?: AvailabilityWriteContext,
   ): Promise<WeeklyScheduleEntry[]> {
     await this.delay();
     const barbermanId = entries[0]?.barbermanId ?? null;
