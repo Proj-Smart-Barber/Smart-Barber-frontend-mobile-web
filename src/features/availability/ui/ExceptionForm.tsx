@@ -15,16 +15,33 @@ import {
 interface ExceptionFormProps {
   onSubmit: (values: AvailabilityExceptionFormValues) => Promise<boolean>;
   disabled?: boolean;
+  mode?: 'create' | 'edit';
+  initialValues?: AvailabilityExceptionFormValues;
+  onCancelEdit?: () => void;
 }
 
+const EMPTY_VALUES: AvailabilityExceptionFormValues = {
+  date: '',
+  barbermanId: null,
+  openTime: null,
+  closeTime: null,
+  reason: null,
+};
+
 /**
- * Formulário inline de cadastro de exceção.
- * openTime/closeTime são opcionais: se ambos ficarem em branco, o dia
- * inteiro é bloqueado (feriado, folga). Se preenchidos, representa um
- * horário customizado naquele dia.
+ * Formulário inline para criação e edição de exceções.
+ * openTime/closeTime são opcionais: ambos nulos bloqueiam o dia inteiro;
+ * ambos preenchidos representam um bloqueio/horário especial parcial.
  */
-export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
-  const [open, setOpen] = useState(false);
+export function ExceptionForm({
+  onSubmit,
+  disabled,
+  mode = 'create',
+  initialValues,
+  onCancelEdit,
+}: ExceptionFormProps) {
+  const isEdit = mode === 'edit';
+  const [open, setOpen] = useState(isEdit);
   const { colors, spacing, radius } = useTheme();
 
   const {
@@ -34,20 +51,31 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
     formState: { errors },
   } = useForm<AvailabilityExceptionFormValues>({
     resolver: zodResolver(availabilityExceptionSchema),
-    defaultValues: {
-      date: '',
-      barbermanId: null,
-      openTime: null,
-      closeTime: null,
-      reason: null,
-    },
+    defaultValues: initialValues ?? EMPTY_VALUES,
   });
+
+  function closeForm() {
+    reset(initialValues ?? EMPTY_VALUES);
+
+    if (isEdit) {
+      onCancelEdit?.();
+      return;
+    }
+
+    setOpen(false);
+  }
 
   async function handleSave(values: AvailabilityExceptionFormValues) {
     const saved = await onSubmit(values);
     if (!saved) return;
 
-    reset();
+    reset(EMPTY_VALUES);
+
+    if (isEdit) {
+      onCancelEdit?.();
+      return;
+    }
+
     setOpen(false);
   }
 
@@ -70,7 +98,7 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
       style={[
         styles.container,
         {
-          borderColor: colors.border.subtle,
+          borderColor: isEdit ? colors.border.selected : colors.border.subtle,
           borderRadius: radius.lg,
           padding: spacing[5],
         },
@@ -86,14 +114,20 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
             },
           ]}
         >
-          <Ionicons name="calendar-outline" size={20} color={colors.brand.primary} />
+          <Ionicons
+            name={isEdit ? 'create-outline' : 'calendar-outline'}
+            size={20}
+            color={colors.brand.primary}
+          />
         </View>
         <View style={styles.headerCopy}>
           <Text variant="h3" color={colors.text.primary}>
-            Nova exceção
+            {isEdit ? 'Editar exceção' : 'Nova exceção'}
           </Text>
           <Text variant="caption" color={colors.text.secondary}>
-            Ajuste uma data sem alterar a jornada semanal.
+            {isEdit
+              ? 'Atualize a data, o período ou o motivo desta exceção.'
+              : 'Ajuste uma data sem alterar a jornada semanal.'}
           </Text>
         </View>
       </View>
@@ -114,7 +148,6 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
         </Text>
       </View>
 
-      {/* Data */}
       <Controller
         control={control}
         name="date"
@@ -136,7 +169,6 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
       />
 
       <View style={styles.timeFields}>
-        {/* Horário de abertura */}
         <View style={styles.timeField}>
           <Controller
             control={control}
@@ -155,7 +187,9 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
                   maxLength={5}
                   editable={!disabled}
                   accessibilityLabel="Horário de abertura da exceção"
-                  leftIcon={<Ionicons name="time-outline" size={18} color={colors.text.secondary} />}
+                  leftIcon={
+                    <Ionicons name="time-outline" size={18} color={colors.text.secondary} />
+                  }
                   inputStyle={styles.numericInput}
                 />
               </FormField>
@@ -163,7 +197,6 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
           />
         </View>
 
-        {/* Horário de fechamento */}
         <View style={styles.timeField}>
           <Controller
             control={control}
@@ -182,7 +215,9 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
                   maxLength={5}
                   editable={!disabled}
                   accessibilityLabel="Horário de fechamento da exceção"
-                  leftIcon={<Ionicons name="time-outline" size={18} color={colors.text.secondary} />}
+                  leftIcon={
+                    <Ionicons name="time-outline" size={18} color={colors.text.secondary} />
+                  }
                   inputStyle={styles.numericInput}
                 />
               </FormField>
@@ -191,7 +226,6 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
         </View>
       </View>
 
-      {/* Motivo */}
       <Controller
         control={control}
         name="reason"
@@ -204,7 +238,9 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
               placeholder="Feriado, folga, manutenção..."
               editable={!disabled}
               accessibilityLabel="Motivo da exceção"
-              leftIcon={<Ionicons name="document-text-outline" size={18} color={colors.text.secondary} />}
+              leftIcon={
+                <Ionicons name="document-text-outline" size={18} color={colors.text.secondary} />
+              }
             />
           </FormField>
         )}
@@ -214,12 +250,12 @@ export function ExceptionForm({ onSubmit, disabled }: ExceptionFormProps) {
         <Button
           title="Cancelar"
           variant="ghost"
-          onPress={() => { reset(); setOpen(false); }}
+          onPress={closeForm}
           disabled={disabled}
           style={styles.cancelButton}
         />
         <Button
-          title="Salvar exceção"
+          title={isEdit ? 'Salvar edição' : 'Salvar exceção'}
           variant="primary"
           leftIcon={<Ionicons name="checkmark" size={20} color={colors.text.inverse} />}
           onPress={handleSubmit(handleSave)}

@@ -7,13 +7,14 @@ import type { AvailabilityException } from '../api/availability.contract';
 
 interface ExceptionCardProps {
   exception: AvailabilityException;
+  onEdit: (exception: AvailabilityException) => void;
   onRemove: (id: string) => void;
   disabled?: boolean;
 }
 
 const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-export function ExceptionCard({ exception, onRemove, disabled }: ExceptionCardProps) {
+export function ExceptionCard({ exception, onEdit, onRemove, disabled }: ExceptionCardProps) {
   const { colors, spacing, radius } = useTheme();
   const [year, month, day] = exception.date.split('-');
   const monthLabel = MONTHS[Math.max(0, Number(month) - 1)] ?? month;
@@ -83,23 +84,43 @@ export function ExceptionCard({ exception, onRemove, disabled }: ExceptionCardPr
           )}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Remover exceção de ${day}/${month}/${year}`}
-          disabled={disabled}
-          hitSlop={6}
-          onPress={() => onRemove(exception.id)}
-          style={({ pressed }) => [
-            styles.removeButton,
-            {
-              backgroundColor: pressed ? colors.feedback.errorBackground : colors.surface.elevated,
-              borderRadius: radius.md,
-              opacity: disabled ? 0.5 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="trash-outline" size={18} color={colors.feedback.error} />
-        </Pressable>
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Editar exceção de ${day}/${month}/${year}`}
+            disabled={disabled}
+            hitSlop={6}
+            onPress={() => onEdit(exception)}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: pressed ? colors.surface.selected : colors.surface.elevated,
+                borderRadius: radius.md,
+                opacity: disabled ? 0.5 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="create-outline" size={18} color={colors.brand.primary} />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Remover exceção de ${day}/${month}/${year}`}
+            disabled={disabled}
+            hitSlop={6}
+            onPress={() => onRemove(exception.id)}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: pressed ? colors.feedback.errorBackground : colors.surface.elevated,
+                borderRadius: radius.md,
+                opacity: disabled ? 0.5 : 1,
+              },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.feedback.error} />
+          </Pressable>
+        </View>
       </View>
     </Card>
   );
@@ -118,5 +139,6 @@ const styles = StyleSheet.create({
   info: { flex: 1, gap: 7 },
   badgeRow: { flexDirection: 'row', alignItems: 'center' },
   hoursRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  removeButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  actions: { gap: 8 },
+  actionButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });

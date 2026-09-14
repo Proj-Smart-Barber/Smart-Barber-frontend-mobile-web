@@ -8,12 +8,30 @@ export interface NormalizedAvailabilityError {
   isSessionExpired: boolean;
 }
 
+/**
+ * O backend pode responder token inválido/expirado como 500 contendo o erro
+ * do jsonwebtoken no payload. Mantemos a mesma proteção usada pela Agenda
+ * para encerrar a sessão de forma controlada.
+ */
+function isTokenErrorPayload(data: unknown): boolean {
+  const payload = JSON.stringify(data ?? '').toLowerCase();
+
+  return (
+    payload.includes('jsonwebtokenerror') ||
+    payload.includes('tokenexpirederror') ||
+    payload.includes('jwt expired') ||
+    payload.includes('jwt malformed') ||
+    payload.includes('invalid token') ||
+    payload.includes('invalid signature')
+  );
+}
+
 export function normalizeAvailabilityError(error: unknown): NormalizedAvailabilityError {
   if (error instanceof ApiError) {
-    if (error.status === 401) {
+    if (error.status === 401 || isTokenErrorPayload(error.data)) {
       return {
         title: 'Sua sessão expirou.',
-        description: 'Entre novamente para continuar.',
+        description: 'Entre novamente para continuar configurando a disponibilidade.',
         isNetworkError: false,
         isSessionExpired: true,
       };
@@ -50,9 +68,13 @@ export function normalizeAvailabilityError(error: unknown): NormalizedAvailabili
       const backendMessage =
         typeof error.data?.error === 'string'
           ? error.data.error
-          : typeof error.message === 'string' && error.message.length > 0
-            ? error.message
-            : null;
+          : typeof error.data?.error?.message === 'string'
+            ? error.data.error.message
+            : typeof error.data?.message === 'string'
+              ? error.data.message
+              : typeof error.message === 'string' && error.message.length > 0
+                ? error.message
+                : null;
 
       return {
         title: 'Dados inválidos.',

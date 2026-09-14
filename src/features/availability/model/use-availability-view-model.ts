@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSession } from '@/features/auth';
 import { ENV } from '@/shared/config/env';
 import {
   useBarbershopQuery,
@@ -6,6 +7,7 @@ import {
   useExceptionsQuery,
   useSaveWeeklyScheduleMutation,
   useCreateExceptionMutation,
+  useUpdateExceptionMutation,
   useRemoveExceptionMutation,
 } from '../api/availability.api';
 import { normalizeAvailabilityError } from '../api/normalize-availability-error';
@@ -14,6 +16,8 @@ import type { WeeklyScheduleEntry, AvailabilityException } from '../api/availabi
 import type { NormalizedAvailabilityError } from '../api/normalize-availability-error';
 
 export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
+  const { signOut } = useSession();
+
   const barbershopId =
     ENV.AVAILABILITY_SOURCE === 'http'
       ? sessionBarbershopId ?? ''
@@ -32,6 +36,7 @@ export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
 
   const saveScheduleMutation = useSaveWeeklyScheduleMutation(barbershopId);
   const createExceptionMutation = useCreateExceptionMutation(barbershopId);
+  const updateExceptionMutation = useUpdateExceptionMutation(barbershopId);
   const removeExceptionMutation = useRemoveExceptionMutation(barbershopId);
 
   const [formError, setFormError] = useState<NormalizedAvailabilityError | null>(null);
@@ -53,7 +58,29 @@ export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
   const isSaving =
     saveScheduleMutation.isPending ||
     createExceptionMutation.isPending ||
+    updateExceptionMutation.isPending ||
     removeExceptionMutation.isPending;
+
+  const initialQueryError =
+    barbershopQuery.error ?? scheduleQuery.error ?? exceptionsQuery.error ?? null;
+
+  const normalizedInitialError = useMemo(
+    () => (initialQueryError ? normalizeAvailabilityError(initialQueryError) : null),
+    [initialQueryError],
+  );
+
+  const isSessionExpired =
+    (normalizedInitialError?.isSessionExpired ?? false) ||
+    (formError?.isSessionExpired ?? false);
+
+  // Mesmo comportamento da Agenda: se o backend indicar token inválido/expirado
+  // (401 ou payload do jsonwebtoken), encerra a sessão e deixa o route guard
+  // redirecionar o usuário ao login.
+  useEffect(() => {
+    if (isSessionExpired) {
+      void signOut();
+    }
+  }, [isSessionExpired, signOut]);
 
   const handleSaveSchedule = useCallback(
     async (entries: Omit<WeeklyScheduleEntry, 'id'>[]) => {
@@ -83,13 +110,32 @@ export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
     [createExceptionMutation],
   );
 
+  const handleUpdateException = useCallback(
+    async (
+      exceptionId: string,
+      exception: Partial<Omit<AvailabilityException, 'id'>>,
+    ) => {
+      setFormError(null);
+      try {
+        await updateExceptionMutation.mutateAsync({ exceptionId, exception });
+        return true;
+      } catch (error) {
+        setFormError(normalizeAvailabilityError(error));
+        return false;
+      }
+    },
+    [updateExceptionMutation],
+  );
+
   const handleRemoveException = useCallback(
     async (exceptionId: string) => {
       setFormError(null);
       try {
         await removeExceptionMutation.mutateAsync(exceptionId);
+        return true;
       } catch (error) {
         setFormError(normalizeAvailabilityError(error));
+        return false;
       }
     },
     [removeExceptionMutation],
@@ -112,6 +158,7 @@ export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
 
     handleSaveSchedule,
     handleCreateException,
+    handleUpdateException,
     handleRemoveException,
   };
 }

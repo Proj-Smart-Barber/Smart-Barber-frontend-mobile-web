@@ -22,7 +22,7 @@ import { AvailabilityDay } from './AvailabilityDay';
 import { ExceptionCard } from './ExceptionCard';
 import { ExceptionForm } from './ExceptionForm';
 import { weeklyScheduleEntrySchema, scheduleDaySchema } from '../model/availability.schema';
-import type { WeeklyScheduleEntry } from '../api/availability.contract';
+import type { AvailabilityException, WeeklyScheduleEntry } from '../api/availability.contract';
 import type { AvailabilityExceptionFormValues } from '../model/availability.schema';
 
 const formSchema = z.object({
@@ -48,6 +48,10 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
     | { variant: 'success' | 'error'; title: string; message: string }
     | null
   >(null);
+  const [editingExceptionId, setEditingExceptionId] = useState<string | null>(null);
+
+  const editingException =
+    vm.exceptions.find((exception) => exception.id === editingExceptionId) ?? null;
 
   useEffect(() => {
     if (!saveFeedback) return;
@@ -142,14 +146,50 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
     });
   }
 
-  async function onSubmitException(values: AvailabilityExceptionFormValues) {
-    return vm.handleCreateException({
+  function toExceptionPayload(values: AvailabilityExceptionFormValues) {
+    return {
       date: values.date,
       barbermanId: values.barbermanId ?? null,
       openTime: values.openTime ?? null,
       closeTime: values.closeTime ?? null,
       reason: values.reason ?? null,
-    });
+    };
+  }
+
+  async function onSubmitException(values: AvailabilityExceptionFormValues) {
+    return vm.handleCreateException(toExceptionPayload(values));
+  }
+
+  async function onUpdateException(values: AvailabilityExceptionFormValues) {
+    if (!editingException) return false;
+
+    const updated = await vm.handleUpdateException(
+      editingException.id,
+      toExceptionPayload(values),
+    );
+
+    if (updated) {
+      setSaveFeedback({
+        variant: 'success',
+        title: 'Exceção atualizada',
+        message: 'A data especial foi atualizada com sucesso.',
+      });
+    }
+
+    return updated;
+  }
+
+  async function onRemoveException(exceptionId: string) {
+    const removed = await vm.handleRemoveException(exceptionId);
+
+    if (removed && editingExceptionId === exceptionId) {
+      setEditingExceptionId(null);
+    }
+  }
+
+  function startEditingException(exception: AvailabilityException) {
+    vm.clearFormError();
+    setEditingExceptionId(exception.id);
   }
 
   return (
@@ -369,14 +409,31 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                         <ExceptionCard
                           key={exception.id}
                           exception={exception}
-                          onRemove={vm.handleRemoveException}
+                          onEdit={startEditingException}
+                          onRemove={onRemoveException}
                           disabled={vm.isSaving}
                         />
                       ))
                     )}
 
-                    {/* Formulário de nova exceção — Critério de Aceite 1 */}
-                    <ExceptionForm onSubmit={onSubmitException} disabled={vm.isSaving} />
+                    {editingException ? (
+                      <ExceptionForm
+                        key={`edit-${editingException.id}`}
+                        mode="edit"
+                        initialValues={{
+                          date: editingException.date,
+                          barbermanId: editingException.barbermanId,
+                          openTime: editingException.openTime,
+                          closeTime: editingException.closeTime,
+                          reason: editingException.reason,
+                        }}
+                        onSubmit={onUpdateException}
+                        onCancelEdit={() => setEditingExceptionId(null)}
+                        disabled={vm.isSaving}
+                      />
+                    ) : (
+                      <ExceptionForm onSubmit={onSubmitException} disabled={vm.isSaving} />
+                    )}
                   </View>
 
                   {/* Timezone da unidade — Critério de Aceite 3 */}
