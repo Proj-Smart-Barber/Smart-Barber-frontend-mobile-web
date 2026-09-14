@@ -17,7 +17,7 @@
 | ✅ | Branding: API `shared/brand`, logos oficiais, ícones de app, splash Light/Dark e favicon. |
 | ✅ | Auth de Staff: login, cadastro de Owner, auto-login, restauração de sessão, logout e rotas protegidas. |
 | ✅ | Baseline Expo para Android, iOS e Web. |
-| 🚧 Planejado | **Issue #2 — Sprint 2: Sistema de Cadastro de Empresa.** |
+| ✅  | **Issue #2 — Sprint 2: Sistema de Cadastro de Empresa.** |
 
 > A área autenticada atual é uma Home temporária. Agenda, equipe, catálogo, marketplace e demais fluxos de negócio não estão implementados neste repositório nesta baseline.
 
