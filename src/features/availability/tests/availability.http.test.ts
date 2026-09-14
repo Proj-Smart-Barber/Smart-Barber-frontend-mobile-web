@@ -3,7 +3,6 @@ import { httpClient } from '@/shared/api';
 import { AvailabilityHttpAdapter } from '../api/availability.http';
 
 const SHOP_ID = '0f470c91-15b9-4ac4-9d28-9e486ecfb732';
-const OWNER_ID = '5c099005-88e8-4694-9ce5-c9807028d947';
 
 describe('AvailabilityHttpAdapter — contrato real feat/availability-engine', () => {
   afterEach(() => {
@@ -61,37 +60,67 @@ describe('AvailabilityHttpAdapter — contrato real feat/availability-engine', (
     expect(result[0]?.barbermanId).toBeNull();
   });
 
-  it('envia createdBy do staff autenticado no PUT atual de jornada', async () => {
-    vi.spyOn(httpClient, 'get').mockResolvedValue({ schedules: [] });
+  it('envia a jornada em batch sem createdBy e recarrega o escopo persistido', async () => {
+    const getSpy = vi.spyOn(httpClient, 'get').mockResolvedValue({
+      schedules: [
+        {
+          id: 'schedule-1',
+          barbershopId: SHOP_ID,
+          barbermanId: null,
+          dayOfWeek: 'MONDAY',
+          openTime: '08:00',
+          closeTime: '12:00',
+        },
+      ],
+    });
     const putSpy = vi.spyOn(httpClient, 'put').mockResolvedValue({
-      scheduleId: 'schedule-1',
-      message: 'ok',
+      message: 'Jornada atualizada com sucesso.',
     });
 
     const adapter = new AvailabilityHttpAdapter();
-    const result = await adapter.saveWeeklySchedule(
-      SHOP_ID,
-      [
-        {
-          weekday: 'MONDAY',
-          barbermanId: null,
-          range: { start: '08:00', end: '12:00' },
-        },
-      ],
-      { actorId: OWNER_ID },
-    );
+    const result = await adapter.saveWeeklySchedule(SHOP_ID, [
+      {
+        weekday: 'MONDAY',
+        barbermanId: null,
+        range: { start: '08:00', end: '12:00' },
+      },
+    ]);
 
     expect(putSpy).toHaveBeenCalledWith(
       `/api/barbershops/${SHOP_ID}/schedules`,
       {
-        createdBy: OWNER_ID,
-        dayOfWeek: 'MONDAY',
-        openTime: '08:00',
-        closeTime: '12:00',
-        barbermanId: null,
+        schedules: [
+          {
+            dayOfWeek: 'MONDAY',
+            openTime: '08:00',
+            closeTime: '12:00',
+          },
+        ],
       },
+      { params: undefined },
+    );
+    expect(getSpy).toHaveBeenCalledWith(
+      `/api/barbershops/${SHOP_ID}/schedules`,
+      { params: undefined },
     );
     expect(result[0]?.id).toBe('schedule-1');
+  });
+
+  it('usa barbermanId na query para substituir uma jornada profissional, inclusive com array vazio', async () => {
+    const putSpy = vi.spyOn(httpClient, 'put').mockResolvedValue({
+      message: 'Jornada atualizada com sucesso.',
+    });
+    vi.spyOn(httpClient, 'get').mockResolvedValue({ schedules: [] });
+
+    const adapter = new AvailabilityHttpAdapter();
+    const result = await adapter.saveWeeklySchedule(SHOP_ID, [], 'barber-1');
+
+    expect(putSpy).toHaveBeenCalledWith(
+      `/api/barbershops/${SHOP_ID}/schedules`,
+      { schedules: [] },
+      { params: { barbermanId: 'barber-1' } },
+    );
+    expect(result).toEqual([]);
   });
 
   it('traduz openTime/closeTime para startTime/endTime ao criar exceção', async () => {

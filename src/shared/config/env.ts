@@ -12,12 +12,6 @@ export const ENV = {
   /** `mock` mantém desenvolvimento isolado; `http` ativa integração real. */
   AVAILABILITY_SOURCE: availabilitySource as 'mock' | 'http',
 
-  /**
-   * O backend possui GET /barbershops/:shopId, mas o perfil /staffs/me ainda
-   * não informa qual barbearia pertence ao staff. Até essa associação existir,
-   * o ID da unidade é fornecido por ambiente somente no modo HTTP.
-   */
-  BARBERSHOP_ID:
-    process.env.EXPO_PUBLIC_BARBERSHOP_ID ||
-    (availabilitySource === 'mock' ? MOCK_BARBERSHOP_ID : ''),
+/** ID usado apenas pelo adapter mock; no HTTP a unidade vem de /api/staffs/me. */
+  BARBERSHOP_ID: availabilitySource === 'mock' ? MOCK_BARBERSHOP_ID : '',
 } as const;

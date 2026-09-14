@@ -39,9 +39,9 @@ const formSchema = z.object({
 
 type AvailabilityFormValues = z.infer<typeof formSchema>;
 
-export function AvailabilityScreen({ actorId }: { actorId?: string | null }) {
+export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | null }) {
   const router = useRouter();
-  const vm = useAvailabilityViewModel(actorId);
+  const vm = useAvailabilityViewModel(barbershopId);
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
   const [saveFeedback, setSaveFeedback] = useState<
@@ -184,7 +184,10 @@ export function AvailabilityScreen({ actorId }: { actorId?: string | null }) {
                   accessibilityRole="button"
                   accessibilityLabel="Voltar"
                   hitSlop={8}
-                  onPress={() => router.back()}
+                  onPress={() => {
+                    if (router.canGoBack()) router.back();
+                    else router.replace('/(app)');
+                  }}
                   style={({ pressed }) => [
                     styles.backButton,
                     {

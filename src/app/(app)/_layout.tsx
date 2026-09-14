@@ -9,7 +9,6 @@ export default function AppLayoutGroup() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="agenda" />
       <Stack.Screen name="availability" />
     </Stack>
   );

@@ -49,15 +49,6 @@ export interface AvailabilitySlot {
   end: string;
 }
 
-/**
- * Contexto de escrita vindo da camada app.
- * O backend atual ainda recebe `createdBy` no PUT de schedules; manter o ator
- * separado da entidade evita contaminar o domínio da jornada com autenticação.
- */
-export interface AvailabilityWriteContext {
-  actorId?: string | null;
-}
-
 export interface IAvailabilityRepository {
   getBarbershop(barbershopId: string): Promise<Barbershop>;
 
@@ -69,7 +60,7 @@ export interface IAvailabilityRepository {
   saveWeeklySchedule(
     barbershopId: string,
     entries: Omit<WeeklyScheduleEntry, 'id'>[],
-    context?: AvailabilityWriteContext,
+    barbermanId?: string,
   ): Promise<WeeklyScheduleEntry[]>;
 
   listExceptions(

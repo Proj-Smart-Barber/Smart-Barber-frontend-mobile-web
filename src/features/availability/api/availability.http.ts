@@ -9,7 +9,6 @@ import type { Barbershop } from '@/entities/barbershop';
 import type {
   AvailabilityException,
   AvailabilitySlot,
-  AvailabilityWriteContext,
   IAvailabilityRepository,
   WeeklyScheduleEntry,
   Weekday,
@@ -147,66 +146,55 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
   async saveWeeklySchedule(
     barbershopId: string,
     entries: Omit<WeeklyScheduleEntry, 'id'>[],
-    context?: AvailabilityWriteContext,
+    barbermanId?: string,
   ): Promise<WeeklyScheduleEntry[]> {
-    const actorId = context?.actorId?.trim();
+    const inferredScopes = new Set(
+      entries.map((entry) => entry.barbermanId ?? null),
+    );
 
-    if (!actorId) {
+    if (inferredScopes.size > 1) {
       throw new ApiError(
-        'Não foi possível identificar o usuário responsável pela alteração.',
+        'Cada atualização de jornada deve pertencer a um único escopo.',
         400,
-        null,
+        { code: 'MULTIPLE_SCHEDULE_SCOPES' },
         false,
       );
     }
 
-    /**
-     * IMPORTANTE: o backend atual ainda aceita UMA entrada por PUT e faz
-     * `repository.create()`. Para não corromper a jornada acumulando registros,
-     * o frontend bloqueia uma sobrescrita enquanto o endpoint bulk/replace não
-     * estiver conectado no backend.
-     */
-    const scopeBarbermanId = entries[0]?.barbermanId ?? undefined;
-    const existing = await this.getWeeklySchedule(barbershopId, scopeBarbermanId ?? undefined);
+    const inferredBarbermanId = entries[0]?.barbermanId ?? null;
+    const scopeBarbermanId = barbermanId ?? inferredBarbermanId ?? undefined;
 
-    if (existing.length > 0) {
+    if (
+      barbermanId &&
+      entries.some((entry) => entry.barbermanId !== null && entry.barbermanId !== barbermanId)
+    ) {
       throw new ApiError(
-        'A API atual ainda não permite substituir a jornada existente com segurança.',
-        409,
-        { code: 'SCHEDULE_REPLACE_NOT_SUPPORTED' },
+        'A jornada informada não corresponde ao profissional selecionado.',
+        400,
+        { code: 'SCHEDULE_SCOPE_MISMATCH' },
         false,
       );
     }
 
-    if (entries.length === 0) return [];
-
-    const saved: WeeklyScheduleEntry[] = [];
-
-    for (const entry of entries) {
-      const body: BackendUpdateScheduleRequestDto = {
-        createdBy: actorId,
+    const body: BackendUpdateScheduleRequestDto = {
+      schedules: entries.map((entry) => ({
         dayOfWeek: entry.weekday,
         openTime: entry.range.start,
         closeTime: entry.range.end,
-        barbermanId: entry.barbermanId,
-      };
+      })),
+    };
 
-      const response = await httpClient.put<BackendUpdateScheduleResponseDto>(
-        `/api/barbershops/${encodeURIComponent(barbershopId)}/schedules`,
-        body,
-      );
+    await httpClient.put<BackendUpdateScheduleResponseDto>(
+      `/api/barbershops/${encodeURIComponent(barbershopId)}/schedules`,
+      body,
+      {
+        params: scopeBarbermanId ? { barbermanId: scopeBarbermanId } : undefined,
+      },
+    );
 
-      if (!response || typeof response.scheduleId !== 'string') {
-        throw new ApiError('Resposta inválida ao salvar jornada.', 500, response, false);
-      }
-
-      saved.push({
-        id: response.scheduleId,
-        ...entry,
-      });
-    }
-
-    return saved;
+    // O PUT faz replace atômico e retorna apenas mensagem. Recarregamos o
+    // escopo persistido para manter o cache do frontend autoritativo.
+    return this.getWeeklySchedule(barbershopId, scopeBarbermanId);
   }
 
   async listExceptions(

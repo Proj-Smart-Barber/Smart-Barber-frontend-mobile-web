@@ -1,74 +1,107 @@
-# Integração Availability — auditoria frontend x backend
+# Integração Availability — frontend x backend atualizado
 
 **Auditoria do código real:** 13/09/2026  
-**Backend analisado:** `api-feat-availability-engine`  
-**Frontend analisado:** `feature/4-sprint-2-definicao-disponibilidade`
+**Backend analisado:** `api-feat-availability-engine` (versão atualizada)  
+**Frontend atualizado:** `feature/4-sprint-2-definicao-disponibilidade`
 
 ## Estado confirmado do backend
 
 Base HTTP: `/api/barbershops/:shopId`
 
-| Ação | Método | Estado real observado |
+| Ação | Método | Estado observado |
 |---|---|---|
-| Ler barbearia | GET `/:shopId` | ✅ Drizzle, retorna `{ barbershop }` com timezone |
-| Ler jornada | GET `/schedules` | ✅ Drizzle, retorna jornadas reais |
-| Salvar jornada | PUT `/schedules` | ⚠️ Ainda cria **uma entrada por request**; não substitui a grade antiga |
+| Perfil autenticado | GET `/api/staffs/me` | ✅ retorna `staff` e, para OWNER, `barbershop { id, name, timezone }` |
+| Ler barbearia | GET `/:shopId` | ✅ Drizzle, retorna `{ barbershop }` |
+| Ler jornada | GET `/schedules` | ✅ Drizzle |
+| Salvar jornada | PUT `/schedules` | ✅ batch `schedules[]` + `bulkReplace` atômico |
+| Escopo profissional | `?barbermanId=UUID` | ✅ separa jornada geral da jornada do profissional |
+| Limpar jornada | PUT `/schedules` com `schedules: []` | ✅ remove apenas o escopo solicitado |
 | Ler exceções | GET `/schedule-exceptions` | ✅ Drizzle |
-| Criar exceção | POST `/schedule-exceptions` | ✅ Drizzle |
-| Editar exceção | PATCH `/schedule-exceptions/:id` | ✅ Drizzle, persiste alteração |
-| Excluir exceção | DELETE `/schedule-exceptions/:id` | ✅ Drizzle |
-| Calcular slots | GET `/availability` | ✅ múltiplos turnos/exceções; bookings ainda InMemory |
+| Criar exceção | POST `/schedule-exceptions` | ✅ autenticado + ownership |
+| Editar exceção | PATCH `/schedule-exceptions/:id` | ✅ autenticação, ownership e validação de horários |
+| Excluir exceção | DELETE `/schedule-exceptions/:id` | ✅ autenticação + ownership |
+| Calcular slots | GET `/availability` | ✅ usa timezone da barbearia; bookings ainda InMemory |
 
-## Correções feitas no frontend nesta auditoria
+## Ajustes aplicados no frontend
 
-- `GET /barbershops/:shopId` passou a ser usado de verdade; nome/timezone não vêm mais do `.env`.
-- Removidos os espelhos em memória de jornadas/exceções: os GETs do backend agora são autoritativos.
-- `PATCH` de exceção passou a usar o endpoint real e recarregar a entidade persistida.
-- `dayOfWeek` recebido do backend é normalizado de forma case-insensitive (`monday` → `MONDAY`), necessário porque o seed atual usa minúsculas.
-- Sem `barbermanId`, o adapter mantém a semântica do frontend de "jornada geral", filtrando registros de profissionais que o GET do backend também pode retornar.
-- O `createdBy` do PUT atual passa a receber o `staff.id` autenticado através da camada `app`, evitando o fallback inválido `mock-user-id` do backend.
-- Cache do TanStack Query voltou a ser revalidável, pois os endpoints GET agora leem dados reais.
-- `EXPO_PUBLIC_BARBERSHOP_NAME` e `EXPO_PUBLIC_BARBERSHOP_TIMEZONE` foram removidos; apenas o ID temporário da unidade permanece configurável.
+- `PUT /schedules` agora envia **um único batch**, em vez de uma requisição por intervalo.
+- `createdBy` foi removido do payload; o backend usa o usuário autenticado do JWT.
+- `barbermanId` passou a ser tratado como escopo da query string.
+- `schedules: []` é enviado normalmente, permitindo apagar toda a jornada do escopo.
+- Após o `PUT`, o frontend recarrega a jornada pelo `GET` e mantém o backend como fonte autoritativa.
+- `/api/staffs/me` agora alimenta a sessão com `barbershop`, removendo a dependência de `EXPO_PUBLIC_BARBERSHOP_ID` no modo HTTP.
+- O ViewModel recebe o `barbershop.id` da sessão autenticada.
+- O adapter rejeita batches que misturem múltiplos `barbermanId`.
+- O botão voltar da tela de disponibilidade passou a usar fallback para `/(app)` quando não há histórico.
+- A rota fantasma `agenda` foi removida do `(app)/_layout.tsx`, eliminando o warning do Expo Router enquanto `agenda.tsx` não existir.
+- Testes do adapter HTTP foram atualizados para o novo contrato batch e para o caso de limpeza de jornada profissional.
 
-## Bloqueador para integração definitiva
+## Contrato usado pelo frontend
 
-O repositório `DrizzleSchedulesRepository` já possui `bulkReplace`, porém o controller/use case atual de `PUT /schedules` ainda chama `create()` para **uma única jornada**.
+### Jornada geral
 
-Isso significa que o frontend não consegue, por HTTP:
-
-- desativar um dia que já tinha horários;
-- remover um intervalo existente;
-- substituir `09:00–18:00` por `10:00–17:00` sem deixar o registro antigo;
-- salvar a grade semanal repetidamente sem acumular duplicatas.
-
-Não existe endpoint DELETE de schedules, então esse comportamento não pode ser corrigido corretamente apenas no frontend.
-
-### Ajuste mínimo necessário no backend antes de ativar HTTP
-
-Fazer `PUT /barbershops/:shopId/schedules` receber a grade do escopo e executar `bulkReplace` de forma atômica. O documento técnico final já descreve essa intenção, mas o ZIP atual ainda não a conecta ao controller/use case.
-
-Também é recomendável que `createdBy` seja obtido do usuário autenticado no backend em vez de vir do body. Enquanto isso não ocorrer, o frontend envia o `staff.id` para compatibilidade.
-
-## Pendências não bloqueantes para a tela de configuração
-
-- `/staffs/me` ainda não informa `barbershopId`; por isso `EXPO_PUBLIC_BARBERSHOP_ID` continua necessário temporariamente.
-- O motor de disponibilidade ainda monta ISO com offset `-03:00` fixo, apesar de a barbearia possuir `timezone`.
-- O cálculo usa `InMemoryBookingsRepository`; conflitos com bookings reais ainda não são lidos do banco.
-
-## Como deixar o frontend preparado
-
-Desenvolvimento isolado:
-
-```env
-EXPO_PUBLIC_AVAILABILITY_SOURCE=mock
+```http
+PUT /api/barbershops/:shopId/schedules
+Authorization: Bearer <token>
 ```
 
-Quando o backend corrigir o replace da jornada:
+```json
+{
+  "schedules": [
+    {
+      "dayOfWeek": "MONDAY",
+      "openTime": "08:00",
+      "closeTime": "12:00"
+    },
+    {
+      "dayOfWeek": "MONDAY",
+      "openTime": "13:00",
+      "closeTime": "18:00"
+    }
+  ]
+}
+```
+
+### Jornada de profissional
+
+```http
+PUT /api/barbershops/:shopId/schedules?barbermanId=UUID
+Authorization: Bearer <token>
+```
+
+O body continua com o mesmo formato de `schedules[]`.
+
+### Limpar jornada geral
+
+```json
+{ "schedules": [] }
+```
+
+### Limpar jornada de um profissional
+
+```http
+PUT /api/barbershops/:shopId/schedules?barbermanId=UUID
+```
+
+```json
+{ "schedules": [] }
+```
+
+## Configuração para integração HTTP
 
 ```env
 EXPO_PUBLIC_API_URL=http://SEU_HOST:PORT
 EXPO_PUBLIC_AVAILABILITY_SOURCE=http
-EXPO_PUBLIC_BARBERSHOP_ID=<UUID_REAL_DA_BARBEARIA>
 ```
 
-Em Expo Go, não use `localhost` para um backend executando no PC; use o IP local da máquina na mesma rede.
+`EXPO_PUBLIC_BARBERSHOP_ID` não é mais necessário no modo HTTP. O ID vem de `/api/staffs/me`.
+
+Em Expo Go, não use `localhost` quando o backend estiver rodando no PC; use o IP local da máquina na mesma rede.
+
+## Pendência conhecida no backend
+
+O `CalculateAvailabilityUseCase` já consulta a timezone da barbearia, porém o factory ainda injeta `InMemoryBookingsRepository`. Portanto, bookings reais persistidos no PostgreSQL ainda não bloqueiam slots até a integração do repositório Drizzle correspondente.
+
+## Observação de status HTTP
+
+Os use cases aplicam ownership e retornam `NotAllowedError`, mas alguns controllers ainda convertem qualquer erro de domínio usando `clientError(...)` (HTTP 400). Se o contrato desejado for realmente `403 Forbidden`, o mapeamento do controller deve usar `forbidden(...)` para `NotAllowedError`.

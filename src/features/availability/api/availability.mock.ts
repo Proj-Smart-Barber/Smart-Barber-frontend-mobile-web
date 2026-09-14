@@ -8,7 +8,6 @@
 import type {
   AvailabilityException,
   AvailabilitySlot,
-  AvailabilityWriteContext,
   IAvailabilityRepository,
   WeeklyScheduleEntry,
 } from './availability.contract';
@@ -100,10 +99,10 @@ export class AvailabilityMockAdapter implements IAvailabilityRepository {
   async saveWeeklySchedule(
     _barbershopId: string,
     entries: Omit<WeeklyScheduleEntry, 'id'>[],
-    _context?: AvailabilityWriteContext,
+    scopeBarbermanId?: string,
   ): Promise<WeeklyScheduleEntry[]> {
     await this.delay();
-    const barbermanId = entries[0]?.barbermanId ?? null;
+    const barbermanId = scopeBarbermanId ?? entries[0]?.barbermanId ?? null;
 
     // Substitui só as linhas do mesmo "dono" (loja geral ou profissional específico)
     const untouched = this.scheduleRaw.filter((e) => e.barberman_id !== barbermanId);

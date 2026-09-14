@@ -29,20 +29,16 @@ export interface BackendScheduleListResponseDto {
   schedules: BackendScheduleItemDto[];
 }
 
-/**
- * Contrato REAL do controller atual: uma entrada por PUT.
- * `createdBy` é necessário para evitar o fallback inválido "mock-user-id".
- */
+/** Contrato atual: 1 request = 1 escopo de jornada, com replace em batch. */
 export interface BackendUpdateScheduleRequestDto {
-  createdBy: string;
-  dayOfWeek: Weekday;
-  openTime: string;
-  closeTime: string;
-  barbermanId?: string | null;
+  schedules: Array<{
+    dayOfWeek: Weekday;
+    openTime: string;
+    closeTime: string;
+  }>;
 }
 
 export interface BackendUpdateScheduleResponseDto {
-  scheduleId: string;
   message: string;
 }
 

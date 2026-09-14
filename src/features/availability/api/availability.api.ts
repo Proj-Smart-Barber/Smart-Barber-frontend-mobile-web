@@ -55,14 +55,13 @@ export function useWeeklyScheduleQuery(barbershopId: string, barbermanId?: strin
 
 export function useSaveWeeklyScheduleMutation(
   barbershopId: string,
-  actorId?: string | null,
   barbermanId?: string,
 ) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (entries: Omit<WeeklyScheduleEntry, 'id'>[]) =>
-      availabilityRepository.saveWeeklySchedule(barbershopId, entries, { actorId }),
+      availabilityRepository.saveWeeklySchedule(barbershopId, entries, barbermanId),
     onSuccess: (savedEntries) => {
       queryClient.setQueryData(
         AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId),

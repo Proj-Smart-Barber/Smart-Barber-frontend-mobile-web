@@ -13,19 +13,16 @@ import { buildScheduleDayViews } from './availability.types';
 import type { WeeklyScheduleEntry, AvailabilityException } from '../api/availability.contract';
 import type { NormalizedAvailabilityError } from '../api/normalize-availability-error';
 
-export function useAvailabilityViewModel(actorId?: string | null) {
-  /**
-   * O backend atual possui GET /barbershops/:shopId, mas /staffs/me ainda não
-   * informa a unidade do staff. Por isso o UUID da barbearia segue configurado
-   * por ambiente no modo HTTP.
-   */
-  const barbershopId = ENV.BARBERSHOP_ID;
+export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
+  const barbershopId =
+    ENV.AVAILABILITY_SOURCE === 'http'
+      ? sessionBarbershopId ?? ''
+      : ENV.BARBERSHOP_ID;
+
   const configurationError =
     ENV.AVAILABILITY_SOURCE === 'http' && !barbershopId
-      ? 'Defina EXPO_PUBLIC_BARBERSHOP_ID com o UUID real da unidade antes de ativar a integração HTTP.'
-      : ENV.AVAILABILITY_SOURCE === 'http' && !actorId
-        ? 'Não foi possível identificar o usuário autenticado responsável pela alteração.'
-        : null;
+      ? 'Não foi possível identificar a barbearia vinculada ao usuário autenticado.'
+      : null;
 
   const hasHttpConfiguration = configurationError === null;
 
@@ -33,7 +30,7 @@ export function useAvailabilityViewModel(actorId?: string | null) {
   const scheduleQuery = useWeeklyScheduleQuery(barbershopId);
   const exceptionsQuery = useExceptionsQuery(barbershopId);
 
-  const saveScheduleMutation = useSaveWeeklyScheduleMutation(barbershopId, actorId);
+  const saveScheduleMutation = useSaveWeeklyScheduleMutation(barbershopId);
   const createExceptionMutation = useCreateExceptionMutation(barbershopId);
   const removeExceptionMutation = useRemoveExceptionMutation(barbershopId);
 
