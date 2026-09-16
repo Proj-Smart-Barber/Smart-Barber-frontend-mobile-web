@@ -1,6 +1,7 @@
 export * from './api/agenda.contract';
 export * from './api/agenda.dto';
 export * from './api/agenda.mapper';
+export * from './api/agenda.mock';
 export * from './api/agenda.http';
 export * from './api/agenda.api';
 export * from './api/normalize-agenda-error';
@@ -14,5 +15,7 @@ export * from './ui/AgendaHeader';
 export * from './ui/AgendaSummary';
 export * from './ui/AgendaSyncBanner';
 export * from './ui/AgendaTimeline';
-export * from './ui/AgendaBookingCard';
-export * from './ui/AgendaSimpleBookingRow';
+export * from './ui/AgendaAppointmentCard';
+export * from './ui/AgendaFreeSlotCard';
+export * from './ui/AgendaHoldCard';
+export * from './ui/AgendaBufferRow';

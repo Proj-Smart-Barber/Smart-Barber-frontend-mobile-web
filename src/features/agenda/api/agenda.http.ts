@@ -1,60 +1,18 @@
 /**
- * Adapter HTTP da Agenda do barbeiro (API de Booking).
+ * Adapter HTTP da Agenda — stub.
  *
- * O `barbermanId` NÃO vai no path: a API o resolve pelo JWT (`sub`).
- * O cabeçalho `Authorization: Bearer <token>` é anexado automaticamente
- * pelo `httpClient` a partir do token storage.
+ * Preencher quando o backend publicar o contrato de disponibilidade
+ * consolidada (jornada + buffers + holds + reservas). O fluxo esperado:
+ * httpClient.get(...) -> mapAgendaDayDto(dto) -> AgendaDay.
  *
- * O parâmetro `date` é sempre enviado como "yyyy-MM-dd" em UTC.
+ * NÃO recalcular jornada, buffers, holds ou reservas no cliente.
  */
-import { httpClient } from '@/shared/api';
-import type {
-  AgendaBooking,
-  AgendaBookingDetails,
-  IBookingScheduleRepository,
-} from './agenda.contract';
-import type {
-  AgendaCancelBookingResponseDto,
-  AgendaDailyScheduleDetailsResponseDto,
-  AgendaDailyScheduleResponseDto,
-} from './agenda.dto';
-import { mapBookingDto, mapDailyScheduleDetailsDto, mapDailyScheduleDto } from './agenda.mapper';
-import { formatUtcDateQuery } from '../model/agenda.helpers';
+import type { AgendaDay, AgendaScope, IAgendaRepository } from './agenda.contract';
 
-const SCHEDULE_PATH = '/api/booking/barberman/schedule';
-const SCHEDULE_DETAILS_PATH = '/api/booking/barberman/schedule/details';
-const CANCEL_PATH = '/api/booking';
-
-export class BookingScheduleHttpAdapter implements IBookingScheduleRepository {
-  async getDailySchedule({ date }: { date: string }): Promise<AgendaBooking[]> {
-    const response = await httpClient.get<AgendaDailyScheduleResponseDto>(SCHEDULE_PATH, {
-      params: { date: formatUtcDateQuery(date) },
-    });
-    return mapDailyScheduleDto(response);
-  }
-
-  async getDailyScheduleWithDetails({
-    date,
-  }: {
-    date: string;
-  }): Promise<AgendaBookingDetails[]> {
-    const response = await httpClient.get<AgendaDailyScheduleDetailsResponseDto>(
-      SCHEDULE_DETAILS_PATH,
-      { params: { date: formatUtcDateQuery(date) } },
+export class AgendaHttpAdapter implements IAgendaRepository {
+  async getAgendaDay(params: { scope: AgendaScope; date: string }): Promise<AgendaDay> {
+    throw new Error(
+      `AgendaHttpAdapter ainda não implementado: aguarda o contrato de agenda do backend (data=${params.date}, papel=${params.scope.role}).`,
     );
-    return mapDailyScheduleDetailsDto(response);
-  }
-
-  async cancelBooking(bookingId: string): Promise<AgendaBooking> {
-    const response = await httpClient.delete<AgendaCancelBookingResponseDto>(
-      `${CANCEL_PATH}/${encodeURIComponent(bookingId)}/cancel`,
-    );
-
-    const booking = mapBookingDto(response?.booking);
-    if (!booking) {
-      throw new Error('Resposta inválida do servidor ao cancelar o agendamento.');
-    }
-
-    return booking;
   }
 }

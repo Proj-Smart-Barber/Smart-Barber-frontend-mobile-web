@@ -1,52 +1,95 @@
 /**
- * DTOs brutos da Agenda (respostas HTTP reais da API de Booking).
+ * DTOs brutos da Agenda.
  *
- * Espelham fielmente os retornos de `BookingMapper.toHTTP` e
- * `BookingDetailsMapper.toHTTP`. Em JSON, campos `Date` chegam como
- * string ISO 8601. A UI nunca consome estes tipos diretamente —
- * sempre passam pelo mapper (agenda.mapper.ts).
+ * ATENÇÃO: formato de desenvolvimento usado pelo adapter mock
+ * (agenda.mock.ts) para exercitar o pipeline completo
+ * (DTO bruto -> mapper -> domínio -> UI). Será substituído pelo
+ * contrato real da API quando o backend publicar a disponibilidade
+ * consolidada. A UI nunca consome estes tipos diretamente.
  */
+import type { AppointmentStatus } from '@/entities/appointment';
+import type { AgendaPaymentStatus } from './agenda.contract';
 
-export interface AgendaBookingHttpDto {
+export interface AgendaAppointmentRawDto {
+  type: 'APPOINTMENT';
   id: string;
-  barbershopId: string;
-  barbermanId: string;
-  shoppingCartId: string;
+  start_time: string;
+  end_time: string;
+  customer_name: string;
+  service_title: string;
+  service_price_in_cents: number | null;
+  professional_id: string;
+  professional_name: string;
+  status: string;
+  payment_status: string | null;
+  checked_in_at: string | null;
+  has_conflict: boolean;
+}
+
+export interface AgendaFreeSlotRawDto {
+  type: 'FREE_SLOT';
+  id: string;
+  start_time: string;
+  end_time: string;
+}
+
+export interface AgendaHoldRawDto {
+  type: 'HOLD';
+  id: string;
+  start_time: string;
+  end_time: string;
+  expires_at: string | null;
+  reason: string | null;
+}
+
+export interface AgendaBufferRawDto {
+  type: 'BUFFER';
+  id: string;
+  start_time: string;
+  end_time: string;
+  kind: string | null;
+}
+
+export type AgendaEntryRawDto =
+  | AgendaAppointmentRawDto
+  | AgendaFreeSlotRawDto
+  | AgendaHoldRawDto
+  | AgendaBufferRawDto;
+
+export interface AgendaNextAppointmentRawDto {
+  start_time: string;
+  customer_name: string;
+  service_title: string;
+  professional_name: string;
+}
+
+export interface AgendaDaySummaryRawDto {
+  total_slots: number | null;
+  booked_slots: number | null;
+  occupancy_rate_percent: number | null;
+  next_appointment: AgendaNextAppointmentRawDto | null;
+  is_closed: boolean;
+}
+
+export interface AgendaDayRawDto {
   date: string;
-  startTime: string;
-  endTime: string;
-  createdAt: string | null;
+  summary: AgendaDaySummaryRawDto;
+  entries: AgendaEntryRawDto[];
 }
 
-export interface AgendaBookingServiceHttpDto {
-  id: string;
-  title: string;
-  priceInCents: number;
-  durationInMinutes: number;
-}
+/** Status válidos aceitos no payload (fonte: entities/appointment). */
+export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
+  'WAITING',
+  'CONFIRMED',
+  'IN_SERVICE',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+];
 
-export interface AgendaBookingCustomerHttpDto {
-  id: string;
-  name: string;
-  phoneNumber: string;
-}
-
-export interface AgendaBookingDetailsHttpDto extends AgendaBookingHttpDto {
-  customer: AgendaBookingCustomerHttpDto;
-  services: AgendaBookingServiceHttpDto[];
-}
-
-/** Envelope de `GET /api/booking/barberman/schedule`. */
-export interface AgendaDailyScheduleResponseDto {
-  bookings: AgendaBookingHttpDto[];
-}
-
-/** Envelope de `GET /api/booking/barberman/schedule/details`. */
-export interface AgendaDailyScheduleDetailsResponseDto {
-  bookings: AgendaBookingDetailsHttpDto[];
-}
-
-/** Envelope de `DELETE /api/booking/:bookingId/cancel`. */
-export interface AgendaCancelBookingResponseDto {
-  booking: AgendaBookingHttpDto;
-}
+/** Status de pagamento válidos aceitos no payload. */
+export const AGENDA_PAYMENT_STATUSES: readonly AgendaPaymentStatus[] = [
+  'PAID',
+  'PENDING',
+  'REFUNDED',
+];

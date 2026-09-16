@@ -8,15 +8,16 @@ import {
   formatDateLabel,
   formatDateLabelShort,
   formatDurationMinutes,
+  formatHoldExpiry,
   formatLastUpdated,
   formatMonthLabel,
-  formatUtcDateQuery,
   getCalendarWeekdaysShort,
   getCalendarWeeks,
   isWithinNavigationLimit,
+  mapPaymentStatusLabel,
   minutesBetween,
   parseISODate,
-  sortBookingsChronologically,
+  sortAgendaEntriesChronologically,
   timeToMinutes,
   toISODate,
 } from '../model/agenda.helpers';
@@ -111,42 +112,49 @@ describe('Agenda Helpers — horários e durações', () => {
     expect(formatCurrency(14280)).toBe('R$ 142,80');
     expect(formatCurrency(0)).toBe('R$ 0,00');
   });
+
+  it('deve mapear rótulos de pagamento', () => {
+    expect(mapPaymentStatusLabel('PAID')).toBe('Pago');
+    expect(mapPaymentStatusLabel('PENDING')).toBe('Pagamento pendente');
+    expect(mapPaymentStatusLabel('REFUNDED')).toBe('Reembolsado');
+  });
 });
 
 describe('Agenda Helpers — sincronização', () => {
   it('deve formatar a última atualização', () => {
     expect(formatLastUpdated(new Date(2026, 8, 7, 14, 32).getTime())).toBe('Atualizado às 14:32');
   });
-});
 
-describe('Agenda Helpers — data UTC da consulta', () => {
-  it('deve manter strings "yyyy-MM-dd" inalteradas', () => {
-    expect(formatUtcDateQuery('2026-09-07')).toBe('2026-09-07');
-  });
-
-  it('deve formatar Date em UTC, sem deslocar por fuso local', () => {
-    // Instante 02:30Z pertence ao dia UTC 08, mesmo sendo 23:30 em UTC-3.
-    expect(formatUtcDateQuery(new Date('2026-09-08T02:30:00.000Z'))).toBe('2026-09-08');
-    // Instante 00:30Z pertence ao dia UTC 07.
-    expect(formatUtcDateQuery(new Date('2026-09-07T00:30:00.000Z'))).toBe('2026-09-07');
-  });
-
-  it('deve rejeitar datas inválidas', () => {
-    expect(() => formatUtcDateQuery('data-invalida')).toThrow();
+  it('deve formatar expiração de hold', () => {
+    const now = new Date(2026, 8, 7, 14, 0);
+    expect(formatHoldExpiry(null, now)).toBeNull();
+    expect(formatHoldExpiry('data-invalida', now)).toBeNull();
+    expect(
+      formatHoldExpiry(new Date(now.getTime() - 60_000).toISOString(), now),
+    ).toBe('Expirado');
+    expect(
+      formatHoldExpiry(new Date(now.getTime() + 5 * 60_000).toISOString(), now),
+    ).toBe('Expira em 5 min');
+    expect(
+      formatHoldExpiry(new Date(now.getTime() + 2 * 60 * 60_000).toISOString(), now),
+    ).toBe('Expira em 2 h');
+    expect(
+      formatHoldExpiry(new Date(now.getTime() + 125 * 60_000).toISOString(), now),
+    ).toBe('Expira em 2 h 5 min');
   });
 });
 
 describe('Agenda Helpers — ordenação', () => {
-  it('deve ordenar bookings cronologicamente de forma estável', () => {
-    const bookings = [
+  it('deve ordenar entradas cronologicamente de forma estável', () => {
+    const entries = [
       { id: '1', startTime: '11:00' },
       { id: '2', startTime: '09:30' },
       { id: '3', startTime: '11:00' },
       { id: '4', startTime: '10:15' },
     ];
-    const sorted = sortBookingsChronologically(bookings);
-    expect(sorted.map((booking) => booking.id)).toEqual(['2', '4', '1', '3']);
+    const sorted = sortAgendaEntriesChronologically(entries);
+    expect(sorted.map((e) => e.id)).toEqual(['2', '4', '1', '3']);
     // não muta o array original
-    expect(bookings[0].id).toBe('1');
+    expect(entries[0].id).toBe('1');
   });
 });

@@ -1,114 +1,67 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
-import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { View } from 'react-native';
+import { useTheme } from '@/shared/theme';
 import { Card, EmptyState, Skeleton, Text } from '@/shared/ui';
-import type { AgendaBooking, AgendaBookingDetails, AgendaViewMode } from '../api/agenda.contract';
-import { AgendaBookingCard } from './AgendaBookingCard';
-import { AgendaSimpleBookingRow } from './AgendaSimpleBookingRow';
+import type { AgendaEntry } from '../api/agenda.contract';
+import { AgendaAppointmentCard } from './AgendaAppointmentCard';
+import { AgendaBufferRow } from './AgendaBufferRow';
+import { AgendaFreeSlotCard } from './AgendaFreeSlotCard';
+import { AgendaHoldCard } from './AgendaHoldCard';
 
 interface AgendaTimelineProps {
-  mode: AgendaViewMode;
-  onModeChange: (mode: AgendaViewMode) => void;
-  details: AgendaBookingDetails[];
-  simpleBookings: AgendaBooking[];
-  isToday: boolean;
+  entries: AgendaEntry[];
+  isClosed: boolean;
   isLoading: boolean;
   isUpdatingDate: boolean;
   onGoToToday: () => void;
-  onCancelBooking?: (bookingId: string) => void;
-  cancellingBookingId?: string | null;
-  cancelErrorBookingId?: string | null;
-  cancelErrorMessage?: string | null;
 }
 
-const MODE_OPTIONS: { label: string; value: AgendaViewMode }[] = [
-  { label: 'Detalhada', value: 'details' },
-  { label: 'Simples', value: 'simple' },
-];
+function renderEntry(entry: AgendaEntry) {
+  switch (entry.type) {
+    case 'APPOINTMENT':
+      return <AgendaAppointmentCard key={entry.id} entry={entry} />;
+    case 'FREE_SLOT':
+      return <AgendaFreeSlotCard key={entry.id} entry={entry} />;
+    case 'HOLD':
+      return <AgendaHoldCard key={entry.id} entry={entry} />;
+    case 'BUFFER':
+      return <AgendaBufferRow key={entry.id} entry={entry} />;
+    default:
+      return null;
+  }
+}
 
-/** Lista de agendamentos do dia (detalhada ou simples). */
+/** Linha do tempo do dia em ordem cronológica. */
 export function AgendaTimeline({
-  mode,
-  onModeChange,
-  details,
-  simpleBookings,
-  isToday,
+  entries,
+  isClosed,
   isLoading,
   isUpdatingDate,
   onGoToToday,
-  onCancelBooking,
-  cancellingBookingId = null,
-  cancelErrorBookingId = null,
-  cancelErrorMessage = null,
 }: AgendaTimelineProps) {
-  const { colors, spacing, radius } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
-
-  const totalCount = mode === 'simple' ? simpleBookings.length : details.length;
-  const hasEntries = totalCount > 0;
+  const { colors, spacing } = useTheme();
 
   return (
     <View style={{ width: '100%', gap: spacing[4] }}>
       <View
         style={{
-          flexDirection: isCompact ? 'column' : 'row',
-          alignItems: isCompact ? 'flex-start' : 'center',
+          flexDirection: 'row',
+          alignItems: 'center',
           justifyContent: 'space-between',
           gap: spacing[3],
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing[2] }}>
-          <Text variant="h2" color={colors.text.primary}>
-            Agendamentos
-          </Text>
-          <Text variant="caption" color={colors.text.muted}>
-            {totalCount} {totalCount === 1 ? 'horário' : 'horários'}
-          </Text>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.surface.input,
-            borderRadius: radius.full,
-            padding: 4,
-            gap: 4,
-            alignSelf: isCompact ? 'flex-start' : 'auto',
-          }}
-        >
-          {MODE_OPTIONS.map((option) => {
-            const isActive = mode === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="button"
-                accessibilityLabel={`Ver agenda ${option.label.toLowerCase()}`}
-                accessibilityState={{ selected: isActive }}
-                onPress={() => onModeChange(option.value)}
-                style={{
-                  paddingHorizontal: spacing[3],
-                  paddingVertical: spacing[1],
-                  borderRadius: radius.full,
-                  backgroundColor: isActive ? colors.brand.primary : 'transparent',
-                }}
-              >
-                <Text
-                  variant="tab"
-                  color={isActive ? colors.text.inverse : colors.text.secondary}
-                  weight={isActive ? 'semibold' : 'medium'}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Text variant="h2" color={colors.text.primary}>
+          Horários
+        </Text>
+        <Text variant="caption" color={colors.text.muted}>
+          {entries.length} {entries.length === 1 ? 'entrada' : 'entradas'}
+        </Text>
       </View>
 
       {isLoading ? (
         <View style={{ gap: spacing[3] }}>
-          {[0, 1, 2].map((index) => (
+          {[0, 1, 2, 3].map((index) => (
             <Card key={index} style={{ minHeight: 84, gap: spacing[2] }}>
               <Skeleton width={140} height={18} />
               <Skeleton width="60%" height={14} />
@@ -116,38 +69,27 @@ export function AgendaTimeline({
             </Card>
           ))}
         </View>
-      ) : !hasEntries ? (
+      ) : entries.length === 0 ? (
         <Card style={{ padding: spacing[6] }}>
           <EmptyState
-            title="Nenhum agendamento neste dia"
-            description="Não há horários reservados para a data selecionada."
-            actionLabel={isToday ? undefined : 'Voltar para hoje'}
-            onAction={isToday ? undefined : onGoToToday}
+            title={isClosed ? 'Barbearia fechada neste dia' : 'Nenhum horário neste dia'}
+            description={
+              isClosed
+                ? 'Não há expediente programado para a data selecionada.'
+                : 'Não encontramos entradas de agenda para esta data.'
+            }
+            actionLabel="Voltar para hoje"
+            onAction={onGoToToday}
           />
         </Card>
       ) : (
         <View
-          style={[{ gap: spacing[3] }, isUpdatingDate ? { opacity: 0.6 } : null]}
+          style={[
+            { gap: spacing[3] },
+            isUpdatingDate ? { opacity: 0.6 } : null,
+          ]}
         >
-          {mode === 'simple'
-            ? simpleBookings.map((booking) => (
-                <AgendaSimpleBookingRow
-                  key={booking.id}
-                  booking={booking}
-                  onCancel={onCancelBooking ? () => onCancelBooking(booking.id) : undefined}
-                  isCancelling={cancellingBookingId === booking.id}
-                  cancelError={cancelErrorBookingId === booking.id ? cancelErrorMessage : null}
-                />
-              ))
-            : details.map((booking) => (
-                <AgendaBookingCard
-                  key={booking.id}
-                  booking={booking}
-                  onCancel={onCancelBooking ? () => onCancelBooking(booking.id) : undefined}
-                  isCancelling={cancellingBookingId === booking.id}
-                  cancelError={cancelErrorBookingId === booking.id ? cancelErrorMessage : null}
-                />
-              ))}
+          {entries.map(renderEntry)}
         </View>
       )}
     </View>

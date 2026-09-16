@@ -1,16 +1,8 @@
-/**
- * View model da Agenda do barbeiro.
- *
- * A API é a fonte de verdade: o barbeiro é resolvido pelo JWT no
- * backend, então a consulta é apenas por data. Dois modos:
- * - `details` (padrão): agenda detalhada (cliente + serviços);
- * - `simple`: agenda simples (apenas id e intervalos).
- */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/features/auth';
-import { useAgendaDayQuery, useAgendaSimpleDayQuery, useCancelBookingMutation } from '../api/agenda.api';
+import { useAgendaDayQuery } from '../api/agenda.api';
 import { normalizeAgendaError } from '../api/normalize-agenda-error';
-import type { AgendaBooking, AgendaBookingDetails, AgendaViewMode } from '../api/agenda.contract';
+import type { AgendaScope } from '../api/agenda.contract';
 import { AGENDA_SYNC_CONFIG } from './agenda-state';
 import {
   addDays,
@@ -19,20 +11,24 @@ import {
   formatDateLabelShort,
   formatLastUpdated,
   isWithinNavigationLimit,
+  sortAgendaEntriesChronologically,
   toISODate,
 } from './agenda.helpers';
 import { buildAgendaSummaryView } from './agenda.types';
 
 export function useAgendaViewModel() {
-  const { signOut } = useSession();
+  const { staff } = useSession();
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
-  const [mode, setMode] = useState<AgendaViewMode>('details');
 
-  const detailsQuery = useAgendaDayQuery(selectedDate);
-  const simpleQuery = useAgendaSimpleDayQuery(selectedDate, { enabled: mode === 'simple' });
-  const cancelBookingMutation = useCancelBookingMutation();
+  const scope = useMemo<AgendaScope>(
+    () => ({
+      role: staff?.role === 'OWNER' ? 'OWNER' : 'BARBER',
+      staffId: staff?.id ?? 'default-staff-id',
+    }),
+    [staff?.role, staff?.id],
+  );
 
-  const activeQuery = mode === 'simple' ? simpleQuery : detailsQuery;
+  const dayQuery = useAgendaDayQuery(scope, selectedDate);
 
   const todayIso = toISODate(new Date());
   const daysFromToday = diffInDays(todayIso, selectedDate);
@@ -64,71 +60,41 @@ export function useAgendaViewModel() {
   }, [todayIso]);
 
   const handleRefresh = useCallback(() => {
-    void activeQuery.refetch();
-  }, [activeQuery]);
+    void dayQuery.refetch();
+  }, [dayQuery]);
 
-  const { mutate: cancelBooking } = cancelBookingMutation;
-
-  const handleCancelBooking = useCallback(
-    (bookingId: string) => {
-      cancelBooking(bookingId);
-    },
-    [cancelBooking],
-  );
-
-  const details: AgendaBookingDetails[] = detailsQuery.data ?? [];
-  const simpleBookings: AgendaBooking[] = simpleQuery.data ?? [];
-
+  const day = dayQuery.data ?? null;
   // Com keepPreviousData, `data` pode ser do dia anterior durante a
   // atualização — só é "dado do dia selecionado" quando não é placeholder.
-  const showsDataForSelectedDate =
-    activeQuery.data !== undefined && !activeQuery.isPlaceholderData;
+  const showsDataForSelectedDate = day !== null && !dayQuery.isPlaceholderData;
 
-  const summary = useMemo(
-    () =>
-      mode === 'details'
-        ? buildAgendaSummaryView(details, { isToday, isFuture: daysFromToday > 0 })
-        : null,
-    [mode, details, isToday, daysFromToday],
+  const entries = useMemo(
+    () => sortAgendaEntriesChronologically(day?.entries ?? []),
+    [day?.entries],
   );
 
-  const isInitialLoading = activeQuery.isLoading && !activeQuery.isPlaceholderData;
-  const isFetching = activeQuery.isFetching;
-  const isUpdatingDate = isFetching && activeQuery.isPlaceholderData;
+  const summary = useMemo(() => buildAgendaSummaryView(day?.summary ?? null), [day?.summary]);
+
+  const isInitialLoading = dayQuery.isLoading && !dayQuery.isPlaceholderData;
+  const isFetching = dayQuery.isFetching;
+  const isUpdatingDate = isFetching && dayQuery.isPlaceholderData;
   const isRefreshing = isFetching && !isInitialLoading;
 
-  const isError = activeQuery.isError;
+  const isError = dayQuery.isError;
   const isFatalError = isError && !showsDataForSelectedDate;
   const isErrorWithCachedData = isError && showsDataForSelectedDate;
   const normalizedError = useMemo(
-    () => (activeQuery.error ? normalizeAgendaError(activeQuery.error) : null),
-    [activeQuery.error],
+    () => (dayQuery.error ? normalizeAgendaError(dayQuery.error) : null),
+    [dayQuery.error],
   );
-
-  const normalizedCancelError = useMemo(
-    () => (cancelBookingMutation.error ? normalizeAgendaError(cancelBookingMutation.error) : null),
-    [cancelBookingMutation.error],
-  );
-
-  const isSessionExpired =
-    (normalizedError?.isSessionExpired ?? false) ||
-    (normalizedCancelError?.isSessionExpired ?? false);
-
-  // Token inválido/expirado (401, ou 500 com erro de JWT vindo do back):
-  // encerra a sessão para o guard de rotas redirecionar ao login.
-  useEffect(() => {
-    if (isSessionExpired) {
-      void signOut();
-    }
-  }, [isSessionExpired, signOut]);
 
   const lastUpdatedAtLabel = showsDataForSelectedDate
-    ? formatLastUpdated(activeQuery.dataUpdatedAt)
+    ? formatLastUpdated(dayQuery.dataUpdatedAt)
     : null;
   const isDataStale =
     showsDataForSelectedDate &&
     !isFetching &&
-    Date.now() - activeQuery.dataUpdatedAt > AGENDA_SYNC_CONFIG.staleDataThresholdMs;
+    Date.now() - dayQuery.dataUpdatedAt > AGENDA_SYNC_CONFIG.staleDataThresholdMs;
 
   // Detecção de sincronização lenta: fetch em andamento acima do
   // threshold enquanto existem dados em cache para exibir.
@@ -158,14 +124,10 @@ export function useAgendaViewModel() {
     goToToday,
     goToDate,
 
-    // Modo de visualização
-    mode,
-    setMode,
-
     // Dados do dia
-    details,
-    simpleBookings,
+    entries,
     summary,
+    isClosed: day?.summary.isClosed ?? false,
 
     // Estados de carregamento
     isInitialLoading,
@@ -183,15 +145,5 @@ export function useAgendaViewModel() {
     isDataStale,
     isSlowSync,
     handleRefresh,
-
-    // Cancelamento
-    handleCancelBooking,
-    cancellingBookingId: cancelBookingMutation.isPending
-      ? (cancelBookingMutation.variables ?? null)
-      : null,
-    cancelErrorBookingId: cancelBookingMutation.isError
-      ? (cancelBookingMutation.variables ?? null)
-      : null,
-    cancelErrorMessage: normalizedCancelError?.description ?? null,
   };
 }

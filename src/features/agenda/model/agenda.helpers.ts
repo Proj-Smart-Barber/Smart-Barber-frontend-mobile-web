@@ -1,29 +1,12 @@
+import type { AgendaPaymentStatus } from '../api/agenda.contract';
+import type { AgendaEntry } from '../api/agenda.contract';
+
 /** Converte um Date local em "yyyy-MM-dd". */
 export function toISODate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-/**
- * Formata o parâmetro `date` da API como "yyyy-MM-dd" em UTC.
- *
- * A API trunca o dia em UTC (`toISOString().split("T")[0]`), então
- * enviar um Date local sem conversão poderia deslocar o dia (ex.: UTC-3).
- * Strings já no formato "yyyy-MM-dd" passam direto.
- */
-export function formatUtcDateQuery(value: Date | string): string {
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`Data inválida para consulta da agenda: ${String(value)}`);
-  }
-
-  return date.toISOString().slice(0, 10);
 }
 
 /** Converte "yyyy-MM-dd" em Date local, sem armadilhas de fuso. */
@@ -164,9 +147,36 @@ export function formatLastUpdated(dataUpdatedAt: number): string {
   return `Atualizado às ${time}`;
 }
 
-/** Ordena bookings/entradas cronologicamente pelo início (estável). */
-export function sortBookingsChronologically<TBooking extends { startTime: string }>(
-  bookings: TBooking[],
-): TBooking[] {
-  return [...bookings].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+/** Rótulo de expiração de hold: "Expira em 5 min", "Expira em 2 h 5 min" ou "Expirado". */
+export function formatHoldExpiry(expiresAt: string | null, now: Date = new Date()): string | null {
+  if (!expiresAt) return null;
+  const expiry = new Date(expiresAt);
+  if (Number.isNaN(expiry.getTime())) return null;
+
+  const diffMs = expiry.getTime() - now.getTime();
+  if (diffMs <= 0) return 'Expirado';
+
+  const minutes = Math.ceil(diffMs / 60_000);
+  if (minutes < 60) return `Expira em ${minutes} min`;
+  return formatDurationMinutes(minutes).replace(/^(\d)/, 'Expira em $1');
+}
+
+/** Ordena entradas cronologicamente pelo horário de início (estável). */
+export function sortAgendaEntriesChronologically<TEntry extends Pick<AgendaEntry, 'startTime'>>(
+  entries: TEntry[],
+): TEntry[] {
+  return [...entries].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+}
+
+export function mapPaymentStatusLabel(status: AgendaPaymentStatus): string {
+  switch (status) {
+    case 'PAID':
+      return 'Pago';
+    case 'PENDING':
+      return 'Pagamento pendente';
+    case 'REFUNDED':
+      return 'Reembolsado';
+    default:
+      return status;
+  }
 }
