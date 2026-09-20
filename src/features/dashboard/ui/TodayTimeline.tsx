@@ -134,6 +134,10 @@ export function TodayTimeline({
                     style={{
                       width: 58,
                       flexShrink: 0,
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+                  <View
+                    style={{
+                      width: 58,
                       height: 50,
                       borderRadius: radius.md,
                       backgroundColor: colors.surface.input,
@@ -154,6 +158,7 @@ export function TodayTimeline({
                   </View>
 
                   <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                  <View style={{ flex: 1, gap: 2 }}>
                     <Text variant="subhead" color={colors.text.primary}>
                       {item.customerName}
                     </Text>

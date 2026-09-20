@@ -93,6 +93,11 @@ export function NextAppointmentCard({
             minWidth: 0,
           }}
         >
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
           <View
             style={{
               flexDirection: 'row',
@@ -115,6 +120,7 @@ export function NextAppointmentCard({
             numberOfLines={1}
             ellipsizeMode="tail"
           >
+          <Text variant="caption" color={colors.text.muted}>
             ({appointment.durationMinutes} min)
           </Text>
         </View>
@@ -140,11 +146,17 @@ export function NextAppointmentCard({
             {appointment.customerName}
           </Text>
           <Text variant="body" color={colors.text.secondary} numberOfLines={2} ellipsizeMode="tail">
+        <View style={{ gap: spacing[1] }}>
+          <Text variant="h1" color={colors.text.primary}>
+            {appointment.customerName}
+          </Text>
+          <Text variant="body" color={colors.text.secondary}>
             {appointment.serviceTitle} · Barbeiro: {appointment.barbermanName}
           </Text>
         </View>
 
         <Text variant="subhead" color={colors.brand.primary} weight="bold" style={{ flexShrink: 0 }}>
+        <Text variant="subhead" color={colors.brand.primary} weight="bold">
           {formatCurrency(appointment.servicePriceInCents)}
         </Text>
       </View>
@@ -154,6 +166,7 @@ export function NextAppointmentCard({
         style={{
           flexDirection: isCompact ? 'column' : 'row',
           alignItems: isCompact ? 'stretch' : 'center',
+          alignItems: 'center',
           gap: spacing[3],
           paddingTop: spacing[2],
           borderTopWidth: 1,

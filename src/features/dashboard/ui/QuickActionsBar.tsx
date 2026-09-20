@@ -45,6 +45,7 @@ export function QuickActionsBar() {
         width: '100%',
         flexDirection: isCompact ? 'column' : 'row',
         alignItems: isCompact ? 'stretch' : 'center',
+        alignItems: 'center',
         gap: spacing[3],
       }}
     >
