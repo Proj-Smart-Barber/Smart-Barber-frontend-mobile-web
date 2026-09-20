@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Staff } from '@/entities/staff';
 import { tokenStorage } from '@/shared/storage';
 import { authApi } from '../api/auth.api';
 import { LoginRequestDto } from '../api/auth.dto';
 import { RegisterFormValues, formatCpf } from './register.schema';
-import { AuthStatus, SessionState } from './auth-state';
+import { SessionState } from './auth-state';
 import { isTokenExpired } from '../lib/jwt-helper';
-import { normalizeAuthError, NormalizedAuthError } from '../lib/normalize-auth-error';
+import { normalizeAuthError } from '../lib/normalize-auth-error';
 
 interface SessionContextData extends SessionState {
   signIn: (credentials: LoginRequestDto) => Promise<void>;
@@ -25,6 +24,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SessionState>({
     status: 'bootstrapping',
     staff: null,
+    barbershop: null,
     token: null,
     error: null,
   });
@@ -46,6 +46,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setState({
           status: 'unauthenticated',
           staff: null,
+          barbershop: null,
           token: null,
           error: null,
         });
@@ -58,6 +59,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setState({
           status: 'unauthenticated',
           staff: null,
+          barbershop: null,
           token: null,
           error: null,
         });
@@ -66,12 +68,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
       // Validação autoritativa com o backend via /api/staffs/me
       try {
-        const staff = await authApi.getMe(storedToken);
-        queryClient.setQueryData(['auth', 'me'], staff);
+        const profile = await authApi.getMe(storedToken);
+        queryClient.setQueryData(['auth', 'me'], profile);
 
         setState({
           status: 'authenticated',
-          staff,
+          staff: profile.staff,
+          barbershop: profile.barbershop,
           token: storedToken,
           error: null,
         });
@@ -84,6 +87,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           setState({
             status: 'unauthenticated',
             staff: null,
+            barbershop: null,
             token: null,
             error: normalized,
           });
@@ -92,6 +96,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           setState({
             status: 'error',
             staff: null,
+            barbershop: null,
             token: storedToken,
             error: normalized,
           });
@@ -101,6 +106,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState({
         status: 'unauthenticated',
         staff: null,
+        barbershop: null,
         token: null,
         error: null,
       });
@@ -123,13 +129,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         await tokenStorage.set(token);
 
         // 3. GET /api/staffs/me para validar e carregar perfil
-        const staff = await authApi.getMe(token);
-        queryClient.setQueryData(['auth', 'me'], staff);
+        const profile = await authApi.getMe(token);
+        queryClient.setQueryData(['auth', 'me'], profile);
 
         // 4. Marca como autenticado
         setState({
           status: 'authenticated',
-          staff,
+          staff: profile.staff,
+          barbershop: profile.barbershop,
           token,
           error: null,
         });
@@ -141,6 +148,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setState({
           status: 'unauthenticated',
           staff: null,
+          barbershop: null,
           token: null,
           error: normalized,
         });
@@ -179,12 +187,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         await tokenStorage.set(token);
 
         // 3. GET /api/staffs/me
-        const staff = await authApi.getMe(token);
-        queryClient.setQueryData(['auth', 'me'], staff);
+        const profile = await authApi.getMe(token);
+        queryClient.setQueryData(['auth', 'me'], profile);
 
         setState({
           status: 'authenticated',
-          staff,
+          staff: profile.staff,
+          barbershop: profile.barbershop,
           token,
           error: null,
         });
@@ -196,6 +205,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setState({
           status: 'unauthenticated',
           staff: null,
+          barbershop: null,
           token: null,
           error: normalized,
         });
@@ -216,6 +226,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       setState({
         status: 'unauthenticated',
         staff: null,
+        barbershop: null,
         token: null,
         error: null,
       });
