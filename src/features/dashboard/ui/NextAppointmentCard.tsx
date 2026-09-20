@@ -78,6 +78,21 @@ export function NextAppointmentCard({
       <View
         style={{
           flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing[2],
+        }}
+      >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing[2],
+            flexShrink: 1,
+            minWidth: 0,
+          }}
+        >
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
@@ -99,6 +114,12 @@ export function NextAppointmentCard({
               {appointment.scheduledTime}
             </Text>
           </View>
+          <Text
+            variant="caption"
+            color={colors.text.muted}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
           <Text variant="caption" color={colors.text.muted}>
             ({appointment.durationMinutes} min)
           </Text>
@@ -107,6 +128,7 @@ export function NextAppointmentCard({
         <Badge
           label={mapStatusLabel(appointment.status)}
           tone={mapStatusBadgeTone(appointment.status)}
+          style={{ flexShrink: 0 }}
         />
       </View>
 
@@ -119,6 +141,11 @@ export function NextAppointmentCard({
           gap: spacing[3],
         }}
       >
+        <View style={{ flex: 1, minWidth: 0, gap: spacing[1] }}>
+          <Text variant="h1" color={colors.text.primary} numberOfLines={2} ellipsizeMode="tail">
+            {appointment.customerName}
+          </Text>
+          <Text variant="body" color={colors.text.secondary} numberOfLines={2} ellipsizeMode="tail">
         <View style={{ gap: spacing[1] }}>
           <Text variant="h1" color={colors.text.primary}>
             {appointment.customerName}
@@ -128,6 +155,7 @@ export function NextAppointmentCard({
           </Text>
         </View>
 
+        <Text variant="subhead" color={colors.brand.primary} weight="bold" style={{ flexShrink: 0 }}>
         <Text variant="subhead" color={colors.brand.primary} weight="bold">
           {formatCurrency(appointment.servicePriceInCents)}
         </Text>
@@ -137,6 +165,7 @@ export function NextAppointmentCard({
       <View
         style={{
           flexDirection: isCompact ? 'column' : 'row',
+          alignItems: isCompact ? 'stretch' : 'center',
           alignItems: 'center',
           gap: spacing[3],
           paddingTop: spacing[2],

@@ -129,6 +129,11 @@ export function TodayTimeline({
                 }}
               >
                 {/* Horário e Detalhes do Cliente */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1, minWidth: 0 }}>
+                  <View
+                    style={{
+                      width: 58,
+                      flexShrink: 0,
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
                   <View
                     style={{
@@ -152,6 +157,7 @@ export function TodayTimeline({
                     </Text>
                   </View>
 
+                  <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text variant="subhead" color={colors.text.primary}>
                       {item.customerName}
