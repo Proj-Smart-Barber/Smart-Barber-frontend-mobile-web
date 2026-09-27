@@ -10,9 +10,22 @@ export interface NormalizedAgendaError {
   isSessionExpired: boolean;
 }
 
+function isTokenErrorPayload(data: unknown): boolean {
+  const payload = JSON.stringify(data ?? '').toLowerCase();
+
+  return (
+    payload.includes('jsonwebtokenerror') ||
+    payload.includes('tokenexpirederror') ||
+    payload.includes('jwt expired') ||
+    payload.includes('jwt malformed') ||
+    payload.includes('invalid token') ||
+    payload.includes('invalid signature')
+  );
+}
+
 export function normalizeAgendaError(error: unknown): NormalizedAgendaError {
   if (error instanceof ApiError) {
-    if (error.status === 401) {
+    if (error.status === 401 || isTokenErrorPayload(error.data)) {
       return {
         title: 'Sua sessão expirou.',
         description: 'Entre novamente para continuar acompanhando a agenda.',

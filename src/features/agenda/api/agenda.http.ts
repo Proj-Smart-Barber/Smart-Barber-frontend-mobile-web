@@ -7,7 +7,8 @@
  *
  * NÃO recalcular jornada, buffers, holds ou reservas no cliente.
  */
-import type { AgendaDay, AgendaScope, IAgendaRepository } from './agenda.contract';
+import { ENV } from '@/shared/config/env';
+import type { AgendaBooking, AgendaDay, AgendaScope, IAgendaRepository } from './agenda.contract';
 
 export class AgendaHttpAdapter implements IAgendaRepository {
   async getAgendaDay(params: { scope: AgendaScope; date: string }): Promise<AgendaDay> {
@@ -16,3 +17,20 @@ export class AgendaHttpAdapter implements IAgendaRepository {
     );
   }
 }
+
+export class BookingScheduleHttpAdapter {
+  async cancelBooking(bookingId: string): Promise<AgendaBooking> {
+    const res = await fetch(`${ENV.API_URL}/api/booking/${encodeURIComponent(bookingId)}/cancel`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      throw new Error('Erro ao cancelar agendamento.');
+    }
+    const data = (await res.json().catch(() => ({}))) as { booking?: AgendaBooking };
+    if (!data || !data.booking || typeof data.booking.id !== 'string') {
+      throw new Error('Resposta inválida do servidor ao cancelar o agendamento.');
+    }
+    return data.booking;
+  }
+}
+

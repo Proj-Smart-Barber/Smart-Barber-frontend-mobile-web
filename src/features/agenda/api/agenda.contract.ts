@@ -95,3 +95,34 @@ export interface AgendaDay {
 export interface IAgendaRepository {
   getAgendaDay(params: { scope: AgendaScope; date: string }): Promise<AgendaDay>;
 }
+
+export interface AgendaBookingCustomer {
+  id?: string;
+  name: string;
+  phoneNumber: string;
+}
+
+export interface AgendaBookingService {
+  id: string;
+  title: string;
+  priceInCents?: number | null;
+  durationInMinutes?: number | null;
+  durationMinutes?: number | null;
+}
+
+export interface AgendaBooking {
+  id: string;
+  startTime: string;
+  endTime: string;
+  barbershopId?: string;
+  barbermanId?: string;
+  shoppingCartId?: string;
+  date?: string;
+  createdAt?: string;
+}
+
+export interface AgendaBookingDetails extends AgendaBooking {
+  customer: AgendaBookingCustomer;
+  services: AgendaBookingService[];
+}
+

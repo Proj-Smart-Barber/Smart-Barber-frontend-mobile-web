@@ -11,7 +11,7 @@ export function QuickActionsBar() {
   const router = useRouter();
 
   const handleOpenAgenda = () => {
-    router.push('/(app)/agenda');
+    router.push('/(app)/agenda' as any);
   };
 
   const handleQuickBooking = () => {
@@ -45,7 +45,6 @@ export function QuickActionsBar() {
         width: '100%',
         flexDirection: isCompact ? 'column' : 'row',
         alignItems: isCompact ? 'stretch' : 'center',
-        alignItems: 'center',
         gap: spacing[3],
       }}
     >

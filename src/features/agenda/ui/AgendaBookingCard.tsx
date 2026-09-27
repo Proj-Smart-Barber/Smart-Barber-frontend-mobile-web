@@ -141,7 +141,7 @@ export function AgendaBookingCard({
                 numberOfLines={1}
                 style={{ flexShrink: 0 }}
               >
-                {formatDurationMinutes(service.durationInMinutes)}
+                {formatDurationMinutes(service.durationInMinutes ?? 0)}
               </Text>
               <Text
                 variant="caption"
@@ -149,7 +149,7 @@ export function AgendaBookingCard({
                 numberOfLines={1}
                 style={{ flexShrink: 0 }}
               >
-                {formatCurrency(service.priceInCents)}
+                {formatCurrency(service.priceInCents ?? 0)}
               </Text>
             </View>
           ))}

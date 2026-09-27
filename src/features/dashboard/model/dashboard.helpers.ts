@@ -63,16 +63,6 @@ export function mapStatusBadgeTone(
       return 'info';
     case 'IN_SERVICE':
       return 'warning';
-): 'brand' | 'success' | 'warning' | 'error' {
-  switch (status) {
-    case 'COMPLETED':
-      return 'success';
-    case 'IN_SERVICE':
-      return 'warning';
-    case 'CONFIRMED':
-      return 'brand';
-    case 'WAITING':
-      return 'brand';
     case 'CANCELLED':
     case 'NO_SHOW':
       return 'error';
