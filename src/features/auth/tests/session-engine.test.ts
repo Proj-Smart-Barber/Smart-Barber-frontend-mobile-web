@@ -15,11 +15,18 @@ describe('Session Engine Lifecycle Logic', () => {
 
     vi.spyOn(authApi, 'login').mockResolvedValue({ access_token: fakeToken });
     vi.spyOn(authApi, 'getMe').mockResolvedValue({
-      id: 'user-1',
-      name: 'Carlos Silva',
-      email: 'owner@smartbarber.com',
-      avatarUrl: null,
-      role: 'OWNER',
+      staff: {
+        id: 'user-1',
+        name: 'Carlos Silva',
+        email: 'owner@smartbarber.com',
+        avatarUrl: null,
+        role: 'OWNER',
+      },
+      barbershop: {
+        id: 'shop-1',
+        name: 'Smart Barber',
+        timezone: 'America/Sao_Paulo',
+      },
     });
 
     const loginRes = await authApi.login({
@@ -32,8 +39,9 @@ describe('Session Engine Lifecycle Logic', () => {
     expect(storedToken).toBe(fakeToken);
 
     const profile = await authApi.getMe(storedToken);
-    expect(profile.id).toBe('user-1');
-    expect(profile.role).toBe('OWNER');
+    expect(profile.staff.id).toBe('user-1');
+    expect(profile.staff.role).toBe('OWNER');
+    expect(profile.barbershop?.id).toBe('shop-1');
   });
 
   it('deve remover token ao executar logout local', async () => {

@@ -127,6 +127,7 @@ export function DashboardHeader({ staff, greeting, isOwner, onSignOut }: Dashboa
         {/* Botão Sair */}
         <Button
           title={isCompact ? '' : 'Sair'}
+          accessibilityLabel="Sair"
           variant="outline"
           leftIcon={<Ionicons name="log-out-outline" size={16} color={colors.text.secondary} />}
           onPress={onSignOut}

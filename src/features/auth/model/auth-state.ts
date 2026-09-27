@@ -1,4 +1,5 @@
 import { Staff } from '@/entities/staff';
+import type { Barbershop } from '@/entities/barbershop';
 import { NormalizedAuthError } from '../lib/normalize-auth-error';
 
 export type AuthStatus =
@@ -11,6 +12,7 @@ export type AuthStatus =
 export interface SessionState {
   status: AuthStatus;
   staff: Staff | null;
+  barbershop: Barbershop | null;
   token: string | null;
   error: NormalizedAuthError | null;
 }

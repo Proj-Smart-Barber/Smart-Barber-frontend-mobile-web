@@ -1,12 +1,18 @@
 import React from 'react';
 import { Alert, Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui';
 
 export function QuickActionsBar() {
   const { colors, spacing } = useTheme();
   const { isCompact } = useAdaptiveLayout();
+  const router = useRouter();
+
+  const handleOpenAgenda = () => {
+    router.push('/(app)/agenda');
+  };
 
   const handleQuickBooking = () => {
     Alert.alert(
@@ -38,6 +44,7 @@ export function QuickActionsBar() {
       style={{
         width: '100%',
         flexDirection: isCompact ? 'column' : 'row',
+        alignItems: isCompact ? 'stretch' : 'center',
         alignItems: 'center',
         gap: spacing[3],
       }}
@@ -55,6 +62,16 @@ export function QuickActionsBar() {
         variant="outline"
         leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.text.primary} />}
         onPress={handleBlockSlot}
+        textStyle={{ color: colors.text.primary }}
+        style={{ flex: 1, minHeight: 48 }}
+      />
+
+      <Button
+        title="Ver Agenda"
+        variant="outline"
+        leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.text.primary} />}
+        onPress={handleOpenAgenda}
+        textStyle={{ color: colors.text.primary }}
         style={{ flex: 1, minHeight: 48 }}
       />
 
@@ -63,6 +80,7 @@ export function QuickActionsBar() {
         variant="outline"
         leftIcon={<Ionicons name="share-social-outline" size={18} color={colors.text.primary} />}
         onPress={handleShare}
+        textStyle={{ color: colors.text.primary }}
         style={{ flex: 1, minHeight: 48 }}
       />
     </View>

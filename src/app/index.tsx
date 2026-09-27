@@ -15,3 +15,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+//import { Redirect } from 'expo-router';
+
+//export default function Index() {
+  //return <Redirect href="/availability" />;
+//}

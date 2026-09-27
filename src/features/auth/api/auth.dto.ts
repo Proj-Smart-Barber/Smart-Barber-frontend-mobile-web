@@ -1,4 +1,5 @@
 import { RawStaffDto } from '@/entities/staff';
+import { Barbershop } from '@/entities/barbershop';
 
 export interface LoginRequestDto {
   email: string;
@@ -22,4 +23,5 @@ export interface RegisterResponseDto {
 
 export interface MeResponseDto {
   staff: RawStaffDto;
+  barbershop: Barbershop;
 }

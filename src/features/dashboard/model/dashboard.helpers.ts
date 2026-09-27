@@ -53,6 +53,16 @@ export function mapStatusLabel(status: AppointmentStatus): string {
  */
 export function mapStatusBadgeTone(
   status: AppointmentStatus,
+): 'brand' | 'success' | 'successAlt' | 'warning' | 'error' | 'info' {
+  switch (status) {
+    case 'COMPLETED':
+      return 'success';
+    case 'CONFIRMED':
+      return 'successAlt';
+    case 'WAITING':
+      return 'info';
+    case 'IN_SERVICE':
+      return 'warning';
 ): 'brand' | 'success' | 'warning' | 'error' {
   switch (status) {
     case 'COMPLETED':

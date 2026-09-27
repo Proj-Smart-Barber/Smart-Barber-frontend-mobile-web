@@ -1,5 +1,6 @@
 import { httpClient } from '@/shared/api';
-import { Staff } from '@/entities/staff';
+import type { Staff } from '@/entities/staff';
+import type { Barbershop } from '@/entities/barbershop';
 import {
   LoginRequestDto,
   LoginResponseDto,
@@ -27,7 +28,7 @@ export class AuthApi {
   /**
    * Busca perfil do usuário logado: GET /api/staffs/me
    */
-  async getMe(token?: string | null): Promise<Staff> {
+  async getMe(token?: string | null): Promise<{ staff: Staff; barbershop: Barbershop | null }> {
     const response = await httpClient.get<MeResponseDto>('/api/staffs/me', {
       token,
     });
@@ -36,7 +37,10 @@ export class AuthApi {
       throw new Error('Resposta de perfil inválida ou incompleta recebida do servidor.');
     }
 
-    return mapStaffDtoToEntity(response.staff);
+    return {
+      staff: mapStaffDtoToEntity(response.staff),
+      barbershop: response.barbershop ?? null,
+    };
   }
 }
 

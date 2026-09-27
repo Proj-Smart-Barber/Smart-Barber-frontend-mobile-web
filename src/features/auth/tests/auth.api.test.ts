@@ -71,12 +71,18 @@ describe('AuthApi', () => {
           avatarUrl: null,
           role: 'OWNER',
         },
+        barbershop: {
+          id: 'shop-uuid',
+          name: 'Smart Barber',
+          timezone: 'America/Sao_Paulo',
+        },
       }),
     } as Response);
 
-    const staff = await authApi.getMe('test-token');
-    expect(staff.id).toBe('user-uuid');
-    expect(staff.role).toBe('OWNER');
+    const profile = await authApi.getMe('test-token');
+    expect(profile.staff.id).toBe('user-uuid');
+    expect(profile.staff.role).toBe('OWNER');
+    expect(profile.barbershop?.id).toBe('shop-uuid');
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/staffs/me'),
       expect.objectContaining({

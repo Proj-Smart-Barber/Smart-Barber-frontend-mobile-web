@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { ThemeColors, lightColors, darkColors } from './colors';
 import { typography } from './typography';
@@ -45,7 +45,9 @@ export function ThemeProvider({
   const components = useMemo(() => createComponentTokens(colors), [colors]);
 
   const toggleTheme = () => {
-    setMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    // Alterna a partir do tema realmente exibido. Isso evita o caso em que
+    // mode === 'system' e o primeiro toque parece não fazer nada.
+    setMode(isDark ? 'light' : 'dark');
   };
 
   const value = useMemo(
