@@ -14,12 +14,25 @@ interface AgendaTimelineProps {
   isLoading: boolean;
   isUpdatingDate: boolean;
   onGoToToday: () => void;
+  onCancel?: (id: string) => void;
+  cancellingId?: string | null;
 }
 
-function renderEntry(entry: AgendaEntry) {
+function renderEntry(
+  entry: AgendaEntry,
+  onCancel?: (id: string) => void,
+  cancellingId?: string | null,
+) {
   switch (entry.type) {
     case 'APPOINTMENT':
-      return <AgendaAppointmentCard key={entry.id} entry={entry} />;
+      return (
+        <AgendaAppointmentCard
+          key={entry.id}
+          entry={entry}
+          onCancel={onCancel}
+          isCancelling={cancellingId === entry.id}
+        />
+      );
     case 'FREE_SLOT':
       return <AgendaFreeSlotCard key={entry.id} entry={entry} />;
     case 'HOLD':
@@ -38,6 +51,8 @@ export function AgendaTimeline({
   isLoading,
   isUpdatingDate,
   onGoToToday,
+  onCancel,
+  cancellingId,
 }: AgendaTimelineProps) {
   const { colors, spacing } = useTheme();
 
@@ -89,7 +104,7 @@ export function AgendaTimeline({
             isUpdatingDate ? { opacity: 0.6 } : null,
           ]}
         >
-          {entries.map(renderEntry)}
+          {entries.map((entry) => renderEntry(entry, onCancel, cancellingId))}
         </View>
       )}
     </View>

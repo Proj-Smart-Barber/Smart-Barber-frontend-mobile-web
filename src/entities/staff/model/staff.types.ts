@@ -4,7 +4,7 @@
 
 export type RawStaffRole = 'OWNER' | 'BARBERMAN' | 'BARBER' | string;
 
-export type StaffRole = 'OWNER' | 'BARBER';
+export type StaffRole = 'OWNER' | 'BARBER' | 'UNKNOWN';
 
 export interface Staff {
   id: string;
@@ -19,5 +19,5 @@ export interface RawStaffDto {
   name: string;
   email: string;
   avatarUrl?: string | null;
-  role: RawStaffRole;
+  role?: RawStaffRole | null;
 }

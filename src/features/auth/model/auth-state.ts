@@ -13,6 +13,7 @@ export interface SessionState {
   status: AuthStatus;
   staff: Staff | null;
   barbershop: Barbershop | null;
+  isOwner: boolean;
   token: string | null;
   error: NormalizedAuthError | null;
 }

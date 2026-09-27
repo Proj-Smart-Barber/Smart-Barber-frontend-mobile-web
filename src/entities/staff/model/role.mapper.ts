@@ -8,7 +8,7 @@ import { RawStaffRole, StaffRole } from './staff.types';
  * - BARBER -> BARBER
  */
 export function normalizeStaffRole(rawRole: RawStaffRole | undefined | null): StaffRole {
-  if (!rawRole) return 'BARBER';
+  if (!rawRole) return 'UNKNOWN';
 
   const normalized = String(rawRole).trim().toUpperCase();
 
@@ -20,6 +20,5 @@ export function normalizeStaffRole(rawRole: RawStaffRole | undefined | null): St
     return 'BARBER';
   }
 
-  // Fallback seguro caso surja variação não catalogada
-  return 'BARBER';
+  return 'UNKNOWN';
 }

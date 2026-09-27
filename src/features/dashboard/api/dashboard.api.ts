@@ -6,9 +6,14 @@ import type {
   IDashboardRepository,
 } from './dashboard.contract';
 import { DashboardMockAdapter } from './dashboard.mock';
+import { DashboardHttpAdapter } from './dashboard.http';
+import { ENV } from '@/shared/config/env';
 
-// Port / Adapter singleton (pode ser substituído por DashboardHttpAdapter quando a API estiver pronta)
-export const dashboardRepository: IDashboardRepository = new DashboardMockAdapter();
+// Port / Adapter singleton: usa DashboardHttpAdapter em produção/HTTP e MockAdapter apenas se configurado mock
+export const dashboardRepository: IDashboardRepository =
+  ENV.AVAILABILITY_SOURCE === 'mock'
+    ? new DashboardMockAdapter()
+    : new DashboardHttpAdapter();
 
 export const DASHBOARD_QUERY_KEYS = {
   metrics: (role: string, staffId: string) => ['dashboard', 'metrics', role, staffId] as const,

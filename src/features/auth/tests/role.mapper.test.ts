@@ -18,10 +18,10 @@ describe('normalizeStaffRole', () => {
     expect(normalizeStaffRole('barber')).toBe('BARBER');
   });
 
-  it('deve retornar BARBER como fallback seguro para entradas nulas ou desconhecidas', () => {
-    expect(normalizeStaffRole(null)).toBe('BARBER');
-    expect(normalizeStaffRole(undefined)).toBe('BARBER');
-    expect(normalizeStaffRole('')).toBe('BARBER');
-    expect(normalizeStaffRole('UNKNOWN_ROLE')).toBe('BARBER');
+  it('deve retornar UNKNOWN para entradas nulas, vazias ou desconhecidas', () => {
+    expect(normalizeStaffRole(null)).toBe('UNKNOWN');
+    expect(normalizeStaffRole(undefined)).toBe('UNKNOWN');
+    expect(normalizeStaffRole('')).toBe('UNKNOWN');
+    expect(normalizeStaffRole('UNKNOWN_ROLE')).toBe('UNKNOWN');
   });
 });

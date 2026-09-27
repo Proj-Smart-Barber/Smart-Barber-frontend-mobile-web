@@ -37,7 +37,7 @@ describe('BookingScheduleHttpAdapter.cancelBooking', () => {
     expect(booking.id).toBe('booking-uuid');
     expect(booking.startTime).toBe('09:00');
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/booking/booking-uuid/cancel'),
+      expect.stringContaining('/api/bookings/booking-uuid/cancel'),
       expect.objectContaining({ method: 'DELETE' }),
     );
   });
@@ -53,7 +53,7 @@ describe('BookingScheduleHttpAdapter.cancelBooking', () => {
     const adapter = new BookingScheduleHttpAdapter();
 
     await expect(adapter.cancelBooking('booking-uuid')).rejects.toThrow(
-      'Resposta inválida do servidor ao cancelar o agendamento.',
+      'Não foi possível cancelar o agendamento.',
     );
   });
 });

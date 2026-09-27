@@ -16,16 +16,13 @@ export function QuickActionsBar() {
 
   const handleQuickBooking = () => {
     Alert.alert(
-      'Encaixe Rápido',
-      'Funcionalidade de encaixe manual de cliente no balcão. Será conectada ao fluxo de criação de reservas.',
+      'Novo Encaixe (Agendamento)',
+      'O registro de novos agendamentos (encaixe de cliente) aguarda a disponibilização do endpoint de criação de reservas na API do backend.',
     );
   };
 
   const handleBlockSlot = () => {
-    Alert.alert(
-      'Bloquear Horário',
-      'Permite bloquear intervalos de almoço, descanso ou pausa na agenda.',
-    );
+    router.push('/(app)/availability' as any);
   };
 
   const handleShare = async () => {

@@ -13,15 +13,46 @@ import { BootstrapScreen } from '@/shared/ui';
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { status } = useSession(); const segments = useSegments(); const router = useRouter(); const { isDark } = useTheme();
+  const { status, barbershop } = useSession();
+  const segments = useSegments();
+  const router = useRouter();
+  const { isDark } = useTheme();
+
   useEffect(() => {
     if (!fontsLoaded || status === 'bootstrapping') return;
-    const inAuth = segments[0] === '(auth)'; const inApp = segments[0] === '(app)';
-    if (status === 'authenticated' && (inAuth || !segments[0])) router.replace('/(app)');
-    if ((status === 'unauthenticated' || status === 'error') && (inApp || !segments[0])) router.replace('/(auth)/login');
-  }, [fontsLoaded, status, segments, router]);
-  if (!fontsLoaded || status === 'bootstrapping') return <BootstrapScreen message={fontsLoaded ? 'Verificando sua sessão…' : 'Carregando tipografia…'} />;
-  return <><StatusBar style={isDark ? 'light' : 'dark'} /><Slot /></>;
+    const inAuth = segments[0] === '(auth)';
+    const inApp = segments[0] === '(app)';
+    const currentAppRoute = segments[1] as string | undefined;
+
+    if (status === 'authenticated') {
+      if (inAuth || !segments[0]) {
+        if (!barbershop) {
+          router.replace('/(app)/barbershop-setup' as any);
+        } else {
+          router.replace('/(app)');
+        }
+      } else if (inApp) {
+        if (!barbershop && currentAppRoute !== 'barbershop-setup') {
+          router.replace('/(app)/barbershop-setup' as any);
+        }
+      }
+    }
+
+    if ((status === 'unauthenticated' || status === 'error') && (inApp || !segments[0])) {
+      router.replace('/(auth)/login');
+    }
+  }, [fontsLoaded, status, barbershop, segments, router]);
+
+  if (!fontsLoaded || status === 'bootstrapping') {
+    return <BootstrapScreen message={fontsLoaded ? 'Verificando sua sessão…' : 'Carregando tipografia…'} />;
+  }
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Slot />
+    </>
+  );
 }
 
 function AppReady() {
