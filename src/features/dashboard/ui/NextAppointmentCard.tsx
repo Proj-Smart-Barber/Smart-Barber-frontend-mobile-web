@@ -1,8 +1,10 @@
 import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Badge, Button, Card, Skeleton, Text } from '@/shared/ui';
+import { confirmDestructiveAction } from '@/features/agenda/ui/confirm-destructive-action';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/dashboard.helpers';
 
@@ -55,13 +57,32 @@ export function NextAppointmentCard({
     );
   }
 
-  const isInService = appointment.status === 'IN_SERVICE';
+  const router = useRouter();
+
+  const handleOpenAgenda = () => {
+    router.push('/(app)/agenda' as any);
+  };
+
+  const handleCancel = async () => {
+    const confirmed = await confirmDestructiveAction({
+      title: 'Cancelar agendamento',
+      message: `Deseja realmente cancelar o agendamento de ${appointment.customerName} às ${appointment.scheduledTime}? O registro será excluído da agenda.`,
+      confirmLabel: 'Sim, cancelar',
+      cancelLabel: 'Manter',
+    });
+
+    if (confirmed) {
+      onUpdateStatus(appointment.id, 'CANCELLED');
+    }
+  };
 
   const handleWhatsApp = () => {
     const rawNumber = appointment.customerPhone.replace(/\D/g, '');
     const url = `https://wa.me/55${rawNumber}?text=Ol%C3%A1%20${encodeURIComponent(appointment.customerName)},%20seu%20hor%C3%A1rio%20no%20Smart%20Barber%20est%C3%A1%20confirmado!`;
     void Linking.openURL(url).catch(() => {});
   };
+
+  const isInService = appointment.status === 'IN_SERVICE';
 
   return (
     <Card
@@ -160,25 +181,13 @@ export function NextAppointmentCard({
           borderTopColor: colors.border.subtle,
         }}
       >
-        {isInService ? (
-          <Button
-            title="Concluir Atendimento"
-            variant="primary"
-            loading={isUpdating}
-            leftIcon={<Ionicons name="checkmark-done" size={18} color={colors.text.inverse} />}
-            onPress={() => onUpdateStatus(appointment.id, 'COMPLETED')}
-            style={{ flex: 1, minHeight: 48 }}
-          />
-        ) : (
-          <Button
-            title="Iniciar Corte"
-            variant="primary"
-            loading={isUpdating}
-            leftIcon={<Ionicons name="cut-outline" size={18} color={colors.text.inverse} />}
-            onPress={() => onUpdateStatus(appointment.id, 'IN_SERVICE')}
-            style={{ flex: 1, minHeight: 48 }}
-          />
-        )}
+        <Button
+          title="Ver na Agenda"
+          variant="primary"
+          leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.text.inverse} />}
+          onPress={handleOpenAgenda}
+          style={{ flex: 1, minHeight: 48 }}
+        />
 
         {/* Botão WhatsApp */}
         <Pressable
@@ -204,6 +213,24 @@ export function NextAppointmentCard({
             WhatsApp
           </Text>
         </Pressable>
+
+        {/* Botão Cancelar */}
+        <Button
+          title="Cancelar"
+          variant="outline"
+          loading={isUpdating}
+          disabled={isUpdating}
+          leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
+          textStyle={{ color: colors.feedback.error }}
+          onPress={() => {
+            void handleCancel();
+          }}
+          style={{
+            minHeight: 48,
+            borderColor: colors.feedback.error,
+            alignSelf: isCompact ? 'stretch' : 'auto',
+          }}
+        />
       </View>
     </Card>
   );

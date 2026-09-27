@@ -1,8 +1,10 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Badge, Card, EmptyState, Skeleton, Text } from '@/shared/ui';
+import { confirmDestructiveAction } from '@/features/agenda/ui/confirm-destructive-action';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/dashboard.helpers';
 import type { TimelineFilter } from '../model/dashboard.types';
@@ -26,6 +28,20 @@ export function TodayTimeline({
 }: TodayTimelineProps) {
   const { colors, spacing, radius } = useTheme();
   const { isCompact } = useAdaptiveLayout();
+  const router = useRouter();
+
+  const handleCancelAppointment = async (id: string, name: string, time: string) => {
+    const confirmed = await confirmDestructiveAction({
+      title: 'Cancelar agendamento',
+      message: `Deseja realmente cancelar o agendamento de ${name} às ${time}? O registro será excluído da agenda.`,
+      confirmLabel: 'Sim, cancelar',
+      cancelLabel: 'Manter',
+    });
+
+    if (confirmed) {
+      onUpdateStatus(id, 'CANCELLED');
+    }
+  };
 
   const filterOptions: { label: string; value: TimelineFilter }[] = [
     { label: `Todos (${totalCount})`, value: 'ALL' },
@@ -180,12 +196,12 @@ export function TodayTimeline({
                     tone={mapStatusBadgeTone(item.status)}
                   />
 
-                  {/* Botão de avanço rápido de status */}
-                  {item.status === 'CONFIRMED' || item.status === 'WAITING' ? (
+                  {/* Botão de cancelamento com confirmação */}
+                  {item.status !== 'CANCELLED' ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Iniciar corte de ${item.customerName}`}
-                      onPress={() => onUpdateStatus(item.id, 'IN_SERVICE')}
+                      accessibilityLabel={`Cancelar agendamento de ${item.customerName}`}
+                      onPress={() => void handleCancelAppointment(item.id, item.customerName, item.scheduledTime)}
                       style={({ pressed }) => ({
                         width: 36,
                         height: 36,
@@ -197,27 +213,28 @@ export function TodayTimeline({
                         borderColor: colors.border.default,
                       })}
                     >
-                      <Ionicons name="play" size={16} color={colors.brand.primary} />
-                    </Pressable>
-                  ) : item.status === 'IN_SERVICE' ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Concluir corte de ${item.customerName}`}
-                      onPress={() => onUpdateStatus(item.id, 'COMPLETED')}
-                      style={({ pressed }) => ({
-                        width: 36,
-                        height: 36,
-                        borderRadius: radius.md,
-                        backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderWidth: 1,
-                        borderColor: colors.feedback.success,
-                      })}
-                    >
-                      <Ionicons name="checkmark" size={18} color={colors.feedback.success} />
+                      <Ionicons name="trash-outline" size={16} color={colors.feedback.error} />
                     </Pressable>
                   ) : null}
+
+                  {/* Botão para ver na agenda completa */}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ver agendamento de ${item.customerName} na agenda completa`}
+                    onPress={() => router.push('/(app)/agenda' as any)}
+                    style={({ pressed }) => ({
+                      width: 36,
+                      height: 36,
+                      borderRadius: radius.md,
+                      backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 1,
+                      borderColor: colors.border.default,
+                    })}
+                  >
+                    <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+                  </Pressable>
                 </View>
               </Card>
             );

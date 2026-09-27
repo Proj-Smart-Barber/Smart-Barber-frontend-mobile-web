@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from '@/features/auth';
-import { useAgendaDayQuery } from '../api/agenda.api';
+import { useAgendaDayQuery, useCancelBookingMutation } from '../api/agenda.api';
 import { normalizeAgendaError } from '../api/normalize-agenda-error';
 import type { AgendaScope } from '../api/agenda.contract';
 import { AGENDA_SYNC_CONFIG } from './agenda-state';
@@ -108,6 +108,21 @@ export function useAgendaViewModel() {
     return () => clearTimeout(timer);
   }, [isFetching, showsDataForSelectedDate]);
 
+  const cancelMutation = useCancelBookingMutation();
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const handleCancelBooking = useCallback(
+    async (bookingId: string) => {
+      setCancellingId(bookingId);
+      try {
+        await cancelMutation.mutateAsync(bookingId);
+      } finally {
+        setCancellingId(null);
+      }
+    },
+    [cancelMutation],
+  );
+
   return {
     // Navegação de data
     selectedDate,
@@ -145,5 +160,9 @@ export function useAgendaViewModel() {
     isDataStale,
     isSlowSync,
     handleRefresh,
+
+    // Cancelamento
+    handleCancelBooking,
+    cancellingId,
   };
 }

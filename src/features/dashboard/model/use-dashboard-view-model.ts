@@ -16,10 +16,11 @@ import {
 import type { DashboardMetricCardData, TimelineFilter } from './dashboard.types';
 
 export function useDashboardViewModel() {
-  const { staff, signOut, restoreSession } = useSession();
+  const { staff, isOwner: sessionIsOwner, signOut, restoreSession } = useSession();
   const [filter, setFilter] = useState<TimelineFilter>('ALL');
 
-  const role = staff?.role === 'OWNER' ? 'OWNER' : 'BARBER';
+  const isOwner = Boolean(sessionIsOwner || staff?.role === 'OWNER');
+  const role = isOwner ? 'OWNER' : 'BARBER';
   const staffId = staff?.id ?? 'default-staff-id';
 
   const metricsQuery = useDashboardMetricsQuery(role, staffId);
@@ -49,56 +50,56 @@ export function useDashboardViewModel() {
   const metricCards: DashboardMetricCardData[] = [];
 
   if (metrics) {
-    if (role === 'OWNER') {
+    if (isOwner) {
       metricCards.push(
         {
           id: 'revenue',
-          title: 'Faturamento do Dia',
+          title: 'Receita Agendada Hoje',
           value: formatCurrency(metrics.totalRevenueInCents),
-          subtitle: `Meta: ${formatCurrency(metrics.targetRevenueInCents)}`,
+          subtitle: `${metrics.totalAppointments} agendamento(s) hoje`,
           tone: 'brand',
           iconName: 'cash-outline',
         },
         {
-          id: 'occupancy',
-          title: 'Taxa de Ocupação',
-          value: `${metrics.occupancyRatePercent}%`,
-          subtitle: `${metrics.completedAppointments} de ${metrics.totalAppointments} concluídos`,
-          tone: 'success',
-          iconName: 'pie-chart-outline',
-        },
-        {
           id: 'total',
-          title: 'Total de Cortes Hoje',
+          title: 'Total de Agendamentos',
           value: `${metrics.totalAppointments}`,
-          subtitle: 'Agendamentos cadastrados',
+          subtitle: metrics.totalAppointments > 0 ? 'Horários reservados' : 'Nenhum agendamento hoje',
           tone: 'neutral',
           iconName: 'calendar-outline',
+        },
+        {
+          id: 'next',
+          title: 'Próximo Horário',
+          value: nextAppointment?.scheduledTime ?? '--:--',
+          subtitle: nextAppointment ? `${nextAppointment.customerName} (${nextAppointment.serviceTitle})` : 'Sem agendamentos pendentes',
+          tone: 'brand',
+          iconName: 'time-outline',
         },
       );
     } else {
       metricCards.push(
         {
-          id: 'commission',
-          title: 'Comissão Estimada',
-          value: formatCurrency(metrics.estimatedCommissionInCents),
-          subtitle: '50% sobre os atendimentos',
+          id: 'appointments',
+          title: 'Meus Agendamentos Hoje',
+          value: `${metrics.totalAppointments}`,
+          subtitle: metrics.totalAppointments > 0 ? 'Horários reservados' : 'Agenda livre hoje',
           tone: 'brand',
-          iconName: 'wallet-outline',
+          iconName: 'cut-outline',
         },
         {
-          id: 'completed',
-          title: 'Meus Atendimentos',
-          value: `${metrics.completedAppointments} / ${metrics.totalAppointments}`,
-          subtitle: `${metrics.occupancyRatePercent}% concluídos hoje`,
+          id: 'revenue',
+          title: 'Total dos Atendimentos',
+          value: formatCurrency(metrics.totalRevenueInCents),
+          subtitle: 'Soma dos serviços agendados',
           tone: 'success',
-          iconName: 'cut-outline',
+          iconName: 'wallet-outline',
         },
         {
           id: 'next',
           title: 'Próximo Atendimento',
           value: nextAppointment?.scheduledTime ?? '--:--',
-          subtitle: nextAppointment?.customerName ?? 'Nenhum pendente',
+          subtitle: nextAppointment ? `${nextAppointment.customerName} (${nextAppointment.serviceTitle})` : 'Nenhum pendente',
           tone: 'warning',
           iconName: 'time-outline',
         },

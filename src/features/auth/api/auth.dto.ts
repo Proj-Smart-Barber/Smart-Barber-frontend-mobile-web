@@ -23,5 +23,5 @@ export interface RegisterResponseDto {
 
 export interface MeResponseDto {
   staff: RawStaffDto;
-  barbershop: Barbershop;
+  barbershop?: Barbershop | null;
 }

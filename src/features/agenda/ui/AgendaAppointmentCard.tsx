@@ -6,6 +6,8 @@ import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Badge, Card, Text } from '@/shared/ui';
 import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { mapPaymentStatusLabel } from '../model/agenda.helpers';
+import { confirmDestructiveAction } from './confirm-destructive-action';
+import { AgendaActionButton } from './AgendaActionButton';
 
 function statusToneColor(
   tone: ReturnType<typeof mapStatusBadgeTone>,
@@ -101,6 +103,8 @@ function MetaChips({
 
 interface AgendaAppointmentCardProps {
   entry: AgendaAppointmentEntry;
+  onCancel?: (id: string) => void;
+  isCancelling?: boolean;
 }
 
 /**
@@ -111,7 +115,11 @@ interface AgendaAppointmentCardProps {
  * pagamento) são reorganizados em uma seção abaixo do cabeçalho,
  * com truncamento em até duas linhas, para manter o card compacto.
  */
-export function AgendaAppointmentCard({ entry }: AgendaAppointmentCardProps) {
+export function AgendaAppointmentCard({
+  entry,
+  onCancel,
+  isCancelling = false,
+}: AgendaAppointmentCardProps) {
   const { colors, spacing } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const tone = mapStatusBadgeTone(entry.status);
@@ -125,6 +133,21 @@ export function AgendaAppointmentCard({ entry }: AgendaAppointmentCardProps) {
   const paymentLabel = entry.paymentStatus ? mapPaymentStatusLabel(entry.paymentStatus) : null;
   const showChips = Boolean(paymentLabel || entry.checkedInAt || entry.hasConflict);
   const isLongName = entry.customerName.length > 15;
+
+  const handleCancel = async () => {
+    if (!onCancel || isCancelling) return;
+
+    const confirmed = await confirmDestructiveAction({
+      title: 'Cancelar agendamento',
+      message: `O agendamento de ${entry.startTime} (${entry.customerName}) será cancelado e excluído da agenda.`,
+      confirmLabel: 'Sim, cancelar',
+      cancelLabel: 'Manter',
+    });
+
+    if (confirmed) {
+      onCancel(entry.id);
+    }
+  };
 
   return (
     <Card style={{ padding: spacing[4], gap: spacing[3], width: '100%' }}>
@@ -222,6 +245,28 @@ export function AgendaAppointmentCard({ entry }: AgendaAppointmentCardProps) {
         </View>
       ) : showChips ? (
         <MetaChips entry={entry} paymentLabel={paymentLabel} gap={spacing[3]} />
+      ) : null}
+
+      {onCancel ? (
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: colors.border.subtle,
+            paddingTop: spacing[2],
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <AgendaActionButton
+            title="Cancelar"
+            tone="destructive"
+            loading={isCancelling}
+            disabled={isCancelling}
+            onPress={() => {
+              void handleCancel();
+            }}
+          />
+        </View>
       ) : null}
     </Card>
   );

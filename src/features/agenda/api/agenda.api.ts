@@ -1,10 +1,15 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AGENDA_SYNC_CONFIG } from '../model/agenda-state';
 import type { AgendaDay, AgendaScope, IAgendaRepository } from './agenda.contract';
 import { AgendaMockAdapter } from './agenda.mock';
+import { AgendaHttpAdapter, bookingScheduleHttpAdapter } from './agenda.http';
+import { ENV } from '@/shared/config/env';
 
-// Port / Adapter singleton (substituir por AgendaHttpAdapter quando a API estiver pronta).
-export const agendaRepository: IAgendaRepository = new AgendaMockAdapter();
+// Port / Adapter singleton: usa AgendaHttpAdapter por padrão no ambiente HTTP
+export const agendaRepository: IAgendaRepository =
+  ENV.AVAILABILITY_SOURCE === 'mock'
+    ? new AgendaMockAdapter()
+    : new AgendaHttpAdapter();
 
 export const AGENDA_QUERY_KEYS = {
   all: ['agenda'] as const,
@@ -14,11 +19,6 @@ export const AGENDA_QUERY_KEYS = {
 
 /**
  * Consulta do dia da agenda.
- *
- * - polling de 60s (pausado quando o app perde foco);
- * - refetch ao retomar o foco na Web (override local do default global);
- * - keepPreviousData para navegar entre dias sem flash de skeleton;
- * - retry: false, mantendo a decisão global do app.
  */
 export function useAgendaDayQuery(scope: AgendaScope, date: string) {
   return useQuery<AgendaDay>({
@@ -29,5 +29,21 @@ export function useAgendaDayQuery(scope: AgendaScope, date: string) {
     refetchOnWindowFocus: true,
     placeholderData: keepPreviousData,
     retry: false,
+  });
+}
+
+/**
+ * Mutação para cancelamento de agendamento:
+ * DELETE /api/bookings/:bookingId/cancel
+ */
+export function useCancelBookingMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (bookingId: string) => bookingScheduleHttpAdapter.cancelBooking(bookingId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: AGENDA_QUERY_KEYS.all });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }
