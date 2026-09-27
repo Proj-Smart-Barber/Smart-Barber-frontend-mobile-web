@@ -4,7 +4,6 @@ import {
   Platform,
   ScrollView,
   View,
-  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
@@ -15,21 +14,16 @@ import { useSession } from '@/features/auth';
 import {
   createBarbershopFormSchema,
   CreateBarbershopFormValues,
-  linkBarbershopFormSchema,
-  LinkBarbershopFormValues,
   formatCnpj,
 } from '@/features/barbershop/model/barbershop.schema';
 import { useTheme } from '@/shared/theme';
 import { Alert, Button, FormField, Text, TextInput, Card } from '@/shared/ui';
 
-type SetupMode = 'create' | 'link';
-
 export default function BarbershopSetupScreen() {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
-  const { registerBarbershop, linkBarbershop, signOut, barbershop } = useSession();
+  const { registerBarbershop, signOut, barbershop } = useSession();
 
-  const [mode, setMode] = useState<SetupMode>('create');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -51,14 +45,6 @@ export default function BarbershopSetupScreen() {
     },
   });
 
-  // Form de Vínculo
-  const linkForm = useForm<LinkBarbershopFormValues>({
-    resolver: zodResolver(linkBarbershopFormSchema),
-    defaultValues: {
-      barbershopId: '',
-    },
-  });
-
   const handleCreate = async (values: CreateBarbershopFormValues) => {
     setLoading(true);
     setErrorMessage(null);
@@ -67,20 +53,6 @@ export default function BarbershopSetupScreen() {
       router.replace('/(app)');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao cadastrar barbearia.';
-      setErrorMessage(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLink = async (values: LinkBarbershopFormValues) => {
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      await linkBarbershop(values.barbershopId);
-      router.replace('/(app)');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Barbearia não encontrada ou ID inválido.';
       setErrorMessage(msg);
     } finally {
       setLoading(false);
@@ -121,68 +93,11 @@ export default function BarbershopSetupScreen() {
           </View>
 
           <Text variant="display" align="center" style={{ marginBottom: spacing[1] }}>
-            Configurar Unidade
+            Cadastre sua Barbearia
           </Text>
           <Text variant="body" color={colors.text.muted} align="center">
-            Para gerenciar agenda e horários, vincule ou crie a sua barbearia.
+            Para gerenciar agenda e horários, cadastre os dados da sua barbearia.
           </Text>
-        </View>
-
-        {/* Mode Selector Tabs */}
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: colors.surface.default,
-            padding: spacing[1],
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            marginBottom: spacing[6],
-          }}
-        >
-          <Pressable
-            onPress={() => {
-              setMode('create');
-              setErrorMessage(null);
-            }}
-            style={{
-              flex: 1,
-              paddingVertical: spacing[2],
-              borderRadius: radius.sm,
-              backgroundColor: mode === 'create' ? colors.brand.primary : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text
-              weight="semibold"
-              color={mode === 'create' ? colors.text.inverse : colors.text.muted}
-            >
-              Criar Barbearia
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => {
-              setMode('link');
-              setErrorMessage(null);
-            }}
-            style={{
-              flex: 1,
-              paddingVertical: spacing[2],
-              borderRadius: radius.sm,
-              backgroundColor: mode === 'link' ? colors.brand.primary : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text
-              weight="semibold"
-              color={mode === 'link' ? colors.text.inverse : colors.text.muted}
-            >
-              Vincular ID
-            </Text>
-          </Pressable>
         </View>
 
         {/* Error Alert */}
@@ -196,8 +111,7 @@ export default function BarbershopSetupScreen() {
 
         {/* Form Container */}
         <Card style={{ padding: spacing[6] }}>
-          {mode === 'create' ? (
-            <View style={{ gap: spacing[4] }}>
+          <View style={{ gap: spacing[4] }}>
               <Controller
                 control={createForm.control}
                 name="name"
@@ -281,41 +195,6 @@ export default function BarbershopSetupScreen() {
                 style={{ marginTop: spacing[2] }}
               />
             </View>
-          ) : (
-            <View style={{ gap: spacing[4] }}>
-              <Text variant="caption" color={colors.text.muted}>
-                Informe o código UUID da barbearia à qual você tem vínculo. Se você for o
-                proprietário, o sistema confirmará automaticamente.
-              </Text>
-
-              <Controller
-                control={linkForm.control}
-                name="barbershopId"
-                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                  <FormField label="ID da Barbearia (UUID)" error={error?.message} required>
-                    <TextInput
-                      placeholder="Ex: 550e8400-e29b-41d4-a716-446655440000"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      error={!!error}
-                      leftIcon={<Feather name="key" size={18} color={colors.text.muted} />}
-                    />
-                  </FormField>
-                )}
-              />
-
-              <Button
-                title="Vincular Barbearia"
-                loading={loading}
-                disabled={loading}
-                onPress={linkForm.handleSubmit(handleLink)}
-                style={{ marginTop: spacing[2] }}
-              />
-            </View>
-          )}
         </Card>
 
         {/* Footer logout */}
