@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { tokenStorage } from '@/shared/storage';
+import { tokenStorage, barbershopStorage } from '@/shared/storage';
 import { authApi } from '../api/auth.api';
 import { LoginRequestDto } from '../api/auth.dto';
 import { RegisterFormValues, formatCpf } from './register.schema';
 import { SessionState } from './auth-state';
 import { isTokenExpired } from '../lib/jwt-helper';
 import { normalizeAuthError } from '../lib/normalize-auth-error';
+import { barbershopApi, CreateBarbershopRequestDto } from '@/features/barbershop';
+import type { Barbershop } from '@/entities/barbershop';
 
 interface SessionContextData extends SessionState {
   signIn: (credentials: LoginRequestDto) => Promise<void>;
@@ -14,9 +16,36 @@ interface SessionContextData extends SessionState {
   signOut: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
+  linkBarbershop: (shopId: string) => Promise<Barbershop>;
+  registerBarbershop: (data: CreateBarbershopRequestDto) => Promise<Barbershop>;
 }
 
 const SessionContext = createContext<SessionContextData | null>(null);
+
+async function resolveBarbershopContext(
+  staffId: string,
+  token: string | null,
+): Promise<{ barbershop: Barbershop | null; isOwner: boolean }> {
+  if (!token) return { barbershop: null, isOwner: false };
+  const storedId = await barbershopStorage.get(staffId);
+  if (!storedId) return { barbershop: null, isOwner: false };
+
+  try {
+    const shop = await barbershopApi.getBarbershop(storedId, token);
+    const isOwner = shop.ownerId === staffId;
+    return {
+      barbershop: {
+        id: shop.id,
+        name: shop.name,
+        timezone: shop.timezone,
+      },
+      isOwner,
+    };
+  } catch {
+    await barbershopStorage.remove(staffId);
+    return { barbershop: null, isOwner: false };
+  }
+}
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
@@ -25,6 +54,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     status: 'bootstrapping',
     staff: null,
     barbershop: null,
+    isOwner: false,
     token: null,
     error: null,
   });
@@ -34,7 +64,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * Restauração da sessão no bootstrap do aplicativo (Seção 25 do Plano)
+   * Restauração da sessão no bootstrap do aplicativo
    */
   const restoreSession = useCallback(async () => {
     setState((prev) => ({ ...prev, status: 'bootstrapping', error: null }));
@@ -47,6 +77,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           status: 'unauthenticated',
           staff: null,
           barbershop: null,
+          isOwner: false,
           token: null,
           error: null,
         });
@@ -60,6 +91,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           status: 'unauthenticated',
           staff: null,
           barbershop: null,
+          isOwner: false,
           token: null,
           error: null,
         });
@@ -71,10 +103,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const profile = await authApi.getMe(storedToken);
         queryClient.setQueryData(['auth', 'me'], profile);
 
+        const shopContext = await resolveBarbershopContext(profile.staff.id, storedToken);
+
         setState({
           status: 'authenticated',
-          staff: profile.staff,
-          barbershop: profile.barbershop,
+          staff: {
+            ...profile.staff,
+            role: shopContext.isOwner ? 'OWNER' : profile.staff.role,
+          },
+          barbershop: shopContext.barbershop,
+          isOwner: shopContext.isOwner,
           token: storedToken,
           error: null,
         });
@@ -88,6 +126,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             status: 'unauthenticated',
             staff: null,
             barbershop: null,
+            isOwner: false,
             token: null,
             error: normalized,
           });
@@ -97,6 +136,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             status: 'error',
             staff: null,
             barbershop: null,
+            isOwner: false,
             token: storedToken,
             error: normalized,
           });
@@ -107,6 +147,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         status: 'unauthenticated',
         staff: null,
         barbershop: null,
+        isOwner: false,
         token: null,
         error: null,
       });
@@ -114,7 +155,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   /**
-   * Fluxo de Login (Seção 24 do Plano)
+   * Fluxo de Login
    */
   const signIn = useCallback(
     async (credentials: LoginRequestDto) => {
@@ -128,15 +169,21 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         // 2. Salva token no storage seguro
         await tokenStorage.set(token);
 
-        // 3. GET /api/staffs/me para validar e carregar perfil
+        // 3. GET /api/staffs/me para carregar perfil
         const profile = await authApi.getMe(token);
         queryClient.setQueryData(['auth', 'me'], profile);
 
-        // 4. Marca como autenticado
+        // 4. Resolve contexto de barbearia
+        const shopContext = await resolveBarbershopContext(profile.staff.id, token);
+
         setState({
           status: 'authenticated',
-          staff: profile.staff,
-          barbershop: profile.barbershop,
+          staff: {
+            ...profile.staff,
+            role: shopContext.isOwner ? 'OWNER' : profile.staff.role,
+          },
+          barbershop: shopContext.barbershop,
+          isOwner: shopContext.isOwner,
           token,
           error: null,
         });
@@ -149,6 +196,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           status: 'unauthenticated',
           staff: null,
           barbershop: null,
+          isOwner: false,
           token: null,
           error: normalized,
         });
@@ -159,14 +207,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
-   * Fluxo de Cadastro com Auto-login (Seção 23 do Plano)
+   * Fluxo de Cadastro com Auto-login
    */
   const signUp = useCallback(
     async (values: RegisterFormValues) => {
       setState((prev) => ({ ...prev, status: 'authenticating', error: null }));
 
       try {
-        // Normaliza CPF para o formato esperado pelo backend
         const formattedCpf = formatCpf(values.cpf);
 
         // 1. POST /api/staffs/
@@ -177,7 +224,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           cpf: formattedCpf,
         });
 
-        // 2. Auto-login automático com as mesmas credenciais
+        // 2. Auto-login com as credenciais
         const authResponse = await authApi.login({
           email: values.email.trim().toLowerCase(),
           password: values.password,
@@ -193,7 +240,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setState({
           status: 'authenticated',
           staff: profile.staff,
-          barbershop: profile.barbershop,
+          barbershop: null,
+          isOwner: false,
           token,
           error: null,
         });
@@ -206,6 +254,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           status: 'unauthenticated',
           staff: null,
           barbershop: null,
+          isOwner: false,
           token: null,
           error: normalized,
         });
@@ -216,7 +265,72 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
-   * Logout local (Seção 48 do Plano)
+   * Vínculo de barbearia já existente por ID
+   */
+  const linkBarbershop = useCallback(
+    async (shopId: string): Promise<Barbershop> => {
+      if (!state.staff || !state.token) {
+        throw new Error('Usuário precisa estar autenticado para vincular barbearia.');
+      }
+
+      const cleanId = shopId.trim();
+      const shop = await barbershopApi.getBarbershop(cleanId, state.token);
+      const isOwner = shop.ownerId === state.staff.id;
+
+      await barbershopStorage.set(state.staff.id, shop.id);
+
+      const entity: Barbershop = {
+        id: shop.id,
+        name: shop.name,
+        timezone: shop.timezone,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        barbershop: entity,
+        isOwner,
+        staff: prev.staff ? { ...prev.staff, role: isOwner ? 'OWNER' : 'BARBER' } : null,
+      }));
+
+      return entity;
+    },
+    [state.staff, state.token]
+  );
+
+  /**
+   * Cadastro de nova barbearia no backend (POST /api/barbershops)
+   */
+  const registerBarbershop = useCallback(
+    async (data: CreateBarbershopRequestDto): Promise<Barbershop> => {
+      if (!state.staff || !state.token) {
+        throw new Error('Usuário precisa estar autenticado para cadastrar barbearia.');
+      }
+
+      const res = await barbershopApi.createBarbershop(data, state.token);
+      const shop = await barbershopApi.getBarbershop(res.barbershopId, state.token);
+
+      await barbershopStorage.set(state.staff.id, shop.id);
+
+      const entity: Barbershop = {
+        id: shop.id,
+        name: shop.name,
+        timezone: shop.timezone,
+      };
+
+      setState((prev) => ({
+        ...prev,
+        barbershop: entity,
+        isOwner: true,
+        staff: prev.staff ? { ...prev.staff, role: 'OWNER' } : null,
+      }));
+
+      return entity;
+    },
+    [state.staff, state.token]
+  );
+
+  /**
+   * Logout local
    */
   const signOut = useCallback(async () => {
     try {
@@ -227,13 +341,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         status: 'unauthenticated',
         staff: null,
         barbershop: null,
+        isOwner: false,
         token: null,
         error: null,
       });
     }
   }, [queryClient]);
 
-  // Inicializa sessão ao carregar
   useEffect(() => {
     restoreSession();
   }, [restoreSession]);
@@ -247,6 +361,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         signOut,
         restoreSession,
         clearError,
+        linkBarbershop,
+        registerBarbershop,
       }}
     >
       {children}

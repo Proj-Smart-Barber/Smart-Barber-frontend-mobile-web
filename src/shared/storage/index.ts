@@ -6,6 +6,7 @@ import { WebTokenStorage } from './token-storage.web';
 export * from './token-storage';
 export * from './token-storage.memory';
 export * from './token-storage.web';
+export * from './barbershop-storage';
 
 function createTokenStorage(): TokenStorage {
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {

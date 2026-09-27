@@ -47,6 +47,8 @@ export function AgendaView() {
     isDataStale,
     isSlowSync,
     handleRefresh,
+    handleCancelBooking,
+    cancellingId,
   } = useAgendaViewModel();
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -143,6 +145,8 @@ export function AgendaView() {
                       isLoading={isInitialLoading}
                       isUpdatingDate={isUpdatingDate}
                       onGoToToday={goToToday}
+                      onCancel={handleCancelBooking}
+                      cancellingId={cancellingId}
                     />
                   </View>
                 </View>
@@ -155,6 +159,8 @@ export function AgendaView() {
                     isLoading={isInitialLoading}
                     isUpdatingDate={isUpdatingDate}
                     onGoToToday={goToToday}
+                    onCancel={handleCancelBooking}
+                    cancellingId={cancellingId}
                   />
                 </>
               )}
