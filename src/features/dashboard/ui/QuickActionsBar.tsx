@@ -5,13 +5,20 @@ import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Button } from '@/shared/ui';
 
+import { useSession } from '@/features/auth';
+
 export function QuickActionsBar() {
   const { colors, spacing } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const router = useRouter();
+  const { barbershop } = useSession();
 
   const handleOpenAgenda = () => {
     router.push('/(app)/agenda' as any);
+  };
+
+  const handleOpenServices = () => {
+    router.push('/(app)/services' as any);
   };
 
   const handleQuickBooking = () => {
@@ -27,9 +34,11 @@ export function QuickActionsBar() {
 
   const handleShare = async () => {
     try {
+      const catalogUrl = barbershop?.id
+        ? `https://smartbarber.app/barbershops/${barbershop.id}/services`
+        : 'https://smartbarber.app';
       await Share.share({
-        message:
-          'Agende seu horário no Smart Barber com praticidade e exclusividade: https://smartbarber.app',
+        message: `Confira os serviços e novidades da nossa barbearia no Smart Barber: ${catalogUrl}`,
       });
     } catch {
       // Ignora cancelamentos
@@ -54,6 +63,15 @@ export function QuickActionsBar() {
       />
 
       <Button
+        title="Serviços"
+        variant="outline"
+        leftIcon={<Ionicons name="cut-outline" size={18} color={colors.text.primary} />}
+        onPress={handleOpenServices}
+        textStyle={{ color: colors.text.primary }}
+        style={{ flex: 1, minHeight: 48 }}
+      />
+
+      <Button
         title="Bloquear Horário"
         variant="outline"
         leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.text.primary} />}
@@ -72,7 +90,7 @@ export function QuickActionsBar() {
       />
 
       <Button
-        title="Compartilhar Link"
+        title="Ver serviços"
         variant="outline"
         leftIcon={<Ionicons name="share-social-outline" size={18} color={colors.text.primary} />}
         onPress={handleShare}

@@ -28,23 +28,43 @@ async function resolveBarbershopContext(
 ): Promise<{ barbershop: Barbershop | null; isOwner: boolean }> {
   if (!token) return { barbershop: null, isOwner: false };
   const storedId = await barbershopStorage.get(staffId);
-  if (!storedId) return { barbershop: null, isOwner: false };
-
-  try {
-    const shop = await barbershopApi.getBarbershop(storedId, token);
-    const isOwner = shop.ownerId === staffId;
-    return {
-      barbershop: {
-        id: shop.id,
-        name: shop.name,
-        timezone: shop.timezone,
-      },
-      isOwner,
-    };
-  } catch {
-    await barbershopStorage.remove(staffId);
-    return { barbershop: null, isOwner: false };
+  if (storedId) {
+    try {
+      const shop = await barbershopApi.getBarbershop(storedId, token);
+      const isOwner = shop.ownerId === staffId;
+      return {
+        barbershop: {
+          id: shop.id,
+          name: shop.name,
+          timezone: shop.timezone,
+        },
+        isOwner,
+      };
+    } catch {
+      await barbershopStorage.remove(staffId);
+    }
   }
+
+  // Descoberta automática de barbearia via endpoint do backend
+  try {
+    const userShops = await authApi.getMyBarbershops(token);
+    if (userShops && userShops.length > 0) {
+      const selected = userShops.find((s) => s.role === 'OWNER') || userShops[0];
+      await barbershopStorage.set(staffId, selected.id);
+      return {
+        barbershop: {
+          id: selected.id,
+          name: selected.name,
+          timezone: selected.timezone,
+        },
+        isOwner: selected.role === 'OWNER',
+      };
+    }
+  } catch {
+    // Falha silenciosa na descoberta automática
+  }
+
+  return { barbershop: null, isOwner: false };
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {

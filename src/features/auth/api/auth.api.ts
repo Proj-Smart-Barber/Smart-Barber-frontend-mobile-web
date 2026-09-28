@@ -42,6 +42,17 @@ export class AuthApi {
       barbershop: response.barbershop ?? null,
     };
   }
+
+  /**
+   * Busca barbearias vinculadas ao staff autenticado: GET /api/staffs/me/barbershops
+   */
+  async getMyBarbershops(token?: string | null): Promise<Array<{ id: string; name: string; role: string; status: string; timezone: string }>> {
+    const response = await httpClient.get<{ barbershops: Array<{ id: string; name: string; role: string; status: string; timezone: string }> }>(
+      '/api/staffs/me/barbershops',
+      { token },
+    );
+    return response?.barbershops || [];
+  }
 }
 
 export const authApi = new AuthApi();

@@ -22,7 +22,12 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     if (!fontsLoaded || status === 'bootstrapping') return;
     const inAuth = segments[0] === '(auth)';
     const inApp = segments[0] === '(app)';
+    const inPublic = (segments[0] as string) === '(public)';
     const currentAppRoute = segments[1] as string | undefined;
+
+    if (inPublic) {
+      return;
+    }
 
     if (status === 'authenticated') {
       if (inAuth || !segments[0]) {
