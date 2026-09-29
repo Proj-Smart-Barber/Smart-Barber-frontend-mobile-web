@@ -124,6 +124,7 @@ export function RegisterForm() {
             label="Senha de segurança"
             required
             error={errors.password?.message}
+            helperText="Mínimo de 6 caracteres"
           >
             <PasswordInput
               value={value}
@@ -166,6 +167,7 @@ export function RegisterForm() {
 
       <Button
         title="Criar conta e entrar"
+        loadingTitle="Criando conta…"
         variant="primary"
         loading={isSubmitting}
         disabled={isSubmitting}

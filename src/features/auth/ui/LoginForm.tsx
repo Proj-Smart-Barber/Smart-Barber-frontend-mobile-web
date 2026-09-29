@@ -70,6 +70,7 @@ export function LoginForm() {
 
       <Button
         title="Entrar"
+        loadingTitle="Entrando…"
         variant="primary"
         loading={isSubmitting}
         disabled={isSubmitting}

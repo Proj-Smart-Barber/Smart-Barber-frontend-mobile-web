@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Modal, Pressable } from 'react-native';
+import { View, Modal, Pressable, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/shared/theme';
+import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { Text, Button } from '@/shared/ui';
 import type { Service } from '../model/service.types';
 import { formatPrice, formatDuration } from '../model/service.types';
@@ -17,6 +17,11 @@ export interface SelectedServicesSummaryProps {
   onCloseModal: () => void;
 }
 
+/**
+ * Componente de Resumo de Seleção de Serviços (P06)
+ * Barra flutuante adaptativa (empilha em 320px) e modal com rolagem interna
+ * que comunica com clareza factual que a escolha NÃO constitui reserva efetuada.
+ */
 export function SelectedServicesSummary({
   selectedServices,
   totalPriceInCents,
@@ -27,6 +32,7 @@ export function SelectedServicesSummary({
   onCloseModal,
 }: SelectedServicesSummaryProps) {
   const { colors, spacing, radius, components } = useTheme();
+  const { isCompact } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
 
   if (selectedServices.length === 0) {
@@ -37,7 +43,7 @@ export function SelectedServicesSummary({
 
   return (
     <>
-      {/* Barra Flutuante Inferior */}
+      {/* Barra Flutuante Inferior Adaptativa */}
       <View
         style={{
           position: 'absolute',
@@ -62,14 +68,14 @@ export function SelectedServicesSummary({
             maxWidth: 640,
             width: '100%',
             alignSelf: 'center',
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: isCompact ? 'column' : 'row',
+            alignItems: isCompact ? 'stretch' : 'center',
             justifyContent: 'space-between',
             gap: spacing[3],
           }}
         >
           {/* Informações de Total */}
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: isCompact ? undefined : 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text variant="caption" weight="medium" color={colors.text.secondary}>
                 {count === 1 ? '1 serviço selecionado' : `${count} serviços selecionados`}
@@ -77,8 +83,9 @@ export function SelectedServicesSummary({
               <Pressable
                 onPress={onClear}
                 accessibilityRole="button"
-                accessibilityLabel="Limpar seleção"
+                accessibilityLabel="Limpar seleção de serviços"
                 hitSlop={8}
+                style={{ minWidth: 44, minHeight: 24, justifyContent: 'center' }}
               >
                 <Text variant="caption" color={colors.feedback.error}>
                   (limpar)
@@ -98,16 +105,20 @@ export function SelectedServicesSummary({
 
           {/* Botão de Ação */}
           <Button
-            title="Continuar"
+            title="Revisar Escolha"
             variant="primary"
-            rightIcon={<Ionicons name="arrow-forward" size={18} color={colors.text.inverse} />}
+            rightIcon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
             onPress={onOpenModal}
-            style={{ minHeight: 46, paddingHorizontal: spacing[4] }}
+            style={{
+              minHeight: 46,
+              paddingHorizontal: spacing[4],
+              width: isCompact ? '100%' : 'auto',
+            }}
           />
         </View>
       </View>
 
-      {/* Modal de Transparência / Handoff */}
+      {/* Modal Rolável de Resumo e Transparência */}
       <Modal
         visible={isModalOpen}
         animationType="fade"
@@ -127,117 +138,139 @@ export function SelectedServicesSummary({
             style={{
               width: '100%',
               maxWidth: 480,
+              maxHeight: '88%',
               backgroundColor: components.card.background,
               borderRadius: radius.xl,
               borderCurve: 'continuous',
               borderWidth: 1,
               borderColor: colors.border.default,
-              padding: spacing[6],
-              gap: spacing[4],
+              overflow: 'hidden',
             }}
           >
-            {/* Ícone de status */}
+            {/* Header com botão de fechar acessível */}
             <View
               style={{
-                width: 56,
-                height: 56,
-                borderRadius: radius.full,
-                backgroundColor: colors.surface.selected,
-                borderWidth: 1,
-                borderColor: colors.border.selected,
+                flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
-                alignSelf: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: spacing[5],
+                paddingTop: spacing[5],
+                paddingBottom: spacing[3],
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border.default,
               }}
             >
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={32}
-                color={colors.brand.primary}
-              />
+              <Text variant="h2" weight="bold" color={colors.text.primary}>
+                Serviços Selecionados
+              </Text>
+
+              <Pressable
+                onPress={onCloseModal}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar resumo"
+                hitSlop={8}
+                style={({ pressed }) => ({
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: radius.full,
+                  backgroundColor: pressed ? colors.surface.selected : 'transparent',
+                })}
+              >
+                <Ionicons name="close" size={22} color={colors.text.secondary} />
+              </Pressable>
             </View>
 
-            <View style={{ alignItems: 'center', gap: spacing[1] }}>
-              <Text variant="h2" weight="bold" color={colors.text.primary} style={{ textAlign: 'center' }}>
-                Seleção de Serviços Concluída!
-              </Text>
-              <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
-                Resumo da sua escolha para agendamento:
-              </Text>
-            </View>
-
-            {/* Lista dos serviços selecionados */}
-            <View
-              style={{
-                backgroundColor: colors.surface.default,
-                borderRadius: radius.md,
-                padding: spacing[3],
-                gap: spacing[2],
+            {/* Conteúdo rolável */}
+            <ScrollView
+              contentContainerStyle={{
+                padding: spacing[5],
+                gap: spacing[4],
               }}
             >
-              {selectedServices.map((service) => (
+              <Text variant="bodySm" color={colors.text.secondary}>
+                Resumo dos itens escolhidos para esta barbearia:
+              </Text>
+
+              {/* Lista dos serviços selecionados */}
+              <View
+                style={{
+                  backgroundColor: colors.surface.default,
+                  borderRadius: radius.md,
+                  padding: spacing[3],
+                  gap: spacing[2],
+                }}
+              >
+                {selectedServices.map((service) => (
+                  <View
+                    key={service.id}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: spacing[2],
+                    }}
+                  >
+                    <Text variant="caption" weight="medium" color={colors.text.primary} style={{ flex: 1 }}>
+                      • {service.title}
+                    </Text>
+                    <Text variant="caption" color={colors.text.secondary}>
+                      {formatPrice(service.priceInCents)} ({formatDuration(service.durationInMinutes)})
+                    </Text>
+                  </View>
+                ))}
+
                 <View
-                  key={service.id}
+                  style={{
+                    height: 1,
+                    backgroundColor: colors.border.default,
+                    marginVertical: 4,
+                  }}
+                />
+
+                <View
                   style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                   }}
                 >
-                  <Text variant="caption" weight="medium" color={colors.text.primary} style={{ flex: 1 }}>
-                    • {service.title}
+                  <Text variant="caption" weight="bold" color={colors.text.primary}>
+                    Total Previsto ({formatDuration(totalDurationInMinutes)}):
                   </Text>
-                  <Text variant="caption" color={colors.text.secondary}>
-                    {formatPrice(service.priceInCents)} ({formatDuration(service.durationInMinutes)})
+                  <Text variant="body" weight="bold" color={colors.brand.primary}>
+                    {formatPrice(totalPriceInCents)}
                   </Text>
                 </View>
-              ))}
+              </View>
 
+              {/* Aviso Transparente Obrigatório: NÃO É RESERVA CONCLUÍDA */}
               <View
                 style={{
-                  height: 1,
-                  backgroundColor: colors.border.default,
-                  marginVertical: 4,
-                }}
-              />
-
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  backgroundColor: colors.background.card,
+                  borderLeftWidth: 3,
+                  borderLeftColor: colors.brand.primary,
+                  padding: spacing[3],
+                  borderRadius: radius.sm,
+                  gap: 4,
                 }}
               >
                 <Text variant="caption" weight="bold" color={colors.text.primary}>
-                  Total Previsto ({formatDuration(totalDurationInMinutes)}):
+                  Aviso sobre agendamento
                 </Text>
-                <Text variant="body" weight="bold" color={colors.brand.primary}>
-                  {formatPrice(totalPriceInCents)}
+                <Text variant="caption" color={colors.text.secondary} style={{ lineHeight: 18 }}>
+                  A seleção destes serviços ainda não constitui nem garante uma reserva confirmada. A escolha de data, horário e barbeiro estará disponível na próxima atualização do Smart Barber.
                 </Text>
               </View>
-            </View>
 
-            {/* Aviso transparente sobre a próxima fase */}
-            <View
-              style={{
-                backgroundColor: colors.background.card,
-                borderLeftWidth: 3,
-                borderLeftColor: colors.brand.primary,
-                padding: spacing[3],
-                borderRadius: radius.sm,
-              }}
-            >
-              <Text variant="caption" color={colors.text.secondary} style={{ lineHeight: 18 }}>
-                O agendamento de horários em tempo real e a seleção de barbeiros estão em fase final de homologação e estarão disponíveis na próxima atualização do Smart Barber.
-              </Text>
-            </View>
-
-            <Button
-              title="Entendido"
-              variant="primary"
-              onPress={onCloseModal}
-              style={{ minHeight: 46 }}
-            />
+              <Button
+                title="Entendido"
+                variant="primary"
+                onPress={onCloseModal}
+                style={{ minHeight: 46, width: '100%', marginTop: spacing[2] }}
+              />
+            </ScrollView>
           </View>
         </View>
       </Modal>

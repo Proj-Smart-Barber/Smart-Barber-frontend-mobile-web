@@ -17,6 +17,8 @@ export function useServicesManagement(barbershopId?: string | null) {
   const [filterTab, setFilterTab] = useState<ServiceFilterTab>('all');
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   const queryKey = useMemo(
     () => ['services', barbershopId, { includeInactive: true }],
@@ -83,6 +85,8 @@ export function useServicesManagement(barbershopId?: string | null) {
       isActive: boolean;
     }) => {
       if (!barbershopId) throw new Error('Barbearia não selecionada.');
+      setTogglingId(serviceId);
+      setToggleError(null);
       return servicesApi.toggleServiceActivation(barbershopId, serviceId, isActive, token);
     },
     onMutate: async ({ serviceId, isActive }) => {
@@ -104,8 +108,10 @@ export function useServicesManagement(barbershopId?: string | null) {
       if (context?.previousData) {
         queryClient.setQueryData(queryKey, context.previousData);
       }
+      setToggleError('Falha ao atualizar status do serviço. A alteração foi desfeita.');
     },
     onSettled: () => {
+      setTogglingId(null);
       queryClient.invalidateQueries({ queryKey: ['services', barbershopId] });
     },
   });
@@ -122,12 +128,16 @@ export function useServicesManagement(barbershopId?: string | null) {
     return items;
   }, [items, filterTab]);
 
+  const totalCount = data?.total !== undefined ? data.total : items.length;
+  const isPartial = items.length < totalCount;
+
   const counts = useMemo(() => {
-    const total = items.length;
+    const total = totalCount;
+    const loadedTotal = items.length;
     const active = items.filter((s) => s.isActive).length;
-    const inactive = total - active;
-    return { total, active, inactive };
-  }, [items]);
+    const inactive = items.filter((s) => !s.isActive).length;
+    return { total, loadedTotal, active, inactive, isPartial };
+  }, [items, totalCount, isPartial]);
 
   const openCreateModal = () => {
     setEditingService(null);
@@ -168,5 +178,8 @@ export function useServicesManagement(barbershopId?: string | null) {
     updateError: updateMutation.error,
     toggleActivation: toggleActivationMutation.mutateAsync,
     isToggling: toggleActivationMutation.isPending,
+    togglingId,
+    toggleError,
+    clearToggleError: () => setToggleError(null),
   };
 }

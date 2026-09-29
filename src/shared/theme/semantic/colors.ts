@@ -25,7 +25,7 @@ export const darkColors: ThemeColors = {
   },
   background: { primary: c.obsidian[950], secondary: c.obsidian[900], card: c.obsidian[800], elevated: c.obsidian[700], overlay: 'rgba(0, 0, 0, 0.78)' },
   surface: { default: c.obsidian[900], elevated: c.obsidian[800], input: c.obsidian[700], inputFocus: c.obsidian[600], disabled: '#191919', selected: 'rgba(189, 32, 38, 0.16)', badge: 'rgba(189, 32, 38, 0.16)' },
-  text: { primary: c.neutral[0], body: c.neutral[100], secondary: c.neutral[300], muted: c.neutral[500], disabled: '#777777', inverse: c.neutral[950], brand: c.crimson[600], crimson: c.crimson[600] },
+  text: { primary: c.neutral[0], body: c.neutral[100], secondary: c.neutral[300], muted: c.neutral[500], disabled: '#777777', inverse: c.neutral[950], brand: c.crimson[400], crimson: c.crimson[400] },
   border: { default: 'rgba(255, 255, 255, 0.14)', subtle: 'rgba(255, 255, 255, 0.08)', focus: c.crimson[600], error: c.status.error, selected: c.crimson[600], ghost: 'rgba(189, 32, 38, 0.36)' },
 };
 

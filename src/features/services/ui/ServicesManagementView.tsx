@@ -8,13 +8,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@/shared/theme';
+import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import {
   Text,
   Button,
   EmptyState,
   ErrorState,
   Skeleton,
+  SegmentedFilter,
+  Alert,
 } from '@/shared/ui';
 import { useServicesManagement } from '../model/use-services-management';
 import { ServiceCard } from './ServiceCard';
@@ -29,6 +31,7 @@ export function ServicesManagementView({
   barbershopId,
 }: ServicesManagementViewProps) {
   const { colors, spacing, radius } = useTheme();
+  const { isCompact } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -51,12 +54,13 @@ export function ServicesManagementView({
     updateService,
     isUpdating,
     toggleActivation,
-    isToggling,
+    togglingId,
+    toggleError,
   } = useServicesManagement(barbershopId);
 
   const handleFormSubmit = async (values: {
     title: string;
-    description?: string;
+    description?: string | null;
     priceInCents: number;
     durationInMinutes: number;
   }) => {
@@ -85,7 +89,7 @@ export function ServicesManagementView({
         paddingTop: insets.top,
       }}
     >
-      {/* Header Superior */}
+      {/* Header Superior - Adaptativo para evitar overflow em telas compactas (320px/360px/390px) */}
       <View
         style={{
           paddingHorizontal: spacing[4],
@@ -100,8 +104,8 @@ export function ServicesManagementView({
             maxWidth: 800,
             width: '100%',
             alignSelf: 'center',
-            flexDirection: 'row',
-            alignItems: 'center',
+            flexDirection: isCompact ? 'column' : 'row',
+            alignItems: isCompact ? 'stretch' : 'center',
             justifyContent: 'space-between',
             gap: spacing[3],
           }}
@@ -111,6 +115,7 @@ export function ServicesManagementView({
               onPress={() => router.back()}
               accessibilityRole="button"
               accessibilityLabel="Voltar"
+              hitSlop={8}
               style={({ pressed }) => ({
                 width: 44,
                 height: 44,
@@ -129,14 +134,16 @@ export function ServicesManagementView({
               />
             </Pressable>
 
-            <View>
-              <Text variant="h2" weight="bold" color={colors.text.primary}>
+            <View style={{ flex: 1 }}>
+              <Text variant="h2" weight="bold" color={colors.text.primary} numberOfLines={1}>
                 Catálogo de Serviços
               </Text>
               <Text variant="caption" color={colors.text.secondary}>
-                {counts.total === 1
-                  ? '1 serviço registrado'
-                  : `${counts.total} serviços registrados`}
+                {counts.isPartial
+                  ? `Mostrando ${counts.loadedTotal} de ${counts.total} serviços`
+                  : counts.total === 1
+                    ? '1 serviço registrado'
+                    : `${counts.total} serviços registrados`}
               </Text>
             </View>
           </View>
@@ -144,9 +151,13 @@ export function ServicesManagementView({
           <Button
             title="Novo Serviço"
             variant="primary"
-            leftIcon={<Ionicons name="add" size={18} color={colors.text.inverse} />}
+            leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
             onPress={openCreateModal}
-            style={{ minHeight: 44, paddingHorizontal: spacing[4] }}
+            style={{
+              minHeight: 44,
+              paddingHorizontal: spacing[4],
+              alignSelf: isCompact ? 'stretch' : 'auto',
+            }}
           />
         </View>
       </View>
@@ -169,62 +180,33 @@ export function ServicesManagementView({
           />
         }
       >
-        {/* Segmented Filter Tabs */}
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: colors.background.secondary,
-            padding: 4,
-            borderRadius: radius.lg,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-          }}
-        >
-          {(
-            [
-              { key: 'all', label: `Todos (${counts.total})` },
-              { key: 'active', label: `Ativos (${counts.active})` },
-              { key: 'inactive', label: `Inativos (${counts.inactive})` },
-            ] as const
-          ).map((tab) => {
-            const isSelected = filterTab === tab.key;
-            return (
-              <Pressable
-                key={tab.key}
-                onPress={() => setFilterTab(tab.key)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isSelected }}
-                style={{
-                  flex: 1,
-                  paddingVertical: spacing[2],
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: radius.md,
-                  backgroundColor: isSelected
-                    ? colors.background.primary
-                    : 'transparent',
-                }}
-              >
-                <Text
-                  variant="caption"
-                  weight={isSelected ? 'bold' : 'medium'}
-                  color={
-                    isSelected ? colors.brand.primary : colors.text.secondary
-                  }
-                >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Aviso de erro na alternância de status se houver */}
+        {toggleError && (
+          <Alert
+            variant="error"
+            title="Erro na operação"
+            message={toggleError}
+            style={{ marginBottom: 0 }}
+          />
+        )}
+
+        {/* Componente C3: Filtro Segmentado */}
+        <SegmentedFilter
+          options={[
+            { value: 'all', label: 'Todos', count: counts.total },
+            { value: 'active', label: 'Ativos', count: counts.active },
+            { value: 'inactive', label: 'Inativos', count: counts.inactive },
+          ]}
+          value={filterTab}
+          onChange={(val) => setFilterTab(val as any)}
+        />
 
         {/* Estados de Carregamento, Erro ou Lista */}
         {isLoading ? (
           <View style={{ gap: spacing[3] }}>
-            <Skeleton height={80} style={{ borderRadius: radius.lg }} />
-            <Skeleton height={80} style={{ borderRadius: radius.lg }} />
-            <Skeleton height={80} style={{ borderRadius: radius.lg }} />
+            <Skeleton height={108} borderRadius={radius.lg} />
+            <Skeleton height={108} borderRadius={radius.lg} />
+            <Skeleton height={108} borderRadius={radius.lg} />
           </View>
         ) : error ? (
           <ErrorState
@@ -264,7 +246,7 @@ export function ServicesManagementView({
                 isManagement
                 onEdit={openEditModal}
                 onToggleActive={handleToggle}
-                isToggling={isToggling}
+                isToggling={togglingId === service.id}
               />
             ))}
           </View>

@@ -19,7 +19,7 @@ export interface ListServicesResponse {
 
 export interface CreateServiceInput {
   title: string;
-  description?: string;
+  description?: string | null;
   priceInCents: number;
   durationInMinutes: number;
 }
@@ -54,16 +54,59 @@ export function formatDuration(minutes: number): string {
 
 export function parsePriceToCents(rawPrice: string | number): number {
   if (typeof rawPrice === 'number') {
-    if (Number.isNaN(rawPrice) || rawPrice <= 0) return 0;
+    if (!Number.isFinite(rawPrice) || rawPrice <= 0) return 0;
     return Math.round(rawPrice * 100);
   }
-  const str = String(rawPrice || '').trim();
-  if (str.includes('-')) return 0;
-  const cleaned = str
-    .replace(/[^\d.,]/g, '')
-    .replace(/\.(?=.*\.)/g, '')
-    .replace(',', '.');
-  const parsed = parseFloat(cleaned);
-  if (Number.isNaN(parsed) || parsed <= 0) return 0;
+  if (!rawPrice) return 0;
+
+  let str = String(rawPrice).trim();
+  str = str.replace(/^R\$\s*/i, '').trim();
+  if (!str || str.startsWith('-')) return 0;
+
+  // Strict check: only digits, dots and commas allowed; rejects letters like '12abc'
+  if (/[^\d.,]/.test(str)) {
+    return 0;
+  }
+
+  const hasComma = str.includes(',');
+  const hasDot = str.includes('.');
+
+  let normalized: string;
+
+  if (hasComma && hasDot) {
+    const lastComma = str.lastIndexOf(',');
+    const lastDot = str.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      // Formato pt-BR: 1.234,56
+      const thousands = str.slice(0, lastComma);
+      const decimals = str.slice(lastComma + 1);
+      if (decimals.length !== 2) return 0;
+      normalized = thousands.replace(/\./g, '') + '.' + decimals;
+    } else {
+      // Formato alternativo: 1,234.56
+      const thousands = str.slice(0, lastDot);
+      const decimals = str.slice(lastDot + 1);
+      if (decimals.length !== 2) return 0;
+      normalized = thousands.replace(/,/g, '') + '.' + decimals;
+    }
+  } else if (hasComma) {
+    const parts = str.split(',');
+    if (parts.length !== 2 || parts[1].length > 2) return 0;
+    normalized = parts[0] + '.' + (parts[1].length === 1 ? parts[1] + '0' : parts[1]);
+  } else if (hasDot) {
+    const parts = str.split('.');
+    if (parts.length === 2) {
+      if (parts[1].length > 2) return 0;
+      normalized = parts[0] + '.' + (parts[1].length === 1 ? parts[1] + '0' : parts[1]);
+    } else {
+      // Múltiplos pontos sem vírgula: ex 1.234
+      normalized = str.replace(/\./g, '');
+    }
+  } else {
+    normalized = str;
+  }
+
+  const parsed = parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
   return Math.round(parsed * 100);
 }

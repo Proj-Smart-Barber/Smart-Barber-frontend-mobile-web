@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Spinner, ErrorState, Button, Text } from '@/shared/ui';
+import { Card, Skeleton, Spinner, ErrorState, Button, Text } from '@/shared/ui';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { useAvailabilityViewModel } from '../model/use-availability-view-model';
 import { AvailabilityError } from './AvailabilityError';
@@ -29,9 +29,6 @@ const formSchema = z.object({
   days: z.array(
     z.object({
       weekday: weeklyScheduleEntrySchema.shape.weekday,
-      // scheduleDaySchema (não weeklyScheduleEntrySchema puro) — é o refine que
-      // detecta sobreposição de ranges dentro do mesmo dia (Critério de Aceite 4).
-      // Sem isso o conflito nunca era validado, só o formato de cada range isolado.
       entries: scheduleDaySchema,
     }),
   ),
@@ -62,9 +59,6 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
 
   const methods = useForm<AvailabilityFormValues>({
     resolver: zodResolver(formSchema),
-    // onBlur (+ onChange após o 1º erro, padrão do RHF) — o gestor vê o conflito
-    // ao sair do campo, sem precisar apertar "Salvar jornada" (Critério de Aceite 4:
-    // aviso "imediato").
     mode: 'onBlur',
     values: vm.scheduleDays
       ? {
@@ -79,15 +73,87 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
   if (vm.isLoadingInitial) {
     return (
       <SafeAreaView
-        style={[styles.stateScreen, { backgroundColor: colors.background.primary }]}
+        style={[styles.screen, { backgroundColor: colors.background.primary }]}
         edges={['top', 'bottom']}
       >
-        <View style={styles.stateContent}>
-          <Spinner />
-          <Text variant="caption" color={colors.text.secondary}>
-            Carregando disponibilidade…
-          </Text>
-        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingHorizontal: spacing[isExpanded ? 8 : 5],
+              paddingTop: spacing[4],
+              paddingBottom: spacing[10],
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
+            <View style={styles.topBar}>
+              <View
+                style={[
+                  styles.backButton,
+                  {
+                    backgroundColor: colors.surface.default,
+                    borderColor: colors.border.subtle,
+                    borderRadius: radius.md,
+                  },
+                ]}
+              >
+                <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
+              </View>
+              <View style={styles.topBarTitle}>
+                <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+                  Disponibilidade
+                </Text>
+                <Text variant="caption" color={colors.text.secondary}>
+                  Configuração operacional
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.hero}>
+              <View
+                style={[
+                  styles.heroAccent,
+                  { backgroundColor: colors.brand.primary, borderRadius: radius.full },
+                ]}
+              />
+              <Skeleton width={260} height={32} style={{ marginBottom: spacing[2] }} />
+              <Skeleton width="80%" height={16} />
+            </View>
+
+            <View style={[styles.mainGrid, isExpanded && styles.mainGridExpanded]}>
+              <View style={[styles.journeyColumn, isExpanded && styles.journeyColumnExpanded]}>
+                <Card style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3] }}>
+                  <Skeleton width={180} height={20} />
+                  <Skeleton width="60%" height={14} />
+                </Card>
+                <View style={{ gap: spacing[3] }}>
+                  {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i} style={{ minHeight: 64, padding: spacing[4], justifyContent: 'center' }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Skeleton width={110} height={18} />
+                        <Skeleton width={80} height={28} borderRadius={radius.md} />
+                      </View>
+                    </Card>
+                  ))}
+                </View>
+              </View>
+
+              <View style={[styles.sideColumn, isExpanded && styles.sideColumnExpanded]}>
+                <Card style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3] }}>
+                  <Skeleton width={150} height={20} />
+                  <Skeleton width="70%" height={14} />
+                </Card>
+                <Card style={{ minHeight: 96, padding: spacing[4], gap: spacing[2] }}>
+                  <Skeleton width={130} height={16} />
+                  <Skeleton width="50%" height={14} />
+                </Card>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -102,6 +168,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
           <ErrorState
             title="Não foi possível carregar a jornada"
             description={vm.configurationError ?? 'Verifique sua conexão e tente novamente.'}
+            onRetry={vm.handleRetry}
           />
         </View>
       </SafeAreaView>
@@ -505,6 +572,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
 
               <Button
                 title="Salvar alterações"
+                loadingTitle="Salvando jornada…"
                 leftIcon={
                   <Ionicons name="checkmark-circle-outline" size={20} color={colors.text.inverse} />
                 }

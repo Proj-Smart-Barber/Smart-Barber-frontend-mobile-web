@@ -97,8 +97,8 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
             </View>
 
             <Badge
-              label="Atendimento"
-              tone="success"
+              label="Catálogo Oficial"
+              tone="neutral"
             />
           </View>
 
@@ -116,7 +116,7 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
           alignSelf: 'center',
           padding: spacing[4],
           gap: spacing[3],
-          paddingBottom: selectedServices.length > 0 ? 120 : insets.bottom + spacing[6],
+          paddingBottom: selectedServices.length > 0 ? 140 : insets.bottom + spacing[6],
         }}
         refreshControl={
           <RefreshControl
@@ -128,9 +128,9 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
       >
         {isLoading ? (
           <View style={{ gap: spacing[3] }}>
-            <Skeleton height={88} style={{ borderRadius: radius.lg }} />
-            <Skeleton height={88} style={{ borderRadius: radius.lg }} />
-            <Skeleton height={88} style={{ borderRadius: radius.lg }} />
+            <Skeleton height={108} borderRadius={radius.lg} />
+            <Skeleton height={108} borderRadius={radius.lg} />
+            <Skeleton height={108} borderRadius={radius.lg} />
           </View>
         ) : error ? (
           <ErrorState

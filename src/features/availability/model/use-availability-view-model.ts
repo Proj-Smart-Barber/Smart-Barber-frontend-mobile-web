@@ -143,6 +143,13 @@ export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
 
   const clearFormError = useCallback(() => setFormError(null), []);
 
+  const handleRetry = useCallback(() => {
+    setFormError(null);
+    void barbershopQuery.refetch();
+    void scheduleQuery.refetch();
+    void exceptionsQuery.refetch();
+  }, [barbershopQuery, scheduleQuery, exceptionsQuery]);
+
   return {
     barbershop: barbershopQuery.data ?? null,
     scheduleDays,
@@ -155,6 +162,7 @@ export function useAvailabilityViewModel(sessionBarbershopId?: string | null) {
 
     formError,
     clearFormError,
+    handleRetry,
 
     handleSaveSchedule,
     handleCreateException,

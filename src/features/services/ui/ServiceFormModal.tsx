@@ -20,7 +20,7 @@ export interface ServiceFormModalProps {
   serviceToEdit?: Service | null;
   onSubmit: (values: {
     title: string;
-    description?: string;
+    description?: string | null;
     priceInCents: number;
     durationInMinutes: number;
   }) => Promise<void>;
@@ -85,11 +85,12 @@ export function ServiceFormModal({
 
     const priceInCents = parsePriceToCents(price);
     const duration = parseInt(durationInMinutes, 10);
+    const cleanDesc = description.trim();
 
     try {
       await onSubmit({
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: cleanDesc ? cleanDesc : (serviceToEdit ? null : undefined),
         priceInCents,
         durationInMinutes: duration,
       });
@@ -151,9 +152,10 @@ export function ServiceFormModal({
               disabled={isLoading}
               accessibilityRole="button"
               accessibilityLabel="Fechar formulário"
+              hitSlop={8}
               style={({ pressed }) => ({
-                width: 36,
-                height: 36,
+                minWidth: 44,
+                minHeight: 44,
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: radius.full,

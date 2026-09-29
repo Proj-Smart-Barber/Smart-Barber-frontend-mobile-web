@@ -135,7 +135,8 @@ export function ServiceCard({
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: spacing[4],
+              flexWrap: 'wrap',
+              gap: spacing[3],
               marginTop: spacing[2],
             }}
           >
@@ -161,8 +162,20 @@ export function ServiceCard({
 
             {isManagement && (
               <Badge
-                label={service.isActive ? 'Ativo' : 'Inativo'}
-                tone={service.isActive ? 'success' : 'error'}
+                label={
+                  isToggling
+                    ? 'Atualizando…'
+                    : service.isActive
+                      ? 'Ativo'
+                      : 'Inativo'
+                }
+                tone={
+                  isToggling
+                    ? 'pending'
+                    : service.isActive
+                      ? 'success'
+                      : 'error'
+                }
                 style={{ marginLeft: 'auto' }}
               />
             )}

@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Card, EmptyState, Skeleton, Text } from '@/shared/ui';
+import { Badge, Card, EmptyState, SegmentedFilter, type SegmentedFilterOption, Skeleton, Text } from '@/shared/ui';
 import { confirmDestructiveAction } from '@/features/agenda/ui/confirm-destructive-action';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/dashboard.helpers';
@@ -43,8 +43,8 @@ export function TodayTimeline({
     }
   };
 
-  const filterOptions: { label: string; value: TimelineFilter }[] = [
-    { label: `Todos (${totalCount})`, value: 'ALL' },
+  const filterOptions: SegmentedFilterOption<TimelineFilter>[] = [
+    { label: 'Todos', value: 'ALL', count: totalCount },
     { label: 'Pendentes', value: 'PENDING' },
     { label: 'Concluídos', value: 'DONE' },
   ];
@@ -69,43 +69,13 @@ export function TodayTimeline({
           </Text>
         </View>
 
-        {/* Pílulas de Filtro */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.surface.input,
-            borderRadius: radius.full,
-            padding: 4,
-            gap: 4,
-          }}
-        >
-          {filterOptions.map((opt) => {
-            const isActive = currentFilter === opt.value;
-            return (
-              <Pressable
-                key={opt.value}
-                accessibilityRole="button"
-                accessibilityLabel={`Filtrar por ${opt.label}`}
-                onPress={() => onFilterChange(opt.value)}
-                style={{
-                  paddingHorizontal: spacing[3],
-                  paddingVertical: spacing[1],
-                  borderRadius: radius.full,
-                  backgroundColor: isActive ? colors.brand.primary : 'transparent',
-                }}
-              >
-                <Text
-                  variant="tab"
-                  color={isActive ? colors.text.inverse : colors.text.secondary}
-                  weight={isActive ? 'semibold' : 'medium'}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Filtro Segmentado C3 */}
+        <SegmentedFilter
+          options={filterOptions}
+          value={currentFilter}
+          onChange={onFilterChange}
+          style={{ width: isCompact ? '100%' : 'auto', minWidth: isCompact ? undefined : 300 }}
+        />
       </View>
 
       {/* Lista de Atendimentos */}
@@ -201,6 +171,7 @@ export function TodayTimeline({
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`Cancelar agendamento de ${item.customerName}`}
+                      hitSlop={8}
                       onPress={() => void handleCancelAppointment(item.id, item.customerName, item.scheduledTime)}
                       style={({ pressed }) => ({
                         width: 36,
@@ -221,6 +192,7 @@ export function TodayTimeline({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Ver agendamento de ${item.customerName} na agenda completa`}
+                    hitSlop={8}
                     onPress={() => router.push('/(app)/agenda' as any)}
                     style={({ pressed }) => ({
                       width: 36,

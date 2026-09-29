@@ -22,6 +22,7 @@ export type ButtonVariant =
 
 export interface ButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
+  loadingTitle?: string;
   variant?: ButtonVariant;
   loading?: boolean;
   disabled?: boolean;
@@ -33,6 +34,7 @@ export interface ButtonProps extends Omit<PressableProps, 'style'> {
 
 export function Button({
   title,
+  loadingTitle,
   variant = 'primary',
   loading = false,
   disabled = false,
@@ -48,6 +50,7 @@ export function Button({
   const [focused, setFocused] = useState(false);
 
   const isDisabled = disabled || loading;
+  const currentTitle = loading ? (loadingTitle || title) : title;
 
   const intent =
     variant === 'destructive'
@@ -97,7 +100,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={currentTitle}
       accessibilityState={{
         disabled: isDisabled,
         busy: loading,
@@ -108,7 +111,7 @@ export function Button({
       onBlur={() => setFocused(false)}
       style={({ pressed }) => [
         {
-          minHeight: 52,
+          minHeight: 48,
           paddingHorizontal: spacing[6],
           paddingVertical: spacing[3],
           alignItems: 'center',
@@ -120,15 +123,30 @@ export function Button({
           borderWidth: variant === 'outline' || focused ? 2 : 1,
           borderColor: focused ? components.button.focus : intent.border,
           backgroundColor: pressed ? intent.pressed : intent.background,
-          opacity: isDisabled ? 0.5 : 1,
+          opacity: isDisabled ? 0.65 : 1,
           transform: [{ scale: pressed && !reducedMotion ? 0.99 : 1 }],
+          ...(Platform.OS === 'web'
+            ? ({
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
+                transition: reducedMotion ? 'none' : 'all 150ms ease',
+              } as any)
+            : {}),
         },
         style,
       ]}
       {...rest}
     >
       {loading ? (
-        <Spinner color={intent.foreground} size="small" />
+        <>
+          <Spinner color={intent.foreground} size="small" />
+          <Text
+            color={intent.foreground}
+            weight="medium"
+            style={textStyle}
+          >
+            {currentTitle}
+          </Text>
+        </>
       ) : (
         <>
           {leftIcon}
