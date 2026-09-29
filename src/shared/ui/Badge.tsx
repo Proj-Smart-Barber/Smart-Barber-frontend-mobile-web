@@ -3,8 +3,103 @@ import { StyleProp, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme';
 import { Text } from './Text';
 
-export function Badge({ label, tone = 'brand', style }: { label: string; tone?: 'brand' | 'success' | 'successAlt' | 'warning' | 'error' | 'info'; style?: StyleProp<ViewStyle> }) {
+export type BadgeTone =
+  | 'brand'
+  | 'success'
+  | 'successAlt'
+  | 'warning'
+  | 'error'
+  | 'info'
+  | 'pending'
+  | 'neutral';
+
+export interface BadgeProps {
+  label: string;
+  tone?: BadgeTone;
+  icon?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * Componente C6: Badge de Estado
+ * Inspirado em Status Badge (Spectrum UI).
+ * Combina texto explícito, cor contextual de alto contraste e ícone opcional.
+ */
+export function Badge({
+  label,
+  tone = 'brand',
+  icon,
+  style,
+}: BadgeProps) {
   const { colors, radius, spacing } = useTheme();
-  const palette = tone === 'successAlt' ? { fg: colors.feedback.successAlt, bg: colors.feedback.successAltBackground, border: colors.feedback.successAltBorder } : tone === 'info' ? { fg: colors.feedback.info, bg: colors.feedback.infoBackground, border: colors.feedback.infoBorder } : tone === 'success' ? { fg: colors.feedback.success, bg: colors.feedback.successBackground, border: colors.feedback.successBorder } : tone === 'warning' ? { fg: colors.feedback.warning, bg: colors.feedback.warningBackground, border: colors.feedback.warningBorder } : tone === 'error' ? { fg: colors.feedback.error, bg: colors.feedback.errorBackground, border: colors.feedback.errorBorder } : { fg: colors.brand.primary, bg: colors.surface.selected, border: colors.border.selected };
-  return <View style={[{ alignSelf: 'flex-start', paddingHorizontal: spacing[3], paddingVertical: spacing[1], borderRadius: radius.full, backgroundColor: palette.bg, borderColor: palette.border, borderWidth: 1 }, style]}><Text variant="badge" color={palette.fg}>{label}</Text></View>;
+
+  const palette = {
+    brand: {
+      fg: colors.text.crimson,
+      bg: colors.surface.selected,
+      border: colors.border.selected,
+    },
+    success: {
+      fg: colors.feedback.success,
+      bg: colors.feedback.successBackground,
+      border: colors.feedback.successBorder,
+    },
+    successAlt: {
+      fg: colors.feedback.successAlt,
+      bg: colors.feedback.successAltBackground,
+      border: colors.feedback.successAltBorder,
+    },
+    warning: {
+      fg: colors.feedback.warning,
+      bg: colors.feedback.warningBackground,
+      border: colors.feedback.warningBorder,
+    },
+    error: {
+      fg: colors.feedback.error,
+      bg: colors.feedback.errorBackground,
+      border: colors.feedback.errorBorder,
+    },
+    info: {
+      fg: colors.feedback.info,
+      bg: colors.feedback.infoBackground,
+      border: colors.feedback.infoBorder,
+    },
+    pending: {
+      fg: colors.text.brand,
+      bg: colors.surface.selected,
+      border: colors.border.ghost,
+    },
+    neutral: {
+      fg: colors.text.secondary,
+      bg: colors.surface.elevated,
+      border: colors.border.default,
+    },
+  }[tone];
+
+  return (
+    <View
+      accessibilityRole="text"
+      accessibilityLabel={`Status: ${label}`}
+      style={[
+        {
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
+          paddingHorizontal: spacing[3],
+          paddingVertical: spacing[1],
+          borderRadius: radius.full,
+          backgroundColor: palette.bg,
+          borderColor: palette.border,
+          borderWidth: 1,
+        },
+        style,
+      ]}
+    >
+      {icon}
+      <Text variant="badge" color={palette.fg}>
+        {label}
+      </Text>
+    </View>
+  );
 }

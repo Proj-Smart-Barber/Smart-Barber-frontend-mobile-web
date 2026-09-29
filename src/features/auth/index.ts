@@ -2,6 +2,7 @@ export * from './ui/LoginForm';
 export * from './ui/RegisterForm';
 export * from './ui/AuthLayout';
 export * from './ui/AuthError';
+export * from './ui/SessionRecoveryScreen';
 
 export * from './model/use-session';
 export * from './model/auth-state';

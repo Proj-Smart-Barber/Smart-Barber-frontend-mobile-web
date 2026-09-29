@@ -259,6 +259,7 @@ export function AgendaAppointmentCard({
         >
           <AgendaActionButton
             title="Cancelar"
+            loadingTitle="Cancelando…"
             tone="destructive"
             loading={isCancelling}
             disabled={isCancelling}

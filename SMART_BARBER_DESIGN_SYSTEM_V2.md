@@ -2,6 +2,7 @@
 
 **Sistema visual:** The Obsidian Atelier 2.0
 **Versão:** 2.0
+**Revisão de curadoria de componentes:** 29/09/2026
 **Status:** Baseline oficial recomendada
 **Escopo:** Android, iOS, Web autenticada e futura camada pública
 **Princípio de plataforma:** Mobile-first, adaptive by default
@@ -1052,6 +1053,8 @@ Não usar apenas cor para diferenciar estados.
 
 Preferir skeleton em páginas de conteúdo.
 
+Na abertura, distinguir três etapas: splash nativa estática (iOS/Android), primeira pintura do documento web e bootstrap React (fontes, sessão e contexto). A transição entre elas deve preservar cor e posição da marca, evitar tela vazia e explicar uma espera perceptível com texto curto. Falha na restauração da sessão precisa oferecer recuperação visível; não manter carregamento infinito nem tratar erro temporário de rede como credencial inválida.
+
 ## Empty
 
 Explicar:
@@ -1338,6 +1341,16 @@ Este documento deve apenas referenciar:
 
 # 44. Checklist — Auth
 
+## Abertura e restauração de sessão
+
+- [ ] splash nativa coerente com tema claro/escuro e primeiro frame React;
+- [ ] primeira pintura web com fundo e metadados coerentes com o tema;
+- [ ] marca com tamanho e posição próximos entre splash e bootstrap;
+- [ ] mensagem de etapa real, sem percentagem inventada;
+- [ ] erro temporário de sessão com opção de tentar novamente;
+- [ ] usuário sem sessão chega ao login sem espera artificial;
+- [ ] validação em build nativa de release e Safari real, além do ambiente de desenvolvimento.
+
 ## Login
 
 - [ ] identidade Obsidian;
@@ -1351,6 +1364,11 @@ Este documento deve apenas referenciar:
 - [ ] mobile;
 - [ ] web;
 - [ ] acessibilidade.
+- [ ] rótulo do botão permanece visível durante o envio;
+- [ ] erro de autenticação é claro e recuperável;
+- [ ] labels de e-mail e senha ligados aos campos na web;
+- [ ] ícones e marca verificados no Safari;
+- [ ] nenhum link de recuperação de senha sem fluxo funcional.
 
 ## Cadastro
 
@@ -1407,6 +1425,8 @@ Uma tela só é aprovada quando:
 - [ ] respeita acessibilidade;
 - [ ] não usa apenas cor para comunicar estado;
 - [ ] não duplica componente compartilhado sem necessidade.
+- [ ] consultou as fontes de componentes da seção 51 e registrou reutilização, adaptação ou motivo para criar do zero;
+- [ ] verificou licença, dependências, acesso ao código, compatibilidade web/mobile e movimento reduzido para componentes externos.
 
 ---
 
@@ -1492,3 +1512,42 @@ reconhecível
 ```
 
 Este documento passa a ser a organização recomendada para o **Design System oficial do Smart Barber — The Obsidian Atelier 2.0**.
+
+---
+
+# 51. Fontes de componentes e procedimento de reutilização
+
+Antes de desenhar ou implementar uma nova interação visual, consultar as fontes abaixo e os componentes já existentes em `src/shared/ui` e nas features. O objetivo é aproveitar soluções prontas quando economizam trabalho **e** mantêm a experiência Obsidian Atelier. A consulta é parte da proposta e da revisão de novas telas; nenhum catálogo substitui este guia, os tokens do projeto ou a validação do fluxo real.
+
+| Fonte | Onde procurar | Uso preferencial no Smart Barber |
+| --- | --- | --- |
+| [React Bits — catálogo](https://reactbits.dev/) e [Micro](https://reactbits.dev/c/micro) | Microinterações, transições e feedback de estado. | [Status Mark](https://reactbits.dev/c/micro/status-mark) para operação assíncrona e [Rubber Segment](https://reactbits.dev/c/micro/rubber-segment) para filtros; avaliar [Lattice Loader](https://reactbits.dev/c/micro/lattice-loader) somente em espera curta com estado textual, sem cronômetro decorativo. |
+| [Spectrum UI — catálogo](https://ui.spectrumhq.in/) e [documentação](https://ui.spectrumhq.in/docs) | Padrões de formulário, carregamento, avisos e painéis operacionais. | [Skeleton Reveal](https://ui.spectrumhq.in/docs/skeleton-reveal), [Text States](https://ui.spectrumhq.in/docs/text-states), [Loading Button](https://ui.spectrumhq.in/docs/loading-button), [Toast Stack](https://ui.spectrumhq.in/docs/toast-stack), [Status Badge](https://ui.spectrumhq.in/docs/status-badge) e [Password Strength](https://ui.spectrumhq.in/docs/password-strength), este último apenas em cadastro/alteração de senha e alinhado às regras reais. |
+| [Expo — splash nativa](https://docs.expo.dev/versions/latest/sdk/splash-screen/) e [módulos por plataforma](https://docs.expo.dev/router/advanced/platform-specific-modules/) | Ciclo de abertura iOS/Android e separação web/native. | Configurar splash nativa leve e estática; animar discretamente apenas depois que React estiver pronto, quando houver propósito. |
+
+## 51.1 Processo para cada nova tela ou componente
+
+1. Descrever a tarefa do usuário, o estado que precisa ser comunicado e o componente compartilhado atual que pode atendê-la.
+2. Buscar nas fontes por função concreta: carregamento, seleção, progresso, erro, recuperação, confirmação ou navegação. Registrar pelo menos uma opção existente ou explicar por que nenhuma serve.
+3. Comparar opções por legibilidade, tokens Obsidian/Crimson, esforço de adaptação, dependências, peso, desempenho, licença, disponibilidade do código e compatibilidade com React Native Web/iOS/Android. Código React DOM, Tailwind ou Motion não deve ser presumido universal.
+4. Escolher e registrar uma rota: **reutilizar componente local**, **adaptar padrão no componente universal**, **pilotar componente web com equivalente nativo**, ou **criar componente novo** quando as opções anteriores não resolverem. Evitar duas soluções de toast, spinner ou modal para a mesma função.
+5. Especificar estados `loading/success/error/empty/disabled`, toque, foco, teclado, leitor de tela, fonte ampliada, movimento reduzido e comportamento sem animação. Resultado visual de sucesso só após confirmação real da operação.
+6. Validar a proposta nos tamanhos compactos e em web/mobile; medir regressões de bundle, salto de layout e fluidez quando houver nova dependência. Registrar a decisão no plano ou na revisão da feature.
+
+## 51.2 Aplicação imediata por área
+
+| Área | Referência útil | Limite de adoção |
+| --- | --- | --- |
+| Abertura | Splash oficial Expo, Text States, Status Mark; Skeleton Reveal após entrada em conteúdo. | Não prolongar splash para exibir marca; primeira pintura web não depende de componente React. |
+| Login | Loading Button, Text States e Alert para estado de envio/erro. | O [Login Card](https://ui.spectrumhq.in/docs/login) inclui fluxos sociais não presentes no produto e exige adaptação ampla; não copiar como tela inteira. |
+| Cadastro | Password Strength como padrão de requisitos visíveis. | Regras exibidas precisam corresponder ao backend; não pedir complexidade fictícia. |
+| Serviços | Rubber Segment, Status Mark, Status Badge, Skeleton Reveal e Toast Stack. | Resolver dados, layout e falhas de API antes de animar estados. |
+| Agenda, disponibilidade e dashboard | Skeleton Reveal, Status Badge e avisos com recuperação. | Métricas e disponibilidade devem ser verdadeiras; manter ações operacionais rápidas. |
+| Catálogo público | Skeleton Reveal e feedback discreto de seleção. | Não comunicar reserva concluída quando houve apenas seleção de serviços. |
+
+## 51.3 Restrições de adoção
+
+- Preservar Epilogue, Inter, tokens de cor, contraste e a preferência por movimento reduzido.
+- Rejeitar animações contínuas, partículas, 3D, cursores especiais e efeitos pesados nas rotas operacionais e de autenticação.
+- Revisar [licença do React Bits](https://github.com/DavidHDev/react-bits/blob/main/LICENSE.md) antes de copiar código. As páginas do Spectrum UI consultadas exigem login para visualizar código/comando; estimar custo somente após acesso e inspeção da implementação exata.
+- Seguir o [relatório de curadoria e prioridades](docs/RELATORIO_UX_COMPONENTES_RESPONSIVIDADE_2026-09-29.md) e o [plano de implementação](docs/PLANO_UX_RESPONSIVIDADE_COMPONENTES_2026-09-29.md); atualizar os documentos quando uma decisão ou dependência mudar.

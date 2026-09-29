@@ -4,8 +4,8 @@ import { ThemeColors } from '../semantic/colors';
 export function createComponentTokens(colors: ThemeColors) {
   return {
     button: {
-      primary: { background: colors.brand.primary, pressed: colors.brand.primaryPressed, foreground: colors.text.inverse },
-      destructive: { background: colors.feedback.destructive, pressed: colors.feedback.destructivePressed, foreground: colors.text.inverse },
+      primary: { background: colors.brand.primary, pressed: colors.brand.primaryPressed, foreground: '#FFFFFF' },
+      destructive: { background: colors.feedback.destructive, pressed: colors.feedback.destructivePressed, foreground: '#FFFFFF' },
       secondary: { background: colors.surface.elevated, pressed: colors.surface.selected, foreground: colors.text.primary },
       focus: colors.border.focus,
     },

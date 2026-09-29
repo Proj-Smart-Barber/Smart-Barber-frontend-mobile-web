@@ -6,6 +6,7 @@ import { Spinner, Text } from '@/shared/ui';
 
 interface AgendaActionButtonProps {
   title: string;
+  loadingTitle?: string;
   onPress: () => void;
   tone: 'success' | 'destructive';
   loading?: boolean;
@@ -20,6 +21,7 @@ interface AgendaActionButtonProps {
  */
 export function AgendaActionButton({
   title,
+  loadingTitle,
   onPress,
   tone,
   loading = false,
@@ -31,6 +33,7 @@ export function AgendaActionButton({
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const isDisabled = disabled || loading;
+  const currentTitle = loading ? (loadingTitle || `${title}…`) : title;
 
   const accent = tone === 'success' ? colors.feedback.success : colors.feedback.destructive;
   const pressedBg =
@@ -48,7 +51,7 @@ export function AgendaActionButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={currentTitle}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPress={handlePress}
@@ -77,13 +80,10 @@ export function AgendaActionButton({
         style,
       ]}
     >
-      {loading ? (
-        <Spinner color={accent} size="small" />
-      ) : (
-        <Text variant="button" color={accent}>
-          {title}
-        </Text>
-      )}
+      {loading ? <Spinner color={accent} size="small" /> : null}
+      <Text variant="button" color={accent}>
+        {currentTitle}
+      </Text>
     </Pressable>
   );
 }

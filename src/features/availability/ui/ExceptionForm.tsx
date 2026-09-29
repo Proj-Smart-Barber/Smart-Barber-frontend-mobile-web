@@ -256,6 +256,7 @@ export function ExceptionForm({
         />
         <Button
           title={isEdit ? 'Salvar edição' : 'Salvar exceção'}
+          loadingTitle={isEdit ? 'Salvando edição…' : 'Salvando exceção…'}
           variant="primary"
           leftIcon={<Ionicons name="checkmark" size={20} color={colors.text.inverse} />}
           onPress={handleSubmit(handleSave)}

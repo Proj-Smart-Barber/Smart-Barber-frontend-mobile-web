@@ -43,12 +43,18 @@ describe('Service Presentation and Validation Helpers', () => {
       expect(parsePriceToCents('45.50')).toBe(4550);
       expect(parsePriceToCents('120')).toBe(12000);
       expect(parsePriceToCents('R$ 35,00')).toBe(3500);
+      expect(parsePriceToCents('1.234,56')).toBe(123456);
+      expect(parsePriceToCents('R$ 1.234,56')).toBe(123456);
     });
 
-    it('deve retornar 0 para valores inválidos ou zerados', () => {
+    it('deve retornar 0 para valores inválidos, negativos, zerados ou com letras', () => {
       expect(parsePriceToCents('0')).toBe(0);
+      expect(parsePriceToCents('0,00')).toBe(0);
       expect(parsePriceToCents('abc')).toBe(0);
+      expect(parsePriceToCents('12abc')).toBe(0);
+      expect(parsePriceToCents('40x')).toBe(0);
       expect(parsePriceToCents('-10')).toBe(0);
+      expect(parsePriceToCents('1,,23')).toBe(0);
     });
   });
 

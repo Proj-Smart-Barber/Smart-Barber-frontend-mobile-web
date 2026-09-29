@@ -1,15 +1,17 @@
 import React from 'react';
-import { Alert, Share, View } from 'react-native';
+import { Alert, Platform, Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Button } from '@/shared/ui';
+import { Button, useToast } from '@/shared/ui';
+import { getPublicCatalogUrl } from '@/shared/config/env';
 
 import { useSession } from '@/features/auth';
 
 export function QuickActionsBar() {
   const { colors, spacing } = useTheme();
   const { isCompact } = useAdaptiveLayout();
+  const { showToast } = useToast();
   const router = useRouter();
   const { barbershop } = useSession();
 
@@ -23,8 +25,8 @@ export function QuickActionsBar() {
 
   const handleQuickBooking = () => {
     Alert.alert(
-      'Novo Encaixe (Agendamento)',
-      'O registro de novos agendamentos (encaixe de cliente) aguarda a disponibilização do endpoint de criação de reservas na API do backend.',
+      'Novo Encaixe (Em breve)',
+      'A criação direta de agendamentos e encaixes aguarda a disponibilização do endpoint de reservas na API do backend.',
     );
   };
 
@@ -33,15 +35,48 @@ export function QuickActionsBar() {
   };
 
   const handleShare = async () => {
+    const catalogUrl = getPublicCatalogUrl(barbershop?.id);
+    const shopName = barbershop?.name || 'Smart Barber';
+    const message = `Confira os serviços e catálogo oficial da nossa barbearia no Smart Barber: ${catalogUrl}`;
+
+    if (Platform.OS === 'web') {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
+            title: `${shopName} — Catálogo Oficial`,
+            text: message,
+            url: catalogUrl,
+          });
+          showToast('Link do catálogo compartilhado!', 'success');
+        } catch (err: any) {
+          if (err?.name !== 'AbortError') {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(catalogUrl);
+              showToast('Link do catálogo copiado!', 'success');
+            }
+          }
+        }
+      } else if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(catalogUrl);
+        showToast('Link do catálogo copiado!', 'success');
+      } else {
+        Alert.alert('Catálogo Oficial', `Acesse ou copie o link:\n${catalogUrl}`);
+      }
+      return;
+    }
+
     try {
-      const catalogUrl = barbershop?.id
-        ? `https://smartbarber.app/barbershops/${barbershop.id}/services`
-        : 'https://smartbarber.app';
-      await Share.share({
-        message: `Confira os serviços e novidades da nossa barbearia no Smart Barber: ${catalogUrl}`,
+      const result = await Share.share({
+        message,
+        url: catalogUrl,
+        title: `${shopName} — Catálogo Oficial`,
       });
+
+      if (result.action === Share.sharedAction) {
+        showToast('Link do catálogo compartilhado!', 'success');
+      }
     } catch {
-      // Ignora cancelamentos
+      // Ignora cancelamentos intencionais do usuário
     }
   };
 
@@ -55,10 +90,10 @@ export function QuickActionsBar() {
       }}
     >
       <Button
-        title="Novo Encaixe"
+        title="Ver Agenda"
         variant="primary"
-        leftIcon={<Ionicons name="add-circle-outline" size={18} color={colors.text.inverse} />}
-        onPress={handleQuickBooking}
+        leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.text.inverse} />}
+        onPress={handleOpenAgenda}
         style={{ flex: 1, minHeight: 48 }}
       />
 
@@ -81,21 +116,22 @@ export function QuickActionsBar() {
       />
 
       <Button
-        title="Ver Agenda"
-        variant="outline"
-        leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.text.primary} />}
-        onPress={handleOpenAgenda}
-        textStyle={{ color: colors.text.primary }}
-        style={{ flex: 1, minHeight: 48 }}
-      />
-
-      <Button
-        title="Ver serviços"
+        title="Compartilhar Catálogo"
         variant="outline"
         leftIcon={<Ionicons name="share-social-outline" size={18} color={colors.text.primary} />}
         onPress={handleShare}
         textStyle={{ color: colors.text.primary }}
         style={{ flex: 1, minHeight: 48 }}
+      />
+
+      <Button
+        title="Novo Encaixe (Em breve)"
+        variant="outline"
+        leftIcon={<Ionicons name="time-outline" size={18} color={colors.text.secondary} />}
+        onPress={handleQuickBooking}
+        textStyle={{ color: colors.text.secondary }}
+        style={{ flex: 1, minHeight: 48 }}
+        accessibilityHint="Aguardando disponibilização do endpoint de reservas no backend"
       />
     </View>
   );
