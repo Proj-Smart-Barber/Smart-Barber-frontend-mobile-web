@@ -16,11 +16,13 @@ import {
   CreateBarbershopFormValues,
   formatCnpj,
 } from '@/features/barbershop/model/barbershop.schema';
+import { BrandMark } from '@/shared/brand';
+import { LiquidGlassView } from '@/shared/navigation';
 import { useTheme } from '@/shared/theme';
-import { Alert, Button, FormField, Text, TextInput, Card } from '@/shared/ui';
+import { Alert, Button, FormField, Text, TextInput } from '@/shared/ui';
 
 export default function BarbershopSetupScreen() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const router = useRouter();
   const { registerBarbershop, signOut, barbershop } = useSession();
 
@@ -59,10 +61,19 @@ export default function BarbershopSetupScreen() {
     }
   };
 
+  const webBackgroundStyle: any =
+    Platform.OS === 'web'
+      ? {
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+            : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+      : {};
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: colors.background.primary }}
+      style={[{ flex: 1, backgroundColor: colors.background.primary }, webBackgroundStyle]}
     >
       <ScrollView
         contentContainerStyle={{
@@ -78,18 +89,12 @@ export default function BarbershopSetupScreen() {
       >
         {/* Header */}
         <View style={{ alignItems: 'center', marginBottom: spacing[6] }}>
-          <View
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: radius.full,
-              backgroundColor: colors.surface.selected,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: spacing[3],
-            }}
-          >
-            <Feather name="home" size={26} color={colors.brand.primary} />
+          <View style={{ marginBottom: spacing[3] }}>
+            <BrandMark
+              variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+              size={56}
+              decorative={false}
+            />
           </View>
 
           <Text variant="display" align="center" style={{ marginBottom: spacing[1] }}>
@@ -110,7 +115,12 @@ export default function BarbershopSetupScreen() {
         ) : null}
 
         {/* Form Container */}
-        <Card style={{ padding: spacing[6] }}>
+        <LiquidGlassView
+          variant="form"
+          elevated
+          style={{ width: '100%' }}
+          contentStyle={{ padding: spacing[6] }}
+        >
           <View style={{ gap: spacing[4] }}>
               <Controller
                 control={createForm.control}
@@ -195,7 +205,7 @@ export default function BarbershopSetupScreen() {
                 style={{ marginTop: spacing[2] }}
               />
             </View>
-        </Card>
+        </LiquidGlassView>
 
         {/* Footer logout */}
         <View style={{ marginTop: spacing[6], alignItems: 'center' }}>
