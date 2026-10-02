@@ -12,7 +12,7 @@ describe('AuthApi', () => {
     global.fetch = originalFetch;
   });
 
-  it('deve realizar login chamando POST /api/staffs/sessions/auth e retornar access_token', async () => {
+  it('deve realizar login chamando POST /api/users/sessions/auth e retornar access_token', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
@@ -27,14 +27,14 @@ describe('AuthApi', () => {
 
     expect(result.access_token).toBe('fake-jwt-token');
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/staffs/sessions/auth'),
+      expect.stringContaining('/api/users/sessions/auth'),
       expect.objectContaining({
         method: 'POST',
       })
     );
   });
 
-  it('deve cadastrar staff chamando POST /api/staffs/ e retornar staffId', async () => {
+  it('deve cadastrar staff chamando POST /api/users/ e retornar staffId', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
@@ -51,7 +51,7 @@ describe('AuthApi', () => {
 
     expect(result.staffId).toBe('new-staff-uuid');
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/staffs/'),
+      expect.stringContaining('/api/users/'),
       expect.objectContaining({
         method: 'POST',
       })
@@ -84,11 +84,32 @@ describe('AuthApi', () => {
     expect(profile.staff.role).toBe('OWNER');
     expect(profile.barbershop?.id).toBe('shop-uuid');
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/staffs/me'),
+      expect.stringContaining('/api/users/me'),
       expect.objectContaining({
         method: 'GET',
         headers: expect.any(Headers),
       })
     );
+  });
+
+  it('deve aceitar payload de perfil com campo user em vez de staff', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        user: {
+          id: 'user-uuid-2',
+          name: 'Wellington Porto',
+          email: 'wellington@smartbarber.com',
+          avatarUrl: null,
+          role: 'OWNER',
+        },
+      }),
+    } as Response);
+
+    const profile = await authApi.getMe('test-token');
+    expect(profile.staff.id).toBe('user-uuid-2');
+    expect(profile.staff.name).toBe('Wellington Porto');
   });
 });

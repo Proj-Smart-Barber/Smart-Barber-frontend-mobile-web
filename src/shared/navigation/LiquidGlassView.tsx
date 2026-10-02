@@ -3,7 +3,7 @@ import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'reac
 import { BlurView } from 'expo-blur';
 import { useReducedMotion, useReducedTransparency, useTheme } from '@/shared/theme';
 
-export type LiquidGlassVariant = 'navigation' | 'sidebar' | 'card';
+export type LiquidGlassVariant = 'navigation' | 'sidebar' | 'card' | 'form';
 
 export interface LiquidGlassViewProps {
   children?: React.ReactNode;
@@ -40,74 +40,98 @@ export function LiquidGlassView({
   const isCard = variant === 'card';
   const isSidebar = variant === 'sidebar';
   const isNavigation = variant === 'navigation';
+  const isForm = variant === 'form';
 
-  // Altura automática é padrão em cartões, enquanto navbar e sidebar operam em dimensões estruturadas
-  const resolvedAutoHeight = autoHeight !== undefined ? autoHeight : isCard;
+  // Altura automática é padrão em cartões e formulários, enquanto navbar e sidebar operam em dimensões estruturadas
+  const resolvedAutoHeight = autoHeight !== undefined ? autoHeight : (isCard || isForm);
 
   const resolvedRadius =
     borderRadius !== undefined
       ? borderRadius
-      : isCard
+      : isForm
         ? 26
-        : isSidebar
-          ? 30
-          : 32;
+        : isCard
+          ? 26
+          : isSidebar
+            ? 30
+            : 32;
 
   const resolvedIntensity =
     intensity !== undefined
       ? intensity
-      : isCard
-        ? 45
-        : isSidebar
-          ? 55
-          : 55;
+      : isForm
+        ? 50
+        : isCard
+          ? 45
+          : isSidebar
+            ? 55
+            : 55;
 
   // Paleta de cores translúcidas de alto contraste baseada nas referências do design system
+  // Variante 'form' possui maior densidade/opacidade para garantir legibilidade dos campos (WCAG 4.5:1)
   const glassBackground = backgroundColor
     ? backgroundColor
-    : isCard
+    : isForm
       ? isDark
-        ? 'rgba(32, 33, 38, 0.64)'
-        : 'rgba(255, 255, 255, 0.72)'
-      : isSidebar
+        ? 'rgba(24, 25, 29, 0.82)'
+        : 'rgba(255, 255, 255, 0.88)'
+      : isCard
         ? isDark
-          ? 'rgba(26, 28, 33, 0.52)'
-          : 'rgba(255, 255, 255, 0.62)'
-        : isDark
-          ? 'rgba(20, 20, 20, 0.72)'
-          : 'rgba(255, 255, 255, 0.78)';
+          ? 'rgba(32, 33, 38, 0.64)'
+          : 'rgba(255, 255, 255, 0.72)'
+        : isSidebar
+          ? isDark
+            ? 'rgba(26, 28, 33, 0.52)'
+            : 'rgba(255, 255, 255, 0.62)'
+          : isDark
+            ? 'rgba(20, 20, 20, 0.72)'
+            : 'rgba(255, 255, 255, 0.78)';
 
   const glassBorderColor = borderColor
     ? borderColor
-    : isCard
+    : isForm
       ? isDark
-        ? 'rgba(255, 255, 255, 0.145)'
-        : 'rgba(255, 255, 255, 0.92)'
-      : isSidebar
+        ? 'rgba(255, 255, 255, 0.14)'
+        : 'rgba(0, 0, 0, 0.08)'
+      : isCard
         ? isDark
-          ? 'rgba(255, 255, 255, 0.15)'
-          : 'rgba(255, 255, 255, 0.9)'
-        : isDark
-          ? 'rgba(255, 255, 255, 0.14)'
-          : 'rgba(0, 0, 0, 0.08)';
+          ? 'rgba(255, 255, 255, 0.145)'
+          : 'rgba(255, 255, 255, 0.92)'
+        : isSidebar
+          ? isDark
+            ? 'rgba(255, 255, 255, 0.15)'
+            : 'rgba(255, 255, 255, 0.9)'
+          : isDark
+            ? 'rgba(255, 255, 255, 0.14)'
+            : 'rgba(0, 0, 0, 0.08)';
 
   // Fallbacks elegantes em caso de preferência de transparência reduzida ou ausência de suporte
   const solidFallbackBackground = isDark
-    ? isSidebar
+    ? isForm
       ? '#16171a'
-      : isCard
-        ? '#1c1d21'
-        : '#141414'
-    : isSidebar
-      ? '#f5f3f0'
-      : colors.surface.elevated;
+      : isSidebar
+        ? '#16171a'
+        : isCard
+          ? '#1c1d21'
+          : '#141414'
+    : isForm
+      ? '#ffffff'
+      : isSidebar
+        ? '#f5f3f0'
+        : colors.surface.elevated;
 
   const solidFallbackBorder = isDark
     ? 'rgba(255, 255, 255, 0.12)'
     : 'rgba(0, 0, 0, 0.1)';
 
   // No Web, aplicamos backdropFilter via CSS Style específico por variante
-  const webBlurAmount = isCard ? 'blur(18px) saturate(115%)' : isSidebar ? 'blur(22px) saturate(120%)' : 'blur(20px) saturate(180%)';
+  const webBlurAmount = isForm
+    ? 'blur(20px) saturate(130%)'
+    : isCard
+      ? 'blur(18px) saturate(115%)'
+      : isSidebar
+        ? 'blur(22px) saturate(120%)'
+        : 'blur(20px) saturate(180%)';
 
   const webBackdropStyle: any =
     Platform.OS === 'web'
@@ -140,21 +164,29 @@ export function LiquidGlassView({
           shadowRadius: 28,
           elevation: 8,
         }
-      : isCard
+      : isForm
         ? {
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: isDark ? 0.25 : 0.07,
-            shadowRadius: 16,
-            elevation: 4,
-          }
-        : {
-            shadowColor: '#000',
             shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: isDark ? 0.45 : 0.16,
-            shadowRadius: 20,
-            elevation: 12,
-          };
+            shadowOpacity: isDark ? 0.35 : 0.09,
+            shadowRadius: 24,
+            elevation: 6,
+          }
+        : isCard
+          ? {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: isDark ? 0.25 : 0.07,
+              shadowRadius: 16,
+              elevation: 4,
+            }
+          : {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: isDark ? 0.45 : 0.16,
+              shadowRadius: 20,
+              elevation: 12,
+            };
 
   return (
     <View
@@ -195,19 +227,27 @@ export function LiquidGlassView({
               styles.specularHighlight,
               {
                 borderTopColor: isDark
-                  ? isCard
-                    ? 'rgba(255, 255, 255, 0.11)'
-                    : 'rgba(255, 255, 255, 0.15)'
-                  : isCard
-                    ? 'rgba(255, 255, 255, 0.85)'
-                    : 'rgba(255, 255, 255, 0.75)',
+                  ? isForm
+                    ? 'rgba(255, 255, 255, 0.13)'
+                    : isCard
+                      ? 'rgba(255, 255, 255, 0.11)'
+                      : 'rgba(255, 255, 255, 0.15)'
+                  : isForm
+                    ? 'rgba(255, 255, 255, 0.90)'
+                    : isCard
+                      ? 'rgba(255, 255, 255, 0.85)'
+                      : 'rgba(255, 255, 255, 0.75)',
                 borderRadius: resolvedRadius,
               },
               Platform.OS === 'web'
                 ? ({
                     backgroundImage: isDark
-                      ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 42%)'
-                      : 'linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 42%)',
+                      ? isForm
+                        ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.09), transparent 40%)'
+                        : 'linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 42%)'
+                      : isForm
+                        ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.50), transparent 40%)'
+                        : 'linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 42%)',
                   } as any)
                 : null,
             ]}
