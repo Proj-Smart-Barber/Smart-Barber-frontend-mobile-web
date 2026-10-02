@@ -22,6 +22,7 @@ export interface RegisterResponseDto {
 }
 
 export interface MeResponseDto {
-  staff: RawStaffDto;
+  staff?: RawStaffDto;
+  user?: RawStaffDto;
   barbershop?: Barbershop | null;
 }
