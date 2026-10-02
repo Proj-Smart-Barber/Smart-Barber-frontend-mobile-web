@@ -78,7 +78,7 @@ export function LiquidGlassView({
       : isCard
         ? isDark
           ? 'rgba(32, 33, 38, 0.64)'
-          : 'rgba(255, 255, 255, 0.72)'
+          : 'rgba(255, 255, 255, 0.80)'
         : isSidebar
           ? isDark
             ? 'rgba(26, 28, 33, 0.52)'
@@ -96,7 +96,7 @@ export function LiquidGlassView({
       : isCard
         ? isDark
           ? 'rgba(255, 255, 255, 0.145)'
-          : 'rgba(255, 255, 255, 0.92)'
+          : 'rgba(0, 0, 0, 0.08)'
         : isSidebar
           ? isDark
             ? 'rgba(255, 255, 255, 0.15)'

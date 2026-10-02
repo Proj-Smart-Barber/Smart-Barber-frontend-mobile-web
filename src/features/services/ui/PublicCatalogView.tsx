@@ -3,10 +3,12 @@ import {
   View,
   ScrollView,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import {
   Text,
   Badge,
@@ -23,7 +25,7 @@ export interface PublicCatalogViewProps {
 }
 
 export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
-  const { colors, spacing, radius, components } = useTheme();
+  const { colors, spacing, radius, components, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   const {
@@ -44,20 +46,34 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
     closeHandoffModal,
   } = usePublicServices(barbershopId);
 
+  const webBackgroundStyle =
+    Platform.OS === 'web'
+      ? ({
+          backgroundImage:
+            isDark
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.08) 0%, rgba(20, 20, 20, 0.98) 70%)'
+              : 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.12) 0%, #F7F5F3 70%)',
+        } as any)
+      : null;
+
   return (
     <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: insets.top,
-      }}
+      style={[
+        {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+          paddingTop: insets.top,
+        },
+        webBackgroundStyle,
+      ]}
     >
       {/* Cabeçalho da Barbearia */}
-      <View
+      <LiquidGlassView
+        variant="card"
+        elevated={false}
         style={{
           paddingHorizontal: spacing[4],
           paddingVertical: spacing[5],
-          backgroundColor: components.card.background,
           borderBottomWidth: 1,
           borderBottomColor: colors.border.default,
         }}
@@ -106,7 +122,7 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
             Selecione um ou mais serviços abaixo para iniciar seu agendamento.
           </Text>
         </View>
-      </View>
+      </LiquidGlassView>
 
       {/* Lista de Serviços */}
       <ScrollView

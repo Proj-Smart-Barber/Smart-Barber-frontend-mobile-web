@@ -2,7 +2,8 @@ import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Card, Text } from '@/shared/ui';
+import { Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaBookingDetails } from '../api/agenda.contract';
 import { formatCurrency, formatDurationMinutes, minutesBetween } from '../model/agenda.helpers';
 import { AgendaActionButton } from './AgendaActionButton';
@@ -91,7 +92,11 @@ export function AgendaBookingCard({
   };
 
   return (
-    <Card style={{ padding: spacing[4], gap: spacing[3], width: '100%' }}>
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{ padding: spacing[4], gap: spacing[3], width: '100%', borderRadius: radius.lg }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <TimeBlock startTime={booking.startTime} endTime={booking.endTime} />
 
@@ -209,6 +214,6 @@ export function AgendaBookingCard({
           />
         </View>
       ) : null}
-    </Card>
+    </LiquidGlassView>
   );
 }

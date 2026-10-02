@@ -1,7 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { useTheme } from '@/shared/theme';
-import { Card, EmptyState, Skeleton, Text } from '@/shared/ui';
+import { EmptyState, Skeleton, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaEntry } from '../api/agenda.contract';
 import { AgendaAppointmentCard } from './AgendaAppointmentCard';
 import { AgendaBufferRow } from './AgendaBufferRow';
@@ -54,7 +55,7 @@ export function AgendaTimeline({
   onCancel,
   cancellingId,
 }: AgendaTimelineProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radius } = useTheme();
 
   return (
     <View style={{ width: '100%', gap: spacing[4] }}>
@@ -77,15 +78,23 @@ export function AgendaTimeline({
       {isLoading ? (
         <View style={{ gap: spacing[3] }}>
           {[0, 1, 2, 3].map((index) => (
-            <Card key={index} style={{ minHeight: 84, gap: spacing[2] }}>
+            <LiquidGlassView
+              key={index}
+              variant="card"
+              style={{ minHeight: 84, gap: spacing[2], padding: spacing[4], borderRadius: radius.lg }}
+            >
               <Skeleton width={140} height={18} />
               <Skeleton width="60%" height={14} />
               <Skeleton width="40%" height={14} />
-            </Card>
+            </LiquidGlassView>
           ))}
         </View>
       ) : entries.length === 0 ? (
-        <Card style={{ padding: spacing[6] }}>
+        <LiquidGlassView
+          variant="card"
+          elevated
+          style={{ padding: spacing[6], borderRadius: radius.lg }}
+        >
           <EmptyState
             title={isClosed ? 'Barbearia fechada neste dia' : 'Nenhum horário neste dia'}
             description={
@@ -96,7 +105,7 @@ export function AgendaTimeline({
             actionLabel="Voltar para hoje"
             onAction={onGoToToday}
           />
-        </Card>
+        </LiquidGlassView>
       ) : (
         <View
           style={[

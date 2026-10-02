@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/theme';
 import { Text, Badge } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation';
 import type { Service } from '../model/service.types';
 import { formatPrice, formatDuration } from '../model/service.types';
 
@@ -47,66 +48,70 @@ export function ServiceCard({
   };
 
   return (
-    <Pressable
-      onPress={onSelect ? handlePress : undefined}
-      disabled={!onSelect}
-      accessibilityRole={onSelect ? 'checkbox' : 'none'}
-      accessibilityState={{
-        checked: isSelected,
+    <LiquidGlassView
+      variant="card"
+      elevated
+      borderColor={isSelected ? colors.brand.primary : undefined}
+      borderWidth={isSelected ? 1.5 : 1}
+      style={{
+        marginVertical: spacing[1],
+        opacity: service.isActive || isManagement ? 1 : 0.82,
       }}
-      accessibilityLabel={`${service.title}, ${formatPrice(service.priceInCents)}, duração ${formatDuration(service.durationInMinutes)}`}
-      style={({ pressed }) => [
-        {
-          backgroundColor: components.card.background,
-          borderRadius: radius.lg,
-          borderCurve: 'continuous',
-          padding: spacing[4],
-          borderWidth: 1.5,
-          borderColor: isSelected
-            ? colors.brand.primary
-            : colors.border.default,
-          opacity: pressed ? 0.95 : service.isActive || isManagement ? 1 : 0.6,
-          marginVertical: spacing[1],
-        },
-      ]}
+      contentStyle={{
+        padding: spacing[4],
+      }}
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: spacing[3],
+      <Pressable
+        onPress={onSelect ? handlePress : undefined}
+        disabled={!onSelect}
+        accessibilityRole={onSelect ? 'checkbox' : 'none'}
+        accessibilityState={{
+          checked: isSelected,
         }}
+        accessibilityLabel={`${service.title}, ${formatPrice(service.priceInCents)}, duração ${formatDuration(service.durationInMinutes)}`}
+        style={({ pressed }) => [
+          {
+            opacity: pressed && onSelect ? 0.85 : 1,
+          },
+        ]}
       >
-        {/* Lado esquerdo: Seleção ou Título */}
-        <View style={{ flex: 1, gap: spacing[1] }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
-            {onSelect && (
-              <View
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: radius.full,
-                  borderWidth: 2,
-                  borderColor: isSelected
-                    ? colors.brand.primary
-                    : colors.border.default,
-                  backgroundColor: isSelected
-                    ? colors.brand.primary
-                    : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {isSelected && (
-                  <Ionicons
-                    name="checkmark"
-                    size={14}
-                    color={colors.text.inverse}
-                  />
-                )}
-              </View>
-            )}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: spacing[3],
+          }}
+        >
+          {/* Lado esquerdo: Seleção ou Título */}
+          <View style={{ flex: 1, gap: spacing[1] }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              {onSelect && (
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: radius.full,
+                    borderWidth: 2,
+                    borderColor: isSelected
+                      ? colors.brand.primary
+                      : colors.border.default,
+                    backgroundColor: isSelected
+                      ? colors.brand.primary
+                      : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {isSelected && (
+                    <Ionicons
+                      name="checkmark"
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                  )}
+                </View>
+              )}
 
             <Text
               variant="h3"
@@ -143,7 +148,7 @@ export function ServiceCard({
             <Text
               variant="price"
               weight="bold"
-              color={colors.brand.primary}
+              color={colors.text.brand}
               style={{ fontSize: 16 }}
             >
               {formatPrice(service.priceInCents)}
@@ -236,5 +241,6 @@ export function ServiceCard({
         )}
       </View>
     </Pressable>
+  </LiquidGlassView>
   );
 }

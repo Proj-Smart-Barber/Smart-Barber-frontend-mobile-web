@@ -3,7 +3,30 @@ import { primitives } from '../primitives/colors';
 export interface ThemeColors {
   isDark: boolean;
   brand: { primary: string; primaryPressed: string; primaryGlow: string; primaryHover: string; silver: string };
-  feedback: { success: string; successBackground: string; successBorder: string; successAlt: string; successAltBackground: string; successAltBorder: string; warning: string; warningBackground: string; warningBorder: string; error: string; errorBackground: string; errorBorder: string; info: string; infoBackground: string; infoBorder: string; destructive: string; destructivePressed: string };
+  feedback: {
+    success: string;
+    successForeground: string;
+    successBackground: string;
+    successBorder: string;
+    successAlt: string;
+    successAltForeground: string;
+    successAltBackground: string;
+    successAltBorder: string;
+    warning: string;
+    warningForeground: string;
+    warningBackground: string;
+    warningBorder: string;
+    error: string;
+    errorForeground: string;
+    errorBackground: string;
+    errorBorder: string;
+    info: string;
+    infoForeground: string;
+    infoBackground: string;
+    infoBorder: string;
+    destructive: string;
+    destructivePressed: string;
+  };
   background: { primary: string; secondary: string; card: string; elevated: string; overlay: string };
   surface: { default: string; elevated: string; input: string; inputFocus: string; disabled: string; selected: string; badge: string };
   text: { primary: string; body: string; secondary: string; muted: string; disabled: string; inverse: string; brand: string; crimson: string };
@@ -16,11 +39,11 @@ export const darkColors: ThemeColors = {
   isDark: true,
   brand: { primary: c.crimson[600], primaryPressed: c.crimson[500], primaryGlow: c.crimson.glow, primaryHover: c.crimson[500], silver: c.neutral[300] },
   feedback: {
-    success: c.status.success, successBackground: 'rgba(16, 185, 129, 0.14)', successBorder: 'rgba(16, 185, 129, 0.48)',
-    successAlt: c.status.successAlt, successAltBackground: 'rgba(34, 197, 94, 0.14)', successAltBorder: 'rgba(34, 197, 94, 0.48)',
-    warning: c.status.warning, warningBackground: 'rgba(245, 158, 11, 0.14)', warningBorder: 'rgba(245, 158, 11, 0.48)',
-    error: c.status.error, errorBackground: 'rgba(255, 92, 98, 0.14)', errorBorder: 'rgba(255, 92, 98, 0.48)',
-    info: c.status.info, infoBackground: 'rgba(59, 130, 246, 0.14)', infoBorder: 'rgba(59, 130, 246, 0.48)',
+    success: c.status.success, successForeground: '#34D399', successBackground: 'rgba(16, 185, 129, 0.14)', successBorder: 'rgba(16, 185, 129, 0.48)',
+    successAlt: c.status.successAlt, successAltForeground: '#4ADE80', successAltBackground: 'rgba(34, 197, 94, 0.14)', successAltBorder: 'rgba(34, 197, 94, 0.48)',
+    warning: c.status.warning, warningForeground: '#FBBF24', warningBackground: 'rgba(245, 158, 11, 0.14)', warningBorder: 'rgba(245, 158, 11, 0.48)',
+    error: c.status.error, errorForeground: '#FF5C62', errorBackground: 'rgba(255, 92, 98, 0.14)', errorBorder: 'rgba(255, 92, 98, 0.48)',
+    info: c.status.info, infoForeground: '#60A5FA', infoBackground: 'rgba(59, 130, 246, 0.14)', infoBorder: 'rgba(59, 130, 246, 0.48)',
     destructive: c.status.destructive, destructivePressed: '#B91C1C',
   },
   background: { primary: c.obsidian[950], secondary: c.obsidian[900], card: c.obsidian[800], elevated: c.obsidian[700], overlay: 'rgba(0, 0, 0, 0.78)' },
@@ -33,11 +56,11 @@ export const lightColors: ThemeColors = {
   isDark: false,
   brand: { primary: c.crimson[600], primaryPressed: c.crimson[500], primaryGlow: c.crimson.glow, primaryHover: c.crimson[500], silver: c.ink[600] },
   feedback: {
-    success: c.status.success, successBackground: '#ECFDF5', successBorder: '#6EE7B7',
-    successAlt: c.status.successAlt, successAltBackground: '#F0FDF4', successAltBorder: '#86EFAC',
-    warning: c.status.warning, warningBackground: '#FFFBEB', warningBorder: '#FCD34D',
-    error: c.status.error, errorBackground: '#FFF0F1', errorBorder: '#FF9BA0',
-    info: c.status.info, infoBackground: '#EFF6FF', infoBorder: '#93C5FD',
+    success: c.status.success, successForeground: '#047857', successBackground: '#ECFDF5', successBorder: '#6EE7B7',
+    successAlt: c.status.successAlt, successAltForeground: '#15803D', successAltBackground: '#F0FDF4', successAltBorder: '#86EFAC',
+    warning: c.status.warning, warningForeground: '#92400E', warningBackground: '#FFFBEB', warningBorder: '#FCD34D',
+    error: c.status.error, errorForeground: '#B91C1C', errorBackground: '#FFF0F1', errorBorder: '#FF9BA0',
+    info: c.status.info, infoForeground: '#1D4ED8', infoBackground: '#EFF6FF', infoBorder: '#93C5FD',
     destructive: c.status.destructive, destructivePressed: '#B91C1C',
   },
   background: { primary: c.ivory[50], secondary: c.ivory[100], card: c.ivory[0], elevated: c.ivory[0], overlay: 'rgba(23, 19, 19, 0.48)' },

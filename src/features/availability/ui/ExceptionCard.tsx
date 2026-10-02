@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Text, Badge, Card } from '@/shared/ui';
+import { Text, Badge } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useTheme } from '@/shared/theme';
 import { formatExceptionLabel } from '../model/availability.types';
 import type { AvailabilityException } from '../api/availability.contract';
@@ -22,12 +23,12 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
   const isClosedDay = !exception.openTime;
 
   return (
-    <Card
+    <LiquidGlassView
+      variant="card"
+      elevated
       style={[
         styles.card,
         {
-          backgroundColor: colors.background.card,
-          borderColor: colors.border.subtle,
           borderRadius: radius.lg,
           padding: spacing[4],
         },
@@ -122,7 +123,7 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
           </Pressable>
         </View>
       </View>
-    </Card>
+    </LiquidGlassView>
   );
 }
 

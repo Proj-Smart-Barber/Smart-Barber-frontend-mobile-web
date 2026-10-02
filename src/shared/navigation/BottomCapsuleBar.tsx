@@ -91,7 +91,7 @@ export function BottomCapsuleBar() {
             const isActive = activeDestination === item.id;
             const iconName = isActive ? item.iconActive : item.iconInactive;
             const activeBg = colors.brand.primary;
-            const activeTextColor = colors.text.inverse;
+            const activeTextColor = '#FFFFFF';
             const inactiveTextColor = colors.text.secondary;
 
             return (

@@ -10,11 +10,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, Skeleton, Spinner, ErrorState, Button, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { useAvailabilityViewModel } from '../model/use-availability-view-model';
 import { AvailabilityError } from './AvailabilityError';
@@ -41,6 +42,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
   const vm = useAvailabilityViewModel(barbershopId);
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
+  const insets = useSafeAreaInsets();
   const [saveFeedback, setSaveFeedback] = useState<
     | { variant: 'success' | 'error'; title: string; message: string }
     | null
@@ -49,6 +51,16 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
 
   const editingException =
     vm.exceptions.find((exception) => exception.id === editingExceptionId) ?? null;
+
+  const webBackgroundStyle =
+    Platform.OS === 'web'
+      ? ({
+          backgroundImage:
+            isDark
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.08) 0%, rgba(20, 20, 20, 0.98) 70%)'
+              : 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.12) 0%, #F7F5F3 70%)',
+        } as any)
+      : null;
 
   useEffect(() => {
     if (!saveFeedback) return;
@@ -73,7 +85,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
   if (vm.isLoadingInitial) {
     return (
       <SafeAreaView
-        style={[styles.screen, { backgroundColor: colors.background.primary }]}
+        style={[styles.screen, { backgroundColor: colors.background.primary }, webBackgroundStyle]}
         edges={['top', 'bottom']}
       >
         <ScrollView
@@ -125,31 +137,31 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
 
             <View style={[styles.mainGrid, isExpanded && styles.mainGridExpanded]}>
               <View style={[styles.journeyColumn, isExpanded && styles.journeyColumnExpanded]}>
-                <Card style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3] }}>
+                <LiquidGlassView variant="card" style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3], borderRadius: radius.lg }}>
                   <Skeleton width={180} height={20} />
                   <Skeleton width="60%" height={14} />
-                </Card>
+                </LiquidGlassView>
                 <View style={{ gap: spacing[3] }}>
                   {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                    <Card key={i} style={{ minHeight: 64, padding: spacing[4], justifyContent: 'center' }}>
+                    <LiquidGlassView key={i} variant="card" style={{ minHeight: 64, padding: spacing[4], justifyContent: 'center', borderRadius: radius.lg }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Skeleton width={110} height={18} />
                         <Skeleton width={80} height={28} borderRadius={radius.md} />
                       </View>
-                    </Card>
+                    </LiquidGlassView>
                   ))}
                 </View>
               </View>
 
               <View style={[styles.sideColumn, isExpanded && styles.sideColumnExpanded]}>
-                <Card style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3] }}>
+                <LiquidGlassView variant="card" style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3], borderRadius: radius.lg }}>
                   <Skeleton width={150} height={20} />
                   <Skeleton width="70%" height={14} />
-                </Card>
-                <Card style={{ minHeight: 96, padding: spacing[4], gap: spacing[2] }}>
+                </LiquidGlassView>
+                <LiquidGlassView variant="card" style={{ minHeight: 96, padding: spacing[4], gap: spacing[2], borderRadius: radius.lg }}>
                   <Skeleton width={130} height={16} />
                   <Skeleton width="50%" height={14} />
-                </Card>
+                </LiquidGlassView>
               </View>
             </View>
           </View>
@@ -264,7 +276,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
     // via useFormContext(), eliminando prop drilling de Control
     <FormProvider {...methods}>
       <SafeAreaView
-        style={[styles.screen, { backgroundColor: colors.background.primary }]}
+        style={[styles.screen, { backgroundColor: colors.background.primary }, webBackgroundStyle]}
         edges={['top', 'bottom']}
       >
         <KeyboardAvoidingView
@@ -278,7 +290,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
               {
                 paddingHorizontal: spacing[isExpanded ? 8 : 5],
                 paddingTop: spacing[4],
-                paddingBottom: spacing[10],
+                paddingBottom: isExpanded ? spacing[10] : 104,
               },
             ]}
             keyboardShouldPersistTaps="handled"
@@ -548,7 +560,8 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                 backgroundColor: colors.background.primary,
                 borderTopColor: colors.border.subtle,
                 paddingHorizontal: spacing[isExpanded ? 8 : 5],
-                paddingVertical: spacing[3],
+                paddingTop: spacing[3],
+                paddingBottom: isExpanded ? spacing[3] : Math.max(insets.bottom, 12) + 72,
               },
             ]}
           >
@@ -574,7 +587,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                 title="Salvar alterações"
                 loadingTitle="Salvando jornada…"
                 leftIcon={
-                  <Ionicons name="checkmark-circle-outline" size={20} color={colors.text.inverse} />
+                  <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
                 }
                 onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
                 loading={vm.isSaving}

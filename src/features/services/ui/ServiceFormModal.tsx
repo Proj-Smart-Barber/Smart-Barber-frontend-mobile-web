@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
 import { Text, TextInput, FormField, Button, Alert } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { Service } from '../model/service.types';
 import { parsePriceToCents } from '../model/service.types';
 import { serviceFormSchema } from '../model/service.schema';
@@ -112,22 +113,20 @@ export function ServiceFormModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backgroundColor: colors.background.overlay,
           justifyContent: 'center',
           alignItems: 'center',
           padding: spacing[4],
         }}
       >
-        <View
+        <LiquidGlassView
+          variant="form"
+          elevated
           style={{
             width: '100%',
             maxWidth: 520,
             maxHeight: '90%',
-            backgroundColor: components.card.background,
             borderRadius: radius.xl,
-            borderCurve: 'continuous',
-            borderWidth: 1,
-            borderColor: colors.border.default,
             overflow: 'hidden',
           }}
         >
@@ -280,7 +279,7 @@ export function ServiceFormModal({
               />
             </View>
           </ScrollView>
-        </View>
+        </LiquidGlassView>
       </KeyboardAvoidingView>
     </Modal>
   );
