@@ -8,7 +8,6 @@ import { DashboardHeader } from './DashboardHeader';
 import { MetricsOverview } from './MetricsOverview';
 import { NextAppointmentCard } from './NextAppointmentCard';
 import { TodayTimeline } from './TodayTimeline';
-import { QuickActionsBar } from './QuickActionsBar';
 
 export function DashboardView() {
   const { colors, spacing } = useTheme();
@@ -19,17 +18,13 @@ export function DashboardView() {
     isOwner,
     greeting,
     metricCards,
-    appointments,
-    totalCount,
+    previewAppointments,
     nextAppointment,
-    filter,
-    setFilter,
     isLoading,
     isError,
     isUpdatingStatus,
     handleUpdateStatus,
     handleRefetch,
-    signOut,
   } = useDashboardViewModel();
 
   return (
@@ -37,12 +32,11 @@ export function DashboardView() {
       edges={['top', 'left', 'right']}
       style={{ flex: 1, backgroundColor: colors.background.primary }}
     >
-      {/* Barra de Topo / Header Executivo */}
+      {/* Topo Compacto com Identidade & Menu Hamburger para Mobile */}
       <DashboardHeader
         staff={staff}
         greeting={greeting}
         isOwner={isOwner}
-        onSignOut={() => void signOut()}
       />
 
       <ScrollView
@@ -59,10 +53,11 @@ export function DashboardView() {
           flexGrow: 1,
           alignItems: 'center',
           paddingHorizontal: isCompact ? spacing[4] : spacing[6],
-          paddingVertical: spacing[5],
+          paddingTop: spacing[4],
+          paddingBottom: isCompact ? 120 : spacing[6],
         }}
       >
-        <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[6] }}>
+        <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[5] }}>
           {isError ? (
             <ErrorState
               title="Erro ao carregar o dashboard"
@@ -72,13 +67,7 @@ export function DashboardView() {
             />
           ) : (
             <>
-              {/* 1. Cards de Poder / KPIs do Dia */}
-              <MetricsOverview metrics={metricCards} isLoading={isLoading} />
-
-              {/* 2. Barra de Ações Rápidas */}
-              <QuickActionsBar />
-
-              {/* 3. Próximo Atendimento na Cadeira (Hero Card) */}
+              {/* 1. Atenção Imediata: Próximo Atendimento na Cadeira (Hero Card) */}
               <NextAppointmentCard
                 appointment={nextAppointment}
                 isLoading={isLoading}
@@ -86,13 +75,12 @@ export function DashboardView() {
                 onUpdateStatus={handleUpdateStatus}
               />
 
-              {/* 4. Agenda do Dia / Timeline de Slots */}
+              {/* 2. Resumo Compacto do Dia (Até 2 KPIs do Dia) */}
+              <MetricsOverview metrics={metricCards} isLoading={isLoading} />
+
+              {/* 3. Prévia dos Próximos Atendimentos (Até 3 linhas + Link para Agenda) */}
               <TodayTimeline
-                appointments={appointments}
-                totalCount={totalCount}
-                currentFilter={filter}
-                onFilterChange={setFilter}
-                onUpdateStatus={handleUpdateStatus}
+                appointments={previewAppointments}
                 isLoading={isLoading}
               />
             </>

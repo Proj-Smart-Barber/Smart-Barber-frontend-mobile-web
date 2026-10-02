@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from '@/features/auth';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import {
@@ -44,9 +44,17 @@ export function useDashboardViewModel() {
 
   const nextAppointment = findNextAppointment(rawAppointments);
 
+  // Prévia enxuta do dia: até 3 agendamentos, excluindo o destaque atual
+  const previewAppointments = useMemo(() => {
+    const remaining = nextAppointment
+      ? rawAppointments.filter((a) => a.id !== nextAppointment.id)
+      : rawAppointments;
+    return remaining.slice(0, 3);
+  }, [rawAppointments, nextAppointment]);
+
   const greeting = `${getGreetingByHour(new Date().getHours())}, ${staff?.name?.split(' ')[0] ?? 'Profissional'}`;
 
-  // Prepara cards de KPI dependendo do perfil
+  // Resumo compacto do dia: no máximo dois indicadores essenciais, sem duplicar o próximo horário
   const metricCards: DashboardMetricCardData[] = [];
 
   if (metrics) {
@@ -68,14 +76,6 @@ export function useDashboardViewModel() {
           tone: 'neutral',
           iconName: 'calendar-outline',
         },
-        {
-          id: 'next',
-          title: 'Próximo Horário',
-          value: nextAppointment?.scheduledTime ?? '--:--',
-          subtitle: nextAppointment ? `${nextAppointment.customerName} (${nextAppointment.serviceTitle})` : 'Sem agendamentos pendentes',
-          tone: 'brand',
-          iconName: 'time-outline',
-        },
       );
     } else {
       metricCards.push(
@@ -94,14 +94,6 @@ export function useDashboardViewModel() {
           subtitle: 'Soma dos serviços agendados',
           tone: 'success',
           iconName: 'wallet-outline',
-        },
-        {
-          id: 'next',
-          title: 'Próximo Atendimento',
-          value: nextAppointment?.scheduledTime ?? '--:--',
-          subtitle: nextAppointment ? `${nextAppointment.customerName} (${nextAppointment.serviceTitle})` : 'Nenhum pendente',
-          tone: 'warning',
-          iconName: 'time-outline',
         },
       );
     }
@@ -126,6 +118,7 @@ export function useDashboardViewModel() {
     greeting,
     metricCards,
     appointments,
+    previewAppointments,
     totalCount: rawAppointments.length,
     nextAppointment,
     filter,
