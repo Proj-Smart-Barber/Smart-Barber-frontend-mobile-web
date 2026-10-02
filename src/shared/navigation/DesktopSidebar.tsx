@@ -7,6 +7,7 @@ import { useSession } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
 import { Badge, Text, useToast } from '@/shared/ui';
 import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
+import { LiquidGlassView } from './LiquidGlassView';
 import { useNavigation } from './navigation-context';
 import type { AppDestination } from './navigation.types';
 
@@ -47,185 +48,186 @@ export function DesktopSidebar() {
     <View
       accessibilityRole="menu"
       accessibilityLabel="Menu de navegação desktop"
-      style={[
-        styles.sidebarContainer,
-        {
-          backgroundColor: isDark ? '#121212' : colors.surface.elevated,
-          borderRightColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
-          paddingVertical: spacing[5],
-        },
-      ]}
+      style={styles.sidebarSlot}
     >
-      {/* Topo da Sidebar: Marca & Barba */}
-      <View style={[styles.brandHeader, { paddingHorizontal: spacing[5], gap: spacing[3] }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
-          <BrandMark
-            variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-            size={32}
-            decorative={false}
-            accessibilityLabel="Smart Barber Logo"
-          />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
-              {barbershop?.name || 'Smart Barber'}
-            </Text>
-            <Text variant="caption" color={colors.text.muted}>
-              Painel Operacional
-            </Text>
+      <LiquidGlassView
+        variant="sidebar"
+        borderRadius={30}
+        elevated
+        style={styles.glassWrapper}
+        contentStyle={[styles.glassContent, { paddingVertical: spacing[5] }]}
+      >
+        {/* Topo da Sidebar: Marca & Barba */}
+        <View style={[styles.brandHeader, { paddingHorizontal: spacing[4], gap: spacing[3] }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+            <BrandMark
+              variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+              size={34}
+              decorative={false}
+              accessibilityLabel="Smart Barber Logo"
+            />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                {barbershop?.name || 'Smart Barber'}
+              </Text>
+              <Text variant="caption" color={colors.text.muted}>
+                Painel Operacional
+              </Text>
+            </View>
           </View>
-        </View>
 
-        {/* Card do Usuário Logado */}
-        <View
-          style={[
-            styles.userCard,
-            {
-              backgroundColor: isDark ? '#191919' : colors.surface.input,
-              borderColor: colors.border.subtle,
-              borderRadius: radius.md,
-              padding: spacing[3],
-            },
-          ]}
-        >
+          {/* Card do Usuário Logado */}
           <View
             style={[
-              styles.avatar,
+              styles.userCard,
               {
-                borderRadius: radius.full,
-                backgroundColor: colors.surface.elevated,
-                borderColor: colors.brand.primary,
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.03)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                borderRadius: radius.md,
+                padding: spacing[3],
               },
             ]}
           >
-            <Text variant="caption" color={colors.text.primary} weight="bold">
-              {initials}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-            <Text
-              variant="bodySm"
-              weight="bold"
-              color={colors.text.primary}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+            <View
+              style={[
+                styles.avatar,
+                {
+                  borderRadius: radius.full,
+                  backgroundColor: colors.surface.elevated,
+                  borderColor: colors.brand.primary,
+                },
+              ]}
             >
-              {staff?.name || barbershop?.name || 'Profissional'}
+              <Text variant="caption" color={colors.text.primary} weight="bold">
+                {initials}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+              <Text
+                variant="bodySm"
+                weight="bold"
+                color={colors.text.primary}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {staff?.name || barbershop?.name || 'Profissional'}
+              </Text>
+              <Badge
+                label={isOwner ? 'Proprietário' : 'Barbeiro'}
+                tone={isOwner ? 'brand' : 'success'}
+                style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Conteúdo rolável de grupos e itens */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: spacing[3],
+            paddingVertical: spacing[3],
+            gap: spacing[4],
+          }}
+        >
+          {/* Grupo 1: Operação Principal */}
+          <View style={styles.menuGroup}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={colors.text.muted}
+              style={styles.groupTitle}
+            >
+              OPERAÇÃO
             </Text>
-            <Badge
-              label={isOwner ? 'Proprietário' : 'Barbeiro'}
-              tone={isOwner ? 'brand' : 'success'}
-              style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+
+            <SidebarItem
+              label="Início"
+              icon="home-outline"
+              activeIcon="home"
+              isActive={activeDestination === 'home'}
+              onPress={() => handleNavigate('/(app)')}
+            />
+            <SidebarItem
+              label="Agenda"
+              icon="calendar-outline"
+              activeIcon="calendar"
+              isActive={activeDestination === 'agenda'}
+              onPress={() => handleNavigate('/(app)/agenda')}
+            />
+            <SidebarItem
+              label="Horários"
+              icon="time-outline"
+              activeIcon="time"
+              isActive={activeDestination === 'availability'}
+              onPress={() => handleNavigate('/(app)/availability')}
+            />
+            <SidebarItem
+              label="Serviços"
+              icon="cut-outline"
+              activeIcon="cut"
+              isActive={activeDestination === 'services'}
+              onPress={() => handleNavigate('/(app)/services')}
             />
           </View>
-        </View>
-      </View>
 
-      {/* Conteúdo rolável de grupos e itens */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: spacing[4],
-          paddingVertical: spacing[4],
-          gap: spacing[5],
-        }}
-      >
-        {/* Grupo 1: Operação Principal */}
-        <View style={styles.menuGroup}>
-          <Text
-            variant="caption"
-            weight="bold"
-            color={colors.text.muted}
-            style={styles.groupTitle}
-          >
-            OPERAÇÃO
-          </Text>
+          {/* Grupo 2: Catálogo Público */}
+          <View style={styles.menuGroup}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={colors.text.muted}
+              style={styles.groupTitle}
+            >
+              CATÁLOGO PÚBLICO
+            </Text>
 
-          <SidebarItem
-            label="Início"
-            icon="home-outline"
-            activeIcon="home"
-            isActive={activeDestination === 'home'}
-            onPress={() => handleNavigate('/(app)')}
-          />
-          <SidebarItem
-            label="Agenda"
-            icon="calendar-outline"
-            activeIcon="calendar"
-            isActive={activeDestination === 'agenda'}
-            onPress={() => handleNavigate('/(app)/agenda')}
-          />
-          <SidebarItem
-            label="Horários"
-            icon="time-outline"
-            activeIcon="time"
-            isActive={activeDestination === 'availability'}
-            onPress={() => handleNavigate('/(app)/availability')}
-          />
-          <SidebarItem
-            label="Serviços"
-            icon="cut-outline"
-            activeIcon="cut"
-            isActive={activeDestination === 'services'}
-            onPress={() => handleNavigate('/(app)/services')}
-          />
-        </View>
+            <SidebarItem
+              label="Abrir Catálogo"
+              icon="globe-outline"
+              activeIcon="globe"
+              isActive={false}
+              onPress={handleOpenCatalog}
+            />
+            <SidebarItem
+              label="Compartilhar Link"
+              icon="share-social-outline"
+              activeIcon="share-social"
+              isActive={false}
+              onPress={handleShareCatalog}
+            />
+          </View>
 
-        {/* Grupo 2: Catálogo Público */}
-        <View style={styles.menuGroup}>
-          <Text
-            variant="caption"
-            weight="bold"
-            color={colors.text.muted}
-            style={styles.groupTitle}
-          >
-            CATÁLOGO PÚBLICO
-          </Text>
+          {/* Grupo 3: Preferências e Conta */}
+          <View style={styles.menuGroup}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={colors.text.muted}
+              style={styles.groupTitle}
+            >
+              SISTEMA & CONTA
+            </Text>
 
-          <SidebarItem
-            label="Abrir Catálogo"
-            icon="globe-outline"
-            activeIcon="globe"
-            isActive={false}
-            onPress={handleOpenCatalog}
-          />
-          <SidebarItem
-            label="Compartilhar Link"
-            icon="share-social-outline"
-            activeIcon="share-social"
-            isActive={false}
-            onPress={handleShareCatalog}
-          />
-        </View>
-
-        {/* Grupo 3: Preferências e Conta */}
-        <View style={styles.menuGroup}>
-          <Text
-            variant="caption"
-            weight="bold"
-            color={colors.text.muted}
-            style={styles.groupTitle}
-          >
-            SISTEMA & CONTA
-          </Text>
-
-          <SidebarItem
-            label={isDark ? 'Tema Claro' : 'Tema Escuro'}
-            icon={isDark ? 'sunny-outline' : 'moon-outline'}
-            activeIcon={isDark ? 'sunny' : 'moon'}
-            isActive={false}
-            onPress={toggleTheme}
-          />
-          <SidebarItem
-            label="Sair da Conta"
-            icon="log-out-outline"
-            activeIcon="log-out"
-            isActive={false}
-            destructive
-            onPress={() => void signOut()}
-          />
-        </View>
-      </ScrollView>
+            <SidebarItem
+              label={isDark ? 'Tema Claro' : 'Tema Escuro'}
+              icon={isDark ? 'sunny-outline' : 'moon-outline'}
+              activeIcon={isDark ? 'sunny' : 'moon'}
+              isActive={false}
+              onPress={toggleTheme}
+            />
+            <SidebarItem
+              label="Sair da Conta"
+              icon="log-out-outline"
+              activeIcon="log-out"
+              isActive={false}
+              destructive
+              onPress={() => void signOut()}
+            />
+          </View>
+        </ScrollView>
+      </LiquidGlassView>
     </View>
   );
 }
@@ -247,7 +249,7 @@ function SidebarItem({
   destructive = false,
   onPress,
 }: SidebarItemProps) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius, spacing, isDark } = useTheme();
 
   const textColor = destructive
     ? colors.feedback.error
@@ -261,7 +263,9 @@ function SidebarItem({
       ? colors.text.inverse
       : colors.text.secondary;
 
-  const backgroundColor = isActive ? colors.brand.primary : 'transparent';
+  const backgroundColor = isActive
+    ? colors.brand.primary
+    : 'transparent';
 
   return (
     <Pressable
@@ -275,7 +279,7 @@ function SidebarItem({
           backgroundColor: isActive
             ? backgroundColor
             : pressed
-              ? colors.surface.selected
+              ? isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'
               : 'transparent',
           paddingHorizontal: spacing[3],
           paddingVertical: spacing[3],
@@ -303,11 +307,20 @@ function SidebarItem({
 }
 
 const styles = StyleSheet.create({
-  sidebarContainer: {
-    width: 260,
+  sidebarSlot: {
+    width: 280,
     height: '100%',
-    borderRightWidth: 1,
+    padding: 14,
     flexShrink: 0,
+    backgroundColor: 'transparent',
+  },
+  glassWrapper: {
+    width: '100%',
+    height: '100%',
+  },
+  glassContent: {
+    width: '100%',
+    height: '100%',
   },
   brandHeader: {
     borderBottomWidth: 1,

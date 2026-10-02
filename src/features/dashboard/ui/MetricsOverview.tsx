@@ -2,7 +2,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Card, Skeleton, Text } from '@/shared/ui';
+import { Skeleton, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation';
 import type { DashboardMetricCardData } from '../model/dashboard.types';
 
 interface MetricsOverviewProps {
@@ -23,14 +24,24 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
           gap: spacing[3],
         }}
       >
-        <Card style={{ flex: 1, minHeight: 96, gap: spacing[2], padding: spacing[4] }}>
+        <LiquidGlassView
+          variant="card"
+          elevated
+          style={{ flex: 1, minHeight: 96 }}
+          contentStyle={{ gap: spacing[2], padding: spacing[4] }}
+        >
           <Skeleton width={120} height={16} />
           <Skeleton width={90} height={26} />
-        </Card>
-        <Card style={{ flex: 1, minHeight: 96, gap: spacing[2], padding: spacing[4] }}>
+        </LiquidGlassView>
+        <LiquidGlassView
+          variant="card"
+          elevated
+          style={{ flex: 1, minHeight: 96 }}
+          contentStyle={{ gap: spacing[2], padding: spacing[4] }}
+        >
           <Skeleton width={120} height={16} />
           <Skeleton width={90} height={26} />
-        </Card>
+        </LiquidGlassView>
       </View>
     );
   }
@@ -58,11 +69,12 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
                 : colors.text.secondary;
 
         return (
-          <Card
+          <LiquidGlassView
             key={card.id}
+            variant="card"
             elevated
-            style={{
-              flex: 1,
+            style={{ flex: 1 }}
+            contentStyle={{
               padding: spacing[4],
               gap: spacing[2],
               justifyContent: 'space-between',
@@ -101,7 +113,7 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
                 {card.subtitle}
               </Text>
             ) : null}
-          </Card>
+          </LiquidGlassView>
         );
       })}
     </View>
