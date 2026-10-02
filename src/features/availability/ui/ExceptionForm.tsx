@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Card, FormField, TextInput, Text } from '@/shared/ui';
+import { Button, FormField, TextInput, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { DatePickerInput } from './DatePickerInput';
 import { maskTimeInput } from './input-masks';
 import { useTheme } from '@/shared/theme';
@@ -93,12 +94,13 @@ export function ExceptionForm({
   }
 
   return (
-    <Card
+    <LiquidGlassView
+      variant="form"
       elevated
       style={[
         styles.container,
         {
-          borderColor: isEdit ? colors.border.selected : colors.border.subtle,
+          borderColor: isEdit ? colors.border.selected : undefined,
           borderRadius: radius.lg,
           padding: spacing[5],
         },
@@ -258,14 +260,14 @@ export function ExceptionForm({
           title={isEdit ? 'Salvar edição' : 'Salvar exceção'}
           loadingTitle={isEdit ? 'Salvando edição…' : 'Salvando exceção…'}
           variant="primary"
-          leftIcon={<Ionicons name="checkmark" size={20} color={colors.text.inverse} />}
+          leftIcon={<Ionicons name="checkmark" size={20} color="#FFFFFF" />}
           onPress={handleSubmit(handleSave)}
           loading={disabled}
           disabled={disabled}
           style={styles.saveButton}
         />
       </View>
-    </Card>
+    </LiquidGlassView>
   );
 }
 

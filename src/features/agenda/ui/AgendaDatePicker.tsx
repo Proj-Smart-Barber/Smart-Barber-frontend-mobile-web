@@ -3,6 +3,7 @@ import { Modal, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useReducedMotion, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { AgendaActionButton } from './AgendaActionButton';
 import {
   addMonths,
@@ -101,7 +102,7 @@ function DayCell({
     >
       <Text
         variant="bodySm"
-        color={isSelected ? colors.text.inverse : colors.text.primary}
+        color={isSelected ? '#FFFFFF' : colors.text.primary}
         numberOfLines={1}
       >
         {Number(iso.slice(8))}
@@ -155,19 +156,19 @@ export function AgendaDatePicker({
       >
         <Pressable
           onPress={(event) => event.stopPropagation()}
-          style={{
-            width: '100%',
-            maxWidth: 400,
-            backgroundColor: colors.background.card,
-            borderRadius: radius.lg,
-            borderCurve: 'continuous',
-            borderWidth: 1,
-            borderColor: colors.border.subtle,
-            paddingVertical: spacing[4],
-            paddingHorizontal: spacing[2],
-            gap: spacing[2],
-          }}
+          style={{ width: '100%', maxWidth: 400 }}
         >
+          <LiquidGlassView
+            variant="form"
+            elevated
+            style={{
+              width: '100%',
+              borderRadius: radius.lg,
+              paddingVertical: spacing[4],
+              paddingHorizontal: spacing[2],
+              gap: spacing[2],
+            }}
+          >
           <View
             style={{
               flexDirection: 'row',
@@ -248,8 +249,9 @@ export function AgendaDatePicker({
             onPress={onClose}
             style={{ alignSelf: 'stretch', marginTop: spacing[2], marginHorizontal: spacing[2] }}
           />
-        </Pressable>
+        </LiquidGlassView>
       </Pressable>
+    </Pressable>
     </Modal>
   );
 }

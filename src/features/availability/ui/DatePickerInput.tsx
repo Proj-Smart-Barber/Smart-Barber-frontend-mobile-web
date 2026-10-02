@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useTheme } from '@/shared/theme';
 import { maskDateInput } from './input-masks'
 
@@ -164,12 +165,12 @@ export function DatePickerInput({
             accessibilityLabel="Fechar calendário"
           />
 
-          <View
+          <LiquidGlassView
+            variant="form"
+            elevated
             style={[
               styles.calendar,
               {
-                backgroundColor: colors.background.card,
-                borderColor: colors.border.subtle,
                 borderRadius: radius.lg,
                 padding: spacing[4],
               },
@@ -301,7 +302,7 @@ export function DatePickerInput({
                     >
                       <Text
                         variant="bodySm"
-                        color={selected ? colors.text.inverse : colors.text.primary}
+                        color={selected ? '#FFFFFF' : colors.text.primary}
                       >
                         {day}
                       </Text>
@@ -310,7 +311,7 @@ export function DatePickerInput({
                 );
               })}
             </View>
-          </View>
+          </LiquidGlassView>
         </View>
       </Modal>
     </>

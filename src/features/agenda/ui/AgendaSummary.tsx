@@ -2,7 +2,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
-import { Card, Skeleton, Text } from '@/shared/ui';
+import { Skeleton, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaSummaryView } from '../model/agenda.types';
 
 interface AgendaSummaryProps {
@@ -23,11 +24,19 @@ export function AgendaSummary({ summary, isLoading }: AgendaSummaryProps) {
 
   if (isLoading) {
     return (
-      <Card style={{ gap: spacing[3], width: '100%' }}>
+      <LiquidGlassView
+        variant="card"
+        style={{
+          gap: spacing[3],
+          width: '100%',
+          padding: spacing[4],
+          borderRadius: radius.lg,
+        }}
+      >
         <Skeleton width={120} height={14} />
         <Skeleton width={80} height={24} />
         <Skeleton width="60%" height={14} />
-      </Card>
+      </LiquidGlassView>
     );
   }
 
@@ -39,7 +48,16 @@ export function AgendaSummary({ summary, isLoading }: AgendaSummaryProps) {
   if (!showOccupancy && !showNext) return null;
 
   return (
-    <Card style={{ gap: spacing[4], width: '100%' }}>
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{
+        gap: spacing[4],
+        width: '100%',
+        padding: spacing[4],
+        borderRadius: radius.lg,
+      }}
+    >
       {showOccupancy && summary.occupancyPercent !== null ? (
         <View style={{ gap: spacing[2] }}>
           <Text variant="caption" color={colors.text.secondary}>
@@ -98,6 +116,6 @@ export function AgendaSummary({ summary, isLoading }: AgendaSummaryProps) {
           </Text>
         </View>
       ) : null}
-    </Card>
+    </LiquidGlassView>
   );
 }

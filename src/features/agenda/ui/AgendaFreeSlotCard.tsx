@@ -2,7 +2,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
-import { Card, Text } from '@/shared/ui';
+import { Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaFreeSlotEntry } from '../api/agenda.contract';
 import { formatClockRange, formatDurationMinutes, minutesBetween } from '../model/agenda.helpers';
 
@@ -16,10 +17,12 @@ export function AgendaFreeSlotCard({ entry }: AgendaFreeSlotCardProps) {
   const duration = minutesBetween(entry.startTime, entry.endTime);
 
   return (
-    <Card
+    <LiquidGlassView
+      variant="card"
       style={{
         padding: spacing[4],
         width: '100%',
+        borderRadius: radius.lg,
         borderWidth: 1.5,
         borderColor: colors.border.default,
         borderStyle: 'dashed',
@@ -48,6 +51,6 @@ export function AgendaFreeSlotCard({ entry }: AgendaFreeSlotCardProps) {
           </Text>
         </View>
       </View>
-    </Card>
+    </LiquidGlassView>
   );
 }

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { useFieldArray, useFormContext } from 'react-hook-form';
-import { Text, Button, Card } from '@/shared/ui';
+import { Text, Button } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useTheme } from '@/shared/theme';
 import { TimeRangeInput } from './TimeRangeInput';
 import type { ScheduleDayView } from '../model/availability.types';
@@ -45,12 +46,13 @@ export function AvailabilityDay({
 
   return (
     <View>
-      <Card
+      <LiquidGlassView
+        variant="card"
+        elevated={isOpen}
         style={[
           styles.card,
           {
-            backgroundColor: isOpen ? colors.background.card : colors.surface.default,
-            borderColor: dayError ? colors.border.error : colors.border.subtle,
+            borderColor: dayError ? colors.border.error : undefined,
             borderRadius: radius.lg,
             padding: spacing[5],
           },
@@ -223,7 +225,7 @@ export function AvailabilityDay({
             />
           </View>
         )}
-      </Card>
+      </LiquidGlassView>
 
       {/* Erro de conflito inline — Critério de Aceite 4 */}
       {dayError ? (

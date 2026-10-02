@@ -2,7 +2,8 @@ import React from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
-import { Card, Text } from '@/shared/ui';
+import { Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaHoldEntry } from '../api/agenda.contract';
 import { formatClockRange, formatDurationMinutes, formatHoldExpiry, minutesBetween } from '../model/agenda.helpers';
 
@@ -21,7 +22,10 @@ export function AgendaHoldCard({ entry }: AgendaHoldCardProps) {
   const isExpired = expiryLabel === 'Expirado';
 
   return (
-    <Card style={{ padding: spacing[4], width: '100%' }}>
+    <LiquidGlassView
+      variant="card"
+      style={{ padding: spacing[4], width: '100%', borderRadius: radius.lg }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <View
           style={{
@@ -60,6 +64,6 @@ export function AgendaHoldCard({ entry }: AgendaHoldCardProps) {
           ) : null}
         </View>
       </View>
-    </Card>
+    </LiquidGlassView>
   );
 }

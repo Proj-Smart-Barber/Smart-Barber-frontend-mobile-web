@@ -3,7 +3,8 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { mapStatusBadgeTone, mapStatusLabel } from '@/entities/appointment';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Card, Text } from '@/shared/ui';
+import { Badge, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { mapPaymentStatusLabel } from '../model/agenda.helpers';
 import { confirmDestructiveAction } from './confirm-destructive-action';
@@ -120,7 +121,7 @@ export function AgendaAppointmentCard({
   onCancel,
   isCancelling = false,
 }: AgendaAppointmentCardProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const tone = mapStatusBadgeTone(entry.status);
   const priceValue =
@@ -150,7 +151,11 @@ export function AgendaAppointmentCard({
   };
 
   return (
-    <Card style={{ padding: spacing[4], gap: spacing[3], width: '100%' }}>
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{ padding: spacing[4], gap: spacing[3], width: '100%', borderRadius: radius.lg }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <TimeBlock entry={entry} />
 
@@ -269,6 +274,6 @@ export function AgendaAppointmentCard({
           />
         </View>
       ) : null}
-    </Card>
+    </LiquidGlassView>
   );
 }
