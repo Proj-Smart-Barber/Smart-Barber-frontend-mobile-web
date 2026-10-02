@@ -21,6 +21,19 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="theme-color" content="#0B0B0B" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#F7F5F3" media="(prefers-color-scheme: light)" />
 
+        {/* PWA Web App Manifest e Favicons */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+
+        {/* Metadados iOS Web App (WebKit Standalone) */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Smart Barber" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
         <ScrollViewStyleReset />
 
         <style
