@@ -1,31 +1,31 @@
 import React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Button, Text } from '@/shared/ui';
+import { Badge, Text } from '@/shared/ui';
+import { useNavigation } from '@/shared/navigation';
 import type { Staff } from '@/entities/staff';
 
 interface DashboardHeaderProps {
   staff: Staff | null;
   greeting: string;
   isOwner: boolean;
-  onSignOut: () => void;
 }
 
-export function DashboardHeader({ staff, greeting, isOwner, onSignOut }: DashboardHeaderProps) {
-  const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
+export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderProps) {
+  const { colors, spacing, radius, isDark } = useTheme();
+  const { isCompact, isExpanded } = useAdaptiveLayout();
+  const { openDrawer } = useNavigation();
 
   const formattedDate = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'long',
+    weekday: 'short',
     day: 'numeric',
-    month: 'long',
+    month: 'short',
   }).format(new Date());
 
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
 
-  // Iniciais do profissional
   const initials = staff?.name
     ? staff.name
         .split(' ')
@@ -37,107 +37,100 @@ export function DashboardHeader({ staff, greeting, isOwner, onSignOut }: Dashboa
 
   return (
     <View
-      style={{
-        width: '100%',
-        paddingHorizontal: isCompact ? spacing[4] : spacing[6],
-        paddingVertical: spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.subtle,
-        backgroundColor: colors.background.primary,
-        flexDirection: isCompact ? 'column' : 'row',
-        alignItems: isCompact ? 'flex-start' : 'center',
-        justifyContent: 'space-between',
-        gap: spacing[3],
-      }}
+      style={[
+        styles.headerContainer,
+        {
+          paddingHorizontal: isCompact ? spacing[4] : spacing[6],
+          paddingVertical: spacing[3],
+          borderBottomColor: colors.border.subtle,
+          backgroundColor: colors.background.primary,
+        },
+      ]}
     >
-      {/* Lado Esquerdo: Marca & Data */}
+      {/* Lado Esquerdo: Hamburger (no mobile) + BrandMark + Saudação & Data */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+        {!isExpanded ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir menu de navegação"
+            onPress={openDrawer}
+            style={({ pressed }) => [
+              styles.menuButton,
+              {
+                borderRadius: radius.md,
+                backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                borderColor: colors.border.default,
+              },
+            ]}
+          >
+            <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+          </Pressable>
+        ) : null}
+
         <BrandMark
           variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-          size={36}
+          size={32}
           decorative={false}
           accessibilityLabel="Smart Barber Logo"
         />
-        <View style={{ gap: 2 }}>
+
+        <View style={{ gap: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+            <Text variant="subhead" weight="bold" color={colors.text.primary}>
+              {greeting}
+            </Text>
+            <Badge
+              label={isOwner ? 'Proprietário' : 'Barbeiro'}
+              tone={isOwner ? 'brand' : 'success'}
+              style={{ transform: [{ scale: 0.85 }] }}
+            />
+          </View>
           <Text variant="caption" color={colors.text.muted}>
-            {capitalizedDate}
-          </Text>
-          <Text variant="h2" color={colors.text.primary}>
-            {greeting}
+            {capitalizedDate} · Painel do dia
           </Text>
         </View>
       </View>
 
-      {/* Lado Direito: Perfil, Badge, Alternador de Tema e Sair */}
+      {/* Lado Direito: Avatar do profissional */}
       <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          alignSelf: isCompact ? 'flex-end' : 'center',
-          gap: spacing[3],
-        }}
-      >
-        <Badge
-          label={isOwner ? 'Proprietário' : 'Barbeiro'}
-          tone={isOwner ? 'brand' : 'success'}
-        />
-
-        {/* Avatar Circular com Monograma */}
-        <View
-          accessibilityLabel={`Avatar de ${staff?.name ?? 'Profissional'}`}
-          style={{
-            width: 38,
-            height: 38,
+        accessibilityLabel={`Perfil de ${staff?.name ?? 'Profissional'}`}
+        style={[
+          styles.avatar,
+          {
             borderRadius: radius.full,
             backgroundColor: colors.surface.elevated,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1.5,
             borderColor: colors.brand.primary,
-          }}
-        >
-          <Text variant="badge" color={colors.text.primary} weight="bold">
-            {initials}
-          </Text>
-        </View>
-
-        {/* Alternador de Tema */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
-          onPress={toggleTheme}
-          style={({ pressed }) => ({
-            width: 38,
-            height: 38,
-            borderRadius: radius.full,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-          })}
-        >
-          <Ionicons
-            name={isDark ? 'sunny-outline' : 'moon-outline'}
-            size={18}
-            color={colors.text.secondary}
-          />
-        </Pressable>
-
-        {/* Botão Sair */}
-        <Button
-          title={isCompact ? '' : 'Sair'}
-          accessibilityLabel="Sair"
-          variant="outline"
-          leftIcon={<Ionicons name="log-out-outline" size={16} color={colors.text.secondary} />}
-          onPress={onSignOut}
-          style={{
-            minHeight: 38,
-            paddingHorizontal: isCompact ? spacing[3] : spacing[4],
-            paddingVertical: spacing[1],
-          }}
-        />
+          },
+        ]}
+      >
+        <Text variant="caption" color={colors.text.primary} weight="bold">
+          {initials}
+        </Text>
       </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  headerContainer: {
+    width: '100%',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  menuButton: {
+    width: 42,
+    height: 42,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

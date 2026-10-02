@@ -20,26 +20,23 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
         style={{
           width: '100%',
           flexDirection: isCompact ? 'column' : 'row',
-          gap: spacing[4],
+          gap: spacing[3],
         }}
       >
-        <Card style={{ flex: 1, minHeight: 110, gap: spacing[2] }}>
+        <Card style={{ flex: 1, minHeight: 96, gap: spacing[2], padding: spacing[4] }}>
           <Skeleton width={120} height={16} />
-          <Skeleton width={90} height={28} />
-          <Skeleton width={140} height={14} />
+          <Skeleton width={90} height={26} />
         </Card>
-        <Card style={{ flex: 1, minHeight: 110, gap: spacing[2] }}>
+        <Card style={{ flex: 1, minHeight: 96, gap: spacing[2], padding: spacing[4] }}>
           <Skeleton width={120} height={16} />
-          <Skeleton width={90} height={28} />
-          <Skeleton width={140} height={14} />
-        </Card>
-        <Card style={{ flex: 1, minHeight: 110, gap: spacing[2] }}>
-          <Skeleton width={120} height={16} />
-          <Skeleton width={90} height={28} />
-          <Skeleton width={140} height={14} />
+          <Skeleton width={90} height={26} />
         </Card>
       </View>
     );
+  }
+
+  if (metrics.length === 0) {
+    return null;
   }
 
   return (
@@ -47,7 +44,7 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
       style={{
         width: '100%',
         flexDirection: isCompact ? 'column' : 'row',
-        gap: spacing[4],
+        gap: spacing[3],
       }}
     >
       {metrics.map((card) => {
@@ -66,7 +63,7 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
             elevated
             style={{
               flex: 1,
-              padding: spacing[5],
+              padding: spacing[4],
               gap: spacing[2],
               justifyContent: 'space-between',
             }}
@@ -83,15 +80,15 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
               </Text>
               <View
                 style={{
-                  width: 32,
-                  height: 32,
+                  width: 30,
+                  height: 30,
                   borderRadius: radius.md,
                   backgroundColor: colors.surface.input,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Ionicons name={card.iconName as any} size={18} color={iconColor} />
+                <Ionicons name={card.iconName as any} size={16} color={iconColor} />
               </View>
             </View>
 

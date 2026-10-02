@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking, Pressable, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -21,13 +21,14 @@ export function NextAppointmentCard({
   isUpdating = false,
   onUpdateStatus,
 }: NextAppointmentCardProps) {
+  const router = useRouter();
   const { colors, spacing, radius } = useTheme();
   const { isCompact } = useAdaptiveLayout();
 
   if (isLoading) {
     return (
-      <Card elevated style={{ width: '100%', gap: spacing[4], padding: spacing[6] }}>
-        <Skeleton width={180} height={20} />
+      <Card elevated style={{ width: '100%', gap: spacing[4], padding: spacing[5] }}>
+        <Skeleton width={160} height={20} />
         <Skeleton width="100%" height={32} />
         <Skeleton width={140} height={18} />
       </Card>
@@ -39,25 +40,24 @@ export function NextAppointmentCard({
       <Card
         style={{
           width: '100%',
-          padding: spacing[6],
+          padding: spacing[5],
           alignItems: 'center',
           justifyContent: 'center',
           gap: spacing[2],
           borderStyle: 'dashed',
+          borderColor: colors.border.default,
         }}
       >
-        <Ionicons name="checkmark-circle-outline" size={36} color={colors.feedback.success} />
-        <Text variant="subhead" color={colors.text.primary} align="center">
-          Nenhum atendimento na fila
+        <Ionicons name="calendar-outline" size={32} color={colors.text.muted} />
+        <Text variant="subhead" weight="bold" color={colors.text.primary} align="center">
+          Nenhum agendamento pendente no momento
         </Text>
         <Text variant="bodySm" color={colors.text.secondary} align="center">
-          Todos os cortes agendados para este turno foram concluídos ou você está livre no momento.
+          Não há atendimentos na fila imediata para este turno. Consulte a agenda para conferir outros horários.
         </Text>
       </Card>
     );
   }
-
-  const router = useRouter();
 
   const handleOpenAgenda = () => {
     router.push('/(app)/agenda' as any);
@@ -66,7 +66,7 @@ export function NextAppointmentCard({
   const handleCancel = async () => {
     const confirmed = await confirmDestructiveAction({
       title: 'Cancelar agendamento',
-      message: `Deseja realmente cancelar o agendamento de ${appointment.customerName} às ${appointment.scheduledTime}? O registro será excluído da agenda.`,
+      message: `Deseja realmente cancelar o agendamento de ${appointment.customerName} às ${appointment.scheduledTime}?`,
       confirmLabel: 'Sim, cancelar',
       cancelLabel: 'Manter',
     });
@@ -77,7 +77,8 @@ export function NextAppointmentCard({
   };
 
   const handleWhatsApp = () => {
-    const rawNumber = appointment.customerPhone.replace(/\D/g, '');
+    const rawNumber = (appointment.customerPhone || '').replace(/\D/g, '');
+    if (!rawNumber) return;
     const url = `https://wa.me/55${rawNumber}?text=Ol%C3%A1%20${encodeURIComponent(appointment.customerName)},%20seu%20hor%C3%A1rio%20no%20Smart%20Barber%20est%C3%A1%20confirmado!`;
     void Linking.openURL(url).catch(() => {});
   };
@@ -89,13 +90,13 @@ export function NextAppointmentCard({
       elevated
       style={{
         width: '100%',
-        padding: spacing[6],
+        padding: spacing[5],
         gap: spacing[4],
         borderWidth: isInService ? 1.5 : 1,
         borderColor: isInService ? colors.brand.primary : colors.border.subtle,
       }}
     >
-      {/* Topo do Card: Badge de Horário e Status */}
+      {/* Topo do Destaque: Título da Seção + Horário + Status */}
       <View
         style={{
           flexDirection: 'row',
@@ -105,15 +106,7 @@ export function NextAppointmentCard({
           gap: spacing[2],
         }}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing[2],
-            flexShrink: 1,
-            minWidth: 0,
-          }}
-        >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
           <View
             style={{
               flexDirection: 'row',
@@ -130,12 +123,7 @@ export function NextAppointmentCard({
               {appointment.scheduledTime}
             </Text>
           </View>
-          <Text
-            variant="caption"
-            color={colors.text.muted}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
+          <Text variant="caption" color={colors.text.muted}>
             ({appointment.durationMinutes} min)
           </Text>
         </View>
@@ -147,7 +135,7 @@ export function NextAppointmentCard({
         />
       </View>
 
-      {/* Conteúdo Central: Cliente e Serviço */}
+      {/* Conteúdo Central: Cliente, Serviço e Preço */}
       <View
         style={{
           flexDirection: isCompact ? 'column' : 'row',
@@ -157,7 +145,7 @@ export function NextAppointmentCard({
         }}
       >
         <View style={{ flex: 1, minWidth: 0, gap: spacing[1] }}>
-          <Text variant="h1" color={colors.text.primary} numberOfLines={2} ellipsizeMode="tail">
+          <Text variant="h2" color={colors.text.primary} numberOfLines={2} ellipsizeMode="tail">
             {appointment.customerName}
           </Text>
           <Text variant="body" color={colors.text.secondary} numberOfLines={2} ellipsizeMode="tail">
@@ -170,12 +158,12 @@ export function NextAppointmentCard({
         </Text>
       </View>
 
-      {/* Ações Rápidas do Atendimento */}
+      {/* Ações Rápidas: Ver na Agenda como ação primária clara */}
       <View
         style={{
           flexDirection: isCompact ? 'column' : 'row',
           alignItems: isCompact ? 'stretch' : 'center',
-          gap: spacing[3],
+          gap: spacing[2],
           paddingTop: spacing[2],
           borderTopWidth: 1,
           borderTopColor: colors.border.subtle,
@@ -189,32 +177,27 @@ export function NextAppointmentCard({
           style={{ flex: 1, minHeight: 48 }}
         />
 
-        {/* Botão WhatsApp */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Enviar WhatsApp para ${appointment.customerName}`}
-          onPress={handleWhatsApp}
-          style={({ pressed }) => ({
-            height: 48,
-            paddingHorizontal: spacing[4],
-            borderRadius: radius.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing[2],
-            alignSelf: isCompact ? 'stretch' : 'auto',
-          })}
-        >
-          <Ionicons name="logo-whatsapp" size={18} color={colors.feedback.success} />
-          <Text variant="bodySm" color={colors.text.primary} weight="medium">
-            WhatsApp
-          </Text>
-        </Pressable>
+        {appointment.customerPhone ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Enviar WhatsApp para ${appointment.customerName}`}
+            onPress={handleWhatsApp}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              {
+                borderRadius: radius.md,
+                borderColor: colors.border.default,
+                backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
+              },
+            ]}
+          >
+            <Ionicons name="logo-whatsapp" size={18} color={colors.feedback.success} />
+            <Text variant="bodySm" color={colors.text.primary} weight="medium">
+              WhatsApp
+            </Text>
+          </Pressable>
+        ) : null}
 
-        {/* Botão Cancelar */}
         <Button
           title="Cancelar"
           variant="outline"
@@ -222,16 +205,25 @@ export function NextAppointmentCard({
           disabled={isUpdating}
           leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
           textStyle={{ color: colors.feedback.error }}
-          onPress={() => {
-            void handleCancel();
-          }}
+          onPress={() => void handleCancel()}
           style={{
             minHeight: 48,
             borderColor: colors.feedback.error,
-            alignSelf: isCompact ? 'stretch' : 'auto',
           }}
         />
       </View>
     </Card>
   );
 }
+
+const styles = StyleSheet.create({
+  secondaryButton: {
+    height: 48,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+});
