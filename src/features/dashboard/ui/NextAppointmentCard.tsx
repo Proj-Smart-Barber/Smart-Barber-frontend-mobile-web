@@ -3,7 +3,8 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Button, Card, Skeleton, Text } from '@/shared/ui';
+import { Badge, Button, Skeleton, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation';
 import { confirmDestructiveAction } from '@/features/agenda/ui/confirm-destructive-action';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/dashboard.helpers';
@@ -22,31 +23,37 @@ export function NextAppointmentCard({
   onUpdateStatus,
 }: NextAppointmentCardProps) {
   const router = useRouter();
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
 
   if (isLoading) {
     return (
-      <Card elevated style={{ width: '100%', gap: spacing[4], padding: spacing[5] }}>
+      <LiquidGlassView
+        variant="card"
+        elevated
+        style={{ width: '100%' }}
+        contentStyle={{ gap: spacing[4], padding: spacing[5] }}
+      >
         <Skeleton width={160} height={20} />
         <Skeleton width="100%" height={32} />
         <Skeleton width={140} height={18} />
-      </Card>
+      </LiquidGlassView>
     );
   }
 
   if (!appointment) {
     return (
-      <Card
-        style={{
-          width: '100%',
+      <LiquidGlassView
+        variant="card"
+        elevated
+        style={{ width: '100%' }}
+        contentStyle={{
           padding: spacing[5],
           alignItems: 'center',
           justifyContent: 'center',
           gap: spacing[2],
-          borderStyle: 'dashed',
-          borderColor: colors.border.default,
         }}
+        borderColor={isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'}
       >
         <Ionicons name="calendar-outline" size={32} color={colors.text.muted} />
         <Text variant="subhead" weight="bold" color={colors.text.primary} align="center">
@@ -55,7 +62,7 @@ export function NextAppointmentCard({
         <Text variant="bodySm" color={colors.text.secondary} align="center">
           Não há atendimentos na fila imediata para este turno. Consulte a agenda para conferir outros horários.
         </Text>
-      </Card>
+      </LiquidGlassView>
     );
   }
 
@@ -86,15 +93,16 @@ export function NextAppointmentCard({
   const isInService = appointment.status === 'IN_SERVICE';
 
   return (
-    <Card
+    <LiquidGlassView
+      variant="card"
       elevated
-      style={{
-        width: '100%',
+      style={{ width: '100%' }}
+      contentStyle={{
         padding: spacing[5],
         gap: spacing[4],
-        borderWidth: isInService ? 1.5 : 1,
-        borderColor: isInService ? colors.brand.primary : colors.border.subtle,
       }}
+      borderWidth={isInService ? 1.5 : 1}
+      borderColor={isInService ? colors.brand.primary : undefined}
     >
       {/* Topo do Destaque: Título da Seção + Horário + Status */}
       <View
@@ -212,7 +220,7 @@ export function NextAppointmentCard({
           }}
         />
       </View>
-    </Card>
+    </LiquidGlassView>
   );
 }
 

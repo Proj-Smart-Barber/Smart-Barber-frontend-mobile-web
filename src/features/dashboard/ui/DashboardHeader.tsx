@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -42,9 +42,15 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
         {
           paddingHorizontal: isCompact ? spacing[4] : spacing[6],
           paddingVertical: spacing[3],
-          borderBottomColor: colors.border.subtle,
-          backgroundColor: colors.background.primary,
+          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
+          backgroundColor: isDark ? 'rgba(11, 11, 11, 0.78)' : 'rgba(255, 255, 255, 0.82)',
         },
+        Platform.OS === 'web'
+          ? ({
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            } as any)
+          : null,
       ]}
     >
       {/* Lado Esquerdo: Hamburger (no mobile) + BrandMark + Saudação & Data */}

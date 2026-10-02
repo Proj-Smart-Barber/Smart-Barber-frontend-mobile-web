@@ -1,103 +1,228 @@
 import React from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { useReducedMotion, useTheme } from '@/shared/theme';
+import { useReducedMotion, useReducedTransparency, useTheme } from '@/shared/theme';
+
+export type LiquidGlassVariant = 'navigation' | 'sidebar' | 'card';
 
 export interface LiquidGlassViewProps {
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
+  variant?: LiquidGlassVariant;
+  autoHeight?: boolean;
   borderRadius?: number;
   intensity?: number;
   elevated?: boolean;
+  borderWidth?: number;
+  borderColor?: string;
+  backgroundColor?: string;
 }
 
 export function LiquidGlassView({
   children,
   style,
   contentStyle,
-  borderRadius = 32,
-  intensity = 55,
+  variant = 'navigation',
+  autoHeight,
+  borderRadius,
+  intensity,
   elevated = true,
+  borderWidth = 1,
+  borderColor,
+  backgroundColor,
 }: LiquidGlassViewProps) {
   const { colors, isDark } = useTheme();
   const reducedMotion = useReducedMotion();
+  const reducedTransparency = useReducedTransparency();
 
-  // Cores translúcidas com alto contraste e saturação refinada
-  const glassBackground = isDark
-    ? 'rgba(20, 20, 20, 0.72)'
-    : 'rgba(255, 255, 255, 0.78)';
+  // Define defaults com base na variante
+  const isCard = variant === 'card';
+  const isSidebar = variant === 'sidebar';
+  const isNavigation = variant === 'navigation';
 
-  const glassBorderColor = isDark
-    ? 'rgba(255, 255, 255, 0.14)'
-    : 'rgba(0, 0, 0, 0.08)';
+  // Altura automática é padrão em cartões, enquanto navbar e sidebar operam em dimensões estruturadas
+  const resolvedAutoHeight = autoHeight !== undefined ? autoHeight : isCard;
 
-  // Fallback opaco caso o ambiente não suporte blur ou para alto contraste
-  const solidFallbackBackground = isDark ? '#141414' : colors.surface.elevated;
+  const resolvedRadius =
+    borderRadius !== undefined
+      ? borderRadius
+      : isCard
+        ? 26
+        : isSidebar
+          ? 30
+          : 32;
 
-  // No Web, aplicamos backdropFilter via CSS Style
+  const resolvedIntensity =
+    intensity !== undefined
+      ? intensity
+      : isCard
+        ? 45
+        : isSidebar
+          ? 55
+          : 55;
+
+  // Paleta de cores translúcidas de alto contraste baseada nas referências do design system
+  const glassBackground = backgroundColor
+    ? backgroundColor
+    : isCard
+      ? isDark
+        ? 'rgba(32, 33, 38, 0.64)'
+        : 'rgba(255, 255, 255, 0.72)'
+      : isSidebar
+        ? isDark
+          ? 'rgba(26, 28, 33, 0.52)'
+          : 'rgba(255, 255, 255, 0.62)'
+        : isDark
+          ? 'rgba(20, 20, 20, 0.72)'
+          : 'rgba(255, 255, 255, 0.78)';
+
+  const glassBorderColor = borderColor
+    ? borderColor
+    : isCard
+      ? isDark
+        ? 'rgba(255, 255, 255, 0.145)'
+        : 'rgba(255, 255, 255, 0.92)'
+      : isSidebar
+        ? isDark
+          ? 'rgba(255, 255, 255, 0.15)'
+          : 'rgba(255, 255, 255, 0.9)'
+        : isDark
+          ? 'rgba(255, 255, 255, 0.14)'
+          : 'rgba(0, 0, 0, 0.08)';
+
+  // Fallbacks elegantes em caso de preferência de transparência reduzida ou ausência de suporte
+  const solidFallbackBackground = isDark
+    ? isSidebar
+      ? '#16171a'
+      : isCard
+        ? '#1c1d21'
+        : '#141414'
+    : isSidebar
+      ? '#f5f3f0'
+      : colors.surface.elevated;
+
+  const solidFallbackBorder = isDark
+    ? 'rgba(255, 255, 255, 0.12)'
+    : 'rgba(0, 0, 0, 0.1)';
+
+  // No Web, aplicamos backdropFilter via CSS Style específico por variante
+  const webBlurAmount = isCard ? 'blur(18px) saturate(115%)' : isSidebar ? 'blur(22px) saturate(120%)' : 'blur(20px) saturate(180%)';
+
   const webBackdropStyle: any =
     Platform.OS === 'web'
-      ? {
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        }
+      ? reducedTransparency
+        ? {
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+          }
+        : {
+            backdropFilter: webBlurAmount,
+            WebkitBackdropFilter: webBlurAmount,
+          }
       : {};
+
+  const activeBackground = reducedTransparency ? solidFallbackBackground : glassBackground;
+  const activeBorderColor = reducedTransparency ? solidFallbackBorder : glassBorderColor;
 
   const flattenedStyle = (StyleSheet.flatten(style) || {}) as ViewStyle;
   const explicitHeight = flattenedStyle.height;
   const explicitMinHeight = flattenedStyle.minHeight;
 
+  // Configuração de profundidade e sombra refinada por variante
+  const shadowConfig = !elevated
+    ? {}
+    : isSidebar
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: isDark ? 0.35 : 0.10,
+          shadowRadius: 28,
+          elevation: 8,
+        }
+      : isCard
+        ? {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: isDark ? 0.25 : 0.07,
+            shadowRadius: 16,
+            elevation: 4,
+          }
+        : {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: isDark ? 0.45 : 0.16,
+            shadowRadius: 20,
+            elevation: 12,
+          };
+
   return (
     <View
       style={[
         styles.shadowWrapper,
-        elevated && {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: isDark ? 0.45 : 0.16,
-          shadowRadius: 20,
-          elevation: 12,
-        },
+        shadowConfig,
         style,
       ]}
     >
       <View
         style={[
-          styles.innerContainer,
+          resolvedAutoHeight ? styles.autoHeightInner : styles.fixedHeightInner,
+          isNavigation && styles.centerInner,
           {
-            borderRadius,
-            borderColor: glassBorderColor,
-            backgroundColor: glassBackground,
+            borderRadius: resolvedRadius,
+            borderColor: activeBorderColor,
+            borderWidth,
+            backgroundColor: activeBackground,
             ...(explicitHeight !== undefined ? { height: explicitHeight } : {}),
             ...(explicitMinHeight !== undefined ? { minHeight: explicitMinHeight } : {}),
           },
           webBackdropStyle,
         ]}
       >
-        {Platform.OS !== 'web' ? (
+        {Platform.OS !== 'web' && !reducedTransparency ? (
           <BlurView
-            intensity={intensity}
+            intensity={resolvedIntensity}
             tint={isDark ? 'dark' : 'light'}
             style={StyleSheet.absoluteFill}
           />
         ) : null}
 
         {/* Camada sutil de reflexo / acabamento especular */}
-        <View
-          pointerEvents="none"
-          style={[
-            styles.specularHighlight,
-            {
-              borderTopColor: isDark
-                ? 'rgba(255, 255, 255, 0.18)'
-                : 'rgba(255, 255, 255, 0.65)',
-              borderRadius,
-            },
-          ]}
-        />
+        {!reducedTransparency ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.specularHighlight,
+              {
+                borderTopColor: isDark
+                  ? isCard
+                    ? 'rgba(255, 255, 255, 0.11)'
+                    : 'rgba(255, 255, 255, 0.15)'
+                  : isCard
+                    ? 'rgba(255, 255, 255, 0.85)'
+                    : 'rgba(255, 255, 255, 0.75)',
+                borderRadius: resolvedRadius,
+              },
+              Platform.OS === 'web'
+                ? ({
+                    backgroundImage: isDark
+                      ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 42%)'
+                      : 'linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 42%)',
+                  } as any)
+                : null,
+            ]}
+          />
+        ) : null}
 
-        <View style={[styles.content, contentStyle]}>{children}</View>
+        <View
+          style={[
+            resolvedAutoHeight ? styles.autoHeightContent : styles.fixedHeightContent,
+            isNavigation && styles.centerContent,
+            contentStyle,
+          ]}
+        >
+          {children}
+        </View>
       </View>
     </View>
   );
@@ -107,12 +232,19 @@ const styles = StyleSheet.create({
   shadowWrapper: {
     backgroundColor: 'transparent',
   },
-  innerContainer: {
+  fixedHeightInner: {
     width: '100%',
     height: '100%',
     overflow: 'hidden',
-    borderWidth: 1,
     position: 'relative',
+  },
+  autoHeightInner: {
+    width: '100%',
+    height: 'auto',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  centerInner: {
     justifyContent: 'center',
   },
   specularHighlight: {
@@ -123,9 +255,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     backgroundColor: 'transparent',
   },
-  content: {
+  fixedHeightContent: {
     width: '100%',
     height: '100%',
+  },
+  autoHeightContent: {
+    width: '100%',
+    height: 'auto',
+  },
+  centerContent: {
     justifyContent: 'center',
   },
 });

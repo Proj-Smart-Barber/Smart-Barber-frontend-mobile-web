@@ -10,10 +10,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { BrandMark } from '@/shared/brand';
 import { useSession } from '@/features/auth';
-import { useTheme } from '@/shared/theme';
+import { useReducedMotion, useReducedTransparency, useTheme } from '@/shared/theme';
 import { Badge, Text, useToast } from '@/shared/ui';
 import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
 import { useNavigation } from './navigation-context';
@@ -32,6 +34,7 @@ export function LeftDrawer() {
     activeDestination,
   } = useNavigation();
   const { showToast } = useToast();
+  const reducedTransparency = useReducedTransparency();
 
   const drawerWidth = Math.min(320, Math.round(width * 0.85));
 
@@ -107,6 +110,25 @@ export function LeftDrawer() {
         .join('')
     : 'SB';
 
+  // Acabamento de vidro adaptado para mobile drawer com translucidez opaca
+  const drawerGlassBg = reducedTransparency
+    ? isDark ? '#141414' : colors.surface.elevated
+    : isDark
+      ? 'rgba(20, 21, 25, 0.88)'
+      : 'rgba(255, 255, 255, 0.90)';
+
+  const drawerBorderColor = isDark
+    ? 'rgba(255, 255, 255, 0.14)'
+    : colors.border.subtle;
+
+  const webBackdropStyle: any =
+    Platform.OS === 'web' && !reducedTransparency
+      ? {
+          backdropFilter: 'blur(22px) saturate(120%)',
+          WebkitBackdropFilter: 'blur(22px) saturate(120%)',
+        }
+      : {};
+
   return (
     <View
       pointerEvents={isDrawerOpen ? 'auto' : 'none'}
@@ -131,70 +153,58 @@ export function LeftDrawer() {
         />
       </Animated.View>
 
-      {/* Painel lateral do Drawer com largura calculada dinamicamente */}
+      {/* Painel lateral do Drawer com largura calculada dinamicamente e acabamento Liquid Glass */}
       <Animated.View
         style={[
           styles.drawerPanel,
           {
             width: drawerWidth,
-            backgroundColor: isDark ? '#141414' : colors.surface.elevated,
-            borderRightColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
+            backgroundColor: drawerGlassBg,
+            borderRightColor: drawerBorderColor,
             paddingTop: Math.max(insets.top, spacing[4]),
             paddingBottom: Math.max(insets.bottom, spacing[4]),
             transform: [{ translateX: slideAnim }],
           },
+          webBackdropStyle,
         ]}
       >
-        {/* Cabeçalho do Drawer: Conta e Identidade */}
+        {Platform.OS !== 'web' && !reducedTransparency ? (
+          <BlurView
+            intensity={55}
+            tint={isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+
+        {/* Cabeçalho do Drawer: Marca Oficial + Conta e Identidade */}
         <View
           style={[
             styles.drawerHeader,
             {
-              borderBottomColor: colors.border.subtle,
+              borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
               paddingHorizontal: spacing[5],
               paddingBottom: spacing[4],
+              gap: spacing[3],
             },
           ]}
         >
-          <View style={styles.userInfoRow}>
-            <View
-              style={[
-                styles.avatar,
-                {
-                  borderRadius: radius.full,
-                  backgroundColor: colors.surface.input,
-                  borderColor: colors.brand.primary,
-                },
-              ]}
-            >
-              <Text variant="subhead" color={colors.text.primary} weight="bold">
-                {initials}
-              </Text>
-            </View>
-
-            <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-              <Text
-                variant="subhead"
-                color={colors.text.primary}
-                weight="bold"
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {staff?.name || barbershop?.name || 'Profissional'}
-              </Text>
-              <Text
-                variant="caption"
-                color={colors.text.muted}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {barbershop?.name || 'Smart Barber'}
-              </Text>
-              <Badge
-                label={isOwner ? 'Proprietário' : 'Barbeiro'}
-                tone={isOwner ? 'brand' : 'success'}
-                style={{ alignSelf: 'flex-start', marginTop: 2 }}
+          {/* Linha 1: BrandMark Oficial + Nome + Botão Fechar */}
+          <View style={styles.brandRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              <BrandMark
+                variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+                size={32}
+                decorative={false}
+                accessibilityLabel="Smart Barber Logo"
               />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                  Smart Barber
+                </Text>
+                <Text variant="caption" color={colors.text.muted}>
+                  Painel Operacional
+                </Text>
+              </View>
             </View>
 
             <Pressable
@@ -204,13 +214,61 @@ export function LeftDrawer() {
               style={({ pressed }) => [
                 styles.closeButton,
                 {
-                  borderRadius: radius.full,
-                  backgroundColor: pressed ? colors.surface.selected : 'transparent',
+                  borderRadius: radius.md,
+                  backgroundColor: pressed
+                    ? isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+                    : isDark ? 'rgba(255, 255, 255, 0.05)' : colors.surface.input,
+                  borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.border.default,
                 },
               ]}
             >
-              <Ionicons name="close-outline" size={24} color={colors.text.secondary} />
+              <Ionicons name="close-outline" size={22} color={colors.text.primary} />
             </Pressable>
+          </View>
+
+          {/* Linha 2: Card de Perfil do Usuário */}
+          <View
+            style={[
+              styles.userCard,
+              {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.03)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                borderRadius: radius.md,
+                padding: spacing[3],
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.avatar,
+                {
+                  borderRadius: radius.full,
+                  backgroundColor: colors.surface.elevated,
+                  borderColor: colors.brand.primary,
+                },
+              ]}
+            >
+              <Text variant="caption" color={colors.text.primary} weight="bold">
+                {initials}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+              <Text
+                variant="bodySm"
+                color={colors.text.primary}
+                weight="bold"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {staff?.name || barbershop?.name || 'Profissional'}
+              </Text>
+              <Badge
+                label={isOwner ? 'Proprietário' : 'Barbeiro'}
+                tone={isOwner ? 'brand' : 'success'}
+                style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+              />
+            </View>
           </View>
         </View>
 
@@ -340,7 +398,7 @@ function DrawerMenuItem({
   destructive = false,
   onPress,
 }: DrawerMenuItemProps) {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius, spacing, isDark } = useTheme();
 
   const textColor = destructive
     ? colors.feedback.error
@@ -368,7 +426,7 @@ function DrawerMenuItem({
           backgroundColor: isActive
             ? backgroundColor
             : pressed
-              ? colors.surface.selected
+              ? isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'
               : 'transparent',
           paddingHorizontal: spacing[3],
           paddingVertical: spacing[3],
@@ -402,30 +460,41 @@ const styles = StyleSheet.create({
   drawerPanel: {
     height: '100%',
     borderRightWidth: 1,
+    borderTopRightRadius: 26,
+    borderBottomRightRadius: 26,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 4, height: 0 },
+    shadowOffset: { width: 6, height: 0 },
     shadowOpacity: 0.35,
-    shadowRadius: 18,
+    shadowRadius: 24,
     elevation: 20,
   },
   drawerHeader: {
     borderBottomWidth: 1,
   },
-  userInfoRow: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+  },
   avatar: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButton: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

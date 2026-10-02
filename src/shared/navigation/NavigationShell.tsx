@@ -29,8 +29,23 @@ function NavigationShellContent({ children }: NavigationShellProps) {
 
   // No desktop / tablet expandido: sidebar persistente à esquerda + conteúdo à direita
   if (isExpanded) {
+    const webBackgroundStyle: any =
+      Platform.OS === 'web'
+        ? {
+            backgroundImage: isDark
+              ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+              : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+          }
+        : {};
+
     return (
-      <View style={[styles.container, { backgroundColor: colors.background.primary, flexDirection: 'row' }]}>
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: colors.background.primary, flexDirection: 'row' },
+          webBackgroundStyle,
+        ]}
+      >
         <DesktopSidebar />
         <View style={styles.desktopContent}>{children}</View>
       </View>
