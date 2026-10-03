@@ -26,11 +26,10 @@ export function AgendaSummary({ summary, isLoading }: AgendaSummaryProps) {
     return (
       <LiquidGlassView
         variant="card"
-        style={{
+        style={{ width: '100%' }}
+        contentStyle={{
           gap: spacing[3],
-          width: '100%',
           padding: spacing[4],
-          borderRadius: radius.lg,
         }}
       >
         <Skeleton width={120} height={14} />
@@ -51,11 +50,10 @@ export function AgendaSummary({ summary, isLoading }: AgendaSummaryProps) {
     <LiquidGlassView
       variant="card"
       elevated
-      style={{
+      style={{ width: '100%' }}
+      contentStyle={{
         gap: spacing[4],
-        width: '100%',
         padding: spacing[4],
-        borderRadius: radius.lg,
       }}
     >
       {showOccupancy && summary.occupancyPercent !== null ? (
@@ -96,9 +94,9 @@ export function AgendaSummary({ summary, isLoading }: AgendaSummaryProps) {
       {summary.next ? (
         <View
           style={{
-            borderTopWidth: 1,
+            borderTopWidth: showOccupancy && summary.occupancyPercent !== null ? 1 : 0,
             borderTopColor: colors.border.subtle,
-            paddingTop: spacing[3],
+            paddingTop: showOccupancy && summary.occupancyPercent !== null ? spacing[3] : 0,
             gap: spacing[1],
           }}
         >

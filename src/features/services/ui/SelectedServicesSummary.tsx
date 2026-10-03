@@ -48,13 +48,16 @@ export function SelectedServicesSummary({
       <LiquidGlassView
         variant="form"
         elevated
+        borderRadius={0}
+        borderWidth={1}
+        borderColor={colors.border.default}
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
+        }}
+        contentStyle={{
           paddingHorizontal: spacing[4],
           paddingTop: spacing[3],
           paddingBottom: Math.max(insets.bottom, spacing[3]),
@@ -91,7 +94,7 @@ export function SelectedServicesSummary({
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing[2], marginTop: 2 }}>
-              <Text variant="price" weight="bold" color={colors.brand.primary}>
+              <Text variant="price" weight="bold" color={colors.text.brand}>
                 {formatPrice(totalPriceInCents)}
               </Text>
               <Text variant="caption" color={colors.text.muted}>
@@ -134,12 +137,12 @@ export function SelectedServicesSummary({
           <LiquidGlassView
             variant="form"
             elevated
+            autoHeight={false}
+            borderRadius={radius.xl}
             style={{
               width: '100%',
               maxWidth: 480,
               maxHeight: '88%',
-              borderRadius: radius.xl,
-              overflow: 'hidden',
             }}
           >
             {/* Header com botão de fechar acessível */}

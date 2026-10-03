@@ -71,11 +71,15 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
       <LiquidGlassView
         variant="card"
         elevated={false}
+        borderRadius={0}
+        borderColor={colors.border.default}
+        borderWidth={1}
         style={{
+          width: '100%',
+        }}
+        contentStyle={{
           paddingHorizontal: spacing[4],
           paddingVertical: spacing[5],
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border.default,
         }}
       >
         <View

@@ -154,7 +154,8 @@ export function AgendaAppointmentCard({
     <LiquidGlassView
       variant="card"
       elevated
-      style={{ padding: spacing[4], gap: spacing[3], width: '100%', borderRadius: radius.lg }}
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4], gap: spacing[3] }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <TimeBlock entry={entry} />
@@ -164,9 +165,8 @@ export function AgendaAppointmentCard({
             <Text
               variant="subhead"
               color={colors.text.primary}
-              numberOfLines={isLongName ? undefined : 2}
-              ellipsizeMode={isLongName ? undefined : 'tail'}
-              style={isLongName ? { fontSize: 14, lineHeight: 19 } : undefined}
+              numberOfLines={2}
+              ellipsizeMode="tail"
             >
               {entry.customerName}
             </Text>
@@ -190,14 +190,16 @@ export function AgendaAppointmentCard({
               {entry.serviceTitle}
               {priceValue ? ` · ${priceValue}` : ''}
             </Text>
-            <Text
-              variant="caption"
-              color={colors.text.muted}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              Profissional: {entry.professionalName}
-            </Text>
+            {entry.professionalName ? (
+              <Text
+                variant="caption"
+                color={colors.text.muted}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Profissional: {entry.professionalName}
+              </Text>
+            ) : null}
           </View>
         )}
 
@@ -236,14 +238,16 @@ export function AgendaAppointmentCard({
               </Text>
             ) : null}
           </View>
-          <Text
-            variant="caption"
-            color={colors.text.muted}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            Profissional: {entry.professionalName}
-          </Text>
+          {entry.professionalName ? (
+            <Text
+              variant="caption"
+              color={colors.text.muted}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              Profissional: {entry.professionalName}
+            </Text>
+          ) : null}
           {showChips ? (
             <MetaChips entry={entry} paymentLabel={paymentLabel} gap={spacing[2]} />
           ) : null}

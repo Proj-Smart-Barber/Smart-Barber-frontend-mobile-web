@@ -45,16 +45,40 @@ export function LiquidGlassView({
   // Altura automática é padrão em cartões e formulários, enquanto navbar e sidebar operam em dimensões estruturadas
   const resolvedAutoHeight = autoHeight !== undefined ? autoHeight : (isCard || isForm);
 
+  const flattenedStyle = (StyleSheet.flatten(style) || {}) as ViewStyle;
+
+  // Extrai propriedades visuais decorativas para que não vazem como borda ou fundo retangular no wrapper de sombra
+  const {
+    backgroundColor: styleBg,
+    borderColor: styleBorderColor,
+    borderWidth: styleBorderWidth,
+    borderTopWidth: _btw,
+    borderBottomWidth: _bbw,
+    borderLeftWidth: _blw,
+    borderRightWidth: _brw,
+    borderRadius: styleRadius,
+    borderTopLeftRadius: _btlr,
+    borderTopRightRadius: _btrr,
+    borderBottomLeftRadius: _bblr,
+    borderBottomRightRadius: _bbrr,
+    ...outerStyle
+  } = flattenedStyle;
+
+  const explicitHeight = outerStyle.height;
+  const explicitMinHeight = outerStyle.minHeight;
+
   const resolvedRadius =
     borderRadius !== undefined
       ? borderRadius
-      : isForm
-        ? 26
-        : isCard
+      : typeof styleRadius === 'number'
+        ? styleRadius
+        : isForm
           ? 26
-          : isSidebar
-            ? 30
-            : 32;
+          : isCard
+            ? 26
+            : isSidebar
+              ? 30
+              : 32;
 
   const resolvedIntensity =
     intensity !== undefined
@@ -71,39 +95,50 @@ export function LiquidGlassView({
   // Variante 'form' possui maior densidade/opacidade para garantir legibilidade dos campos (WCAG 4.5:1)
   const glassBackground = backgroundColor
     ? backgroundColor
-    : isForm
-      ? isDark
-        ? 'rgba(24, 25, 29, 0.82)'
-        : 'rgba(255, 255, 255, 0.88)'
-      : isCard
+    : typeof styleBg === 'string' && styleBg !== 'transparent'
+      ? styleBg
+      : isForm
         ? isDark
-          ? 'rgba(32, 33, 38, 0.64)'
-          : 'rgba(255, 255, 255, 0.80)'
-        : isSidebar
+          ? 'rgba(24, 25, 29, 0.82)'
+          : 'rgba(255, 255, 255, 0.88)'
+        : isCard
           ? isDark
-            ? 'rgba(26, 28, 33, 0.52)'
-            : 'rgba(255, 255, 255, 0.62)'
-          : isDark
-            ? 'rgba(20, 20, 20, 0.72)'
-            : 'rgba(255, 255, 255, 0.78)';
+            ? 'rgba(32, 33, 38, 0.64)'
+            : 'rgba(255, 255, 255, 0.80)'
+          : isSidebar
+            ? isDark
+              ? 'rgba(26, 28, 33, 0.52)'
+              : 'rgba(255, 255, 255, 0.62)'
+            : isDark
+              ? 'rgba(20, 20, 20, 0.72)'
+              : 'rgba(255, 255, 255, 0.78)';
 
   const glassBorderColor = borderColor
     ? borderColor
-    : isForm
-      ? isDark
-        ? 'rgba(255, 255, 255, 0.14)'
-        : 'rgba(0, 0, 0, 0.08)'
-      : isCard
+    : typeof styleBorderColor === 'string'
+      ? styleBorderColor
+      : isForm
         ? isDark
-          ? 'rgba(255, 255, 255, 0.145)'
+          ? 'rgba(255, 255, 255, 0.14)'
           : 'rgba(0, 0, 0, 0.08)'
-        : isSidebar
+        : isCard
           ? isDark
-            ? 'rgba(255, 255, 255, 0.15)'
-            : 'rgba(255, 255, 255, 0.9)'
-          : isDark
-            ? 'rgba(255, 255, 255, 0.14)'
-            : 'rgba(0, 0, 0, 0.08)';
+            ? 'rgba(255, 255, 255, 0.145)'
+            : 'rgba(0, 0, 0, 0.08)'
+          : isSidebar
+            ? isDark
+              ? 'rgba(255, 255, 255, 0.15)'
+              : 'rgba(255, 255, 255, 0.9)'
+            : isDark
+              ? 'rgba(255, 255, 255, 0.14)'
+              : 'rgba(0, 0, 0, 0.08)';
+
+  const resolvedBorderWidth =
+    borderWidth !== undefined
+      ? borderWidth
+      : typeof styleBorderWidth === 'number'
+        ? styleBorderWidth
+        : 1;
 
   // Fallbacks elegantes em caso de preferência de transparência reduzida ou ausência de suporte
   const solidFallbackBackground = isDark
@@ -149,10 +184,6 @@ export function LiquidGlassView({
   const activeBackground = reducedTransparency ? solidFallbackBackground : glassBackground;
   const activeBorderColor = reducedTransparency ? solidFallbackBorder : glassBorderColor;
 
-  const flattenedStyle = (StyleSheet.flatten(style) || {}) as ViewStyle;
-  const explicitHeight = flattenedStyle.height;
-  const explicitMinHeight = flattenedStyle.minHeight;
-
   // Configuração de profundidade e sombra refinada por variante
   const shadowConfig = !elevated
     ? {}
@@ -192,8 +223,11 @@ export function LiquidGlassView({
     <View
       style={[
         styles.shadowWrapper,
+        {
+          borderRadius: resolvedRadius,
+        },
         shadowConfig,
-        style,
+        outerStyle,
       ]}
     >
       <View
@@ -203,7 +237,7 @@ export function LiquidGlassView({
           {
             borderRadius: resolvedRadius,
             borderColor: activeBorderColor,
-            borderWidth,
+            borderWidth: resolvedBorderWidth,
             backgroundColor: activeBackground,
             ...(explicitHeight !== undefined ? { height: explicitHeight } : {}),
             ...(explicitMinHeight !== undefined ? { minHeight: explicitMinHeight } : {}),
@@ -271,6 +305,7 @@ export function LiquidGlassView({
 const styles = StyleSheet.create({
   shadowWrapper: {
     backgroundColor: 'transparent',
+    overflow: 'visible',
   },
   fixedHeightInner: {
     width: '100%',
@@ -290,8 +325,8 @@ const styles = StyleSheet.create({
   specularHighlight: {
     ...StyleSheet.absoluteFill,
     borderTopWidth: 1,
-    borderLeftWidth: 0.5,
-    borderRightWidth: 0.5,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
     borderBottomWidth: 0,
     backgroundColor: 'transparent',
   },

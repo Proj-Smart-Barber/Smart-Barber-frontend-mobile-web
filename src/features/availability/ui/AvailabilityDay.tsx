@@ -30,7 +30,7 @@ export function AvailabilityDay({
   fieldArrayName,
   disabled,
 }: AvailabilityDayProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { control, formState: { errors } } = useFormContext();
   const rangesPath = `${fieldArrayName}.${dayIndex}.entries`;
   const { fields, append, remove } = useFieldArray({ control, name: rangesPath });
@@ -49,14 +49,10 @@ export function AvailabilityDay({
       <LiquidGlassView
         variant="card"
         elevated={isOpen}
-        style={[
-          styles.card,
-          {
-            borderColor: dayError ? colors.border.error : undefined,
-            borderRadius: radius.lg,
-            padding: spacing[5],
-          },
-        ]}
+        style={{ width: '100%' }}
+        contentStyle={{ padding: spacing[5] }}
+        borderColor={dayError ? colors.border.error : undefined}
+        borderWidth={dayError ? 1.5 : 1}
       >
         <View style={styles.header}>
           <View style={styles.dayIdentity}>
@@ -85,7 +81,7 @@ export function AvailabilityDay({
                 <View
                   style={[
                     styles.statusDot,
-                    { backgroundColor: isOpen ? colors.feedback.success : colors.text.muted },
+                    { backgroundColor: isOpen ? colors.brand.primary : colors.text.muted },
                   ]}
                 />
                 <Text variant="caption" color={colors.text.secondary}>
@@ -102,13 +98,17 @@ export function AvailabilityDay({
               false: colors.surface.elevated,
               true: colors.brand.primary,
             }}
-            thumbColor={colors.text.primary}
+            thumbColor={isDark ? '#F7F5F3' : '#FFFFFF'}
+            {...({
+              activeThumbColor: isDark ? '#F7F5F3' : '#FFFFFF',
+              activeTrackColor: colors.brand.primary,
+            } as any)}
             ios_backgroundColor={colors.surface.elevated}
             accessibilityLabel={`Ativar atendimento em ${day.label}`}
             onValueChange={(isOpen) => {
               if (isOpen) {
                 if (fields.length === 0) {
-                  append({ weekday: day.weekday, barbermanId: null, range: { start: '', end: '' } });
+                  append({ weekday: day.weekday, barbermanId: null, range: { start: '08:00', end: '18:00' } });
                 }
               } else {
                 // Remove de trás pra frente pra não deslocar índices
@@ -144,11 +144,10 @@ export function AvailabilityDay({
                   key={field.id}
                   style={[
                     styles.rangeRow,
-                    {
-                      backgroundColor: colors.surface.default,
-                      borderColor: colors.border.subtle,
-                      borderRadius: radius.md,
-                      padding: spacing[3],
+                    rangeIndex > 0 && {
+                      borderTopWidth: 1,
+                      borderTopColor: colors.border.subtle,
+                      paddingTop: spacing[3],
                     },
                   ]}
                 >
@@ -263,8 +262,8 @@ const styles = StyleSheet.create({
   },
   ranges: { width: '100%' },
   rangeRow: {
-    borderWidth: 1,
     gap: 10,
+    width: '100%',
   },
   rangeToolbar: {
     flexDirection: 'row',
