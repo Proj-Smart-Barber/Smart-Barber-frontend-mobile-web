@@ -19,14 +19,10 @@ export function AgendaFreeSlotCard({ entry }: AgendaFreeSlotCardProps) {
   return (
     <LiquidGlassView
       variant="card"
-      style={{
-        padding: spacing[4],
-        width: '100%',
-        borderRadius: radius.lg,
-        borderWidth: 1.5,
-        borderColor: colors.border.default,
-        borderStyle: 'dashed',
-      }}
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4] }}
+      borderWidth={1.5}
+      borderColor={colors.border.default}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <View

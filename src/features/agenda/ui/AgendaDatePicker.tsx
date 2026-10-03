@@ -161,9 +161,8 @@ export function AgendaDatePicker({
           <LiquidGlassView
             variant="form"
             elevated
-            style={{
-              width: '100%',
-              borderRadius: radius.lg,
+            style={{ width: '100%' }}
+            contentStyle={{
               paddingVertical: spacing[4],
               paddingHorizontal: spacing[2],
               gap: spacing[2],

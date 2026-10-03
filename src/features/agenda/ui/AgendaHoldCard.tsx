@@ -24,7 +24,8 @@ export function AgendaHoldCard({ entry }: AgendaHoldCardProps) {
   return (
     <LiquidGlassView
       variant="card"
-      style={{ padding: spacing[4], width: '100%', borderRadius: radius.lg }}
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4] }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <View

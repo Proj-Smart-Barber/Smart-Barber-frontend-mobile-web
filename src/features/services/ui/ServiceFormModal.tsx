@@ -14,6 +14,7 @@ import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { Service } from '../model/service.types';
 import { parsePriceToCents } from '../model/service.types';
 import { serviceFormSchema } from '../model/service.schema';
+import { maskCurrencyInput } from './input-masks';
 
 export interface ServiceFormModalProps {
   visible: boolean;
@@ -122,12 +123,12 @@ export function ServiceFormModal({
         <LiquidGlassView
           variant="form"
           elevated
+          autoHeight={false}
+          borderRadius={radius.xl}
           style={{
             width: '100%',
             maxWidth: 520,
             maxHeight: '90%',
-            borderRadius: radius.xl,
-            overflow: 'hidden',
           }}
         >
           {/* Header */}
@@ -210,8 +211,8 @@ export function ServiceFormModal({
                 >
                   <TextInput
                     value={price}
-                    onChangeText={setPrice}
-                    placeholder="45,00"
+                    onChangeText={(val) => setPrice(maskCurrencyInput(val))}
+                    placeholder="0,00"
                     keyboardType="numeric"
                     editable={!isLoading}
                   />
@@ -246,10 +247,11 @@ export function ServiceFormModal({
                 onChangeText={setDescription}
                 placeholder="Ex: Inclui lavagem com shampoo refrescante, finalização com pomada e toalha quente."
                 multiline
-                numberOfLines={3}
-                style={{ minHeight: 80, textAlignVertical: 'top' }}
+                numberOfLines={4}
                 editable={!isLoading}
                 maxLength={500}
+                containerStyle={{ minHeight: 110 }}
+                inputStyle={{ minHeight: 90 }}
               />
             </FormField>
 

@@ -54,7 +54,7 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
       ]}
     >
       {/* Lado Esquerdo: Hamburger (no mobile) + BrandMark + Saudação & Data */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         {!isExpanded ? (
           <Pressable
             accessibilityRole="button"
@@ -66,6 +66,7 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
                 borderRadius: radius.md,
                 backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
                 borderColor: colors.border.default,
+                flexShrink: 0,
               },
             ]}
           >
@@ -73,25 +74,26 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
           </Pressable>
         ) : null}
 
-        <BrandMark
-          variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-          size={32}
-          decorative={false}
-          accessibilityLabel="Smart Barber Logo"
-        />
+        <View style={{ flexShrink: 0 }}>
+          <BrandMark
+            variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+            size={32}
+            decorative={false}
+            accessibilityLabel="Smart Barber Logo"
+          />
+        </View>
 
-        <View style={{ gap: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
-            <Text variant="subhead" weight="bold" color={colors.text.primary}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2] }}>
+            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
               {greeting}
             </Text>
             <Badge
               label={isOwner ? 'Proprietário' : 'Barbeiro'}
               tone={isOwner ? 'brand' : 'success'}
-              style={{ transform: [{ scale: 0.85 }] }}
             />
           </View>
-          <Text variant="caption" color={colors.text.muted}>
+          <Text variant="caption" color={colors.text.muted} numberOfLines={1}>
             {capitalizedDate} · Painel do dia
           </Text>
         </View>
@@ -106,6 +108,8 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
             borderRadius: radius.full,
             backgroundColor: colors.surface.elevated,
             borderColor: colors.brand.primary,
+            flexShrink: 0,
+            marginLeft: spacing[2],
           },
         ]}
       >

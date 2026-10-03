@@ -97,14 +97,10 @@ export function ExceptionForm({
     <LiquidGlassView
       variant="form"
       elevated
-      style={[
-        styles.container,
-        {
-          borderColor: isEdit ? colors.border.selected : undefined,
-          borderRadius: radius.lg,
-          padding: spacing[5],
-        },
-      ]}
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[5], gap: 16 }}
+      borderColor={isEdit ? colors.border.selected : undefined}
+      borderWidth={isEdit ? 1.5 : 1}
     >
       <View style={styles.header}>
         <View
@@ -184,7 +180,7 @@ export function ExceptionForm({
                     field.onChange(masked === '' ? null : masked);
                   }}
                   onBlur={field.onBlur}
-                  placeholder="08:00"
+                  placeholder="HH:mm"
                   keyboardType="numeric"
                   maxLength={5}
                   editable={!disabled}
@@ -212,7 +208,7 @@ export function ExceptionForm({
                     field.onChange(masked === '' ? null : masked);
                   }}
                   onBlur={field.onBlur}
-                  placeholder="14:00"
+                  placeholder="HH:mm"
                   keyboardType="numeric"
                   maxLength={5}
                   editable={!disabled}
@@ -273,7 +269,7 @@ export function ExceptionForm({
 
 const styles = StyleSheet.create({
   openButton: { width: '100%' },
-  container: { gap: 16, borderWidth: 1 },
+  container: { width: '100%' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, gap: 2 },

@@ -63,8 +63,6 @@ export function AgendaBookingCard({
   const { isCompact } = useAdaptiveLayout();
 
   const { customer, services } = booking;
-  const isLongName = customer.name.length > 15;
-  const shouldShrinkName = isCompact && isLongName;
   const durationMinutes = minutesBetween(booking.startTime, booking.endTime);
   const hasPhone = customer.phoneNumber.replace(/\D/g, '').length > 0;
 
@@ -95,7 +93,8 @@ export function AgendaBookingCard({
     <LiquidGlassView
       variant="card"
       elevated
-      style={{ padding: spacing[4], gap: spacing[3], width: '100%', borderRadius: radius.lg }}
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4], gap: spacing[3] }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <TimeBlock startTime={booking.startTime} endTime={booking.endTime} />
@@ -104,9 +103,8 @@ export function AgendaBookingCard({
           <Text
             variant="subhead"
             color={colors.text.primary}
-            numberOfLines={shouldShrinkName ? undefined : 2}
-            ellipsizeMode={shouldShrinkName ? undefined : 'tail'}
-            style={shouldShrinkName ? { fontSize: 14, lineHeight: 19 } : undefined}
+            numberOfLines={2}
+            ellipsizeMode="tail"
           >
             {customer.name}
           </Text>

@@ -161,7 +161,7 @@ export function NextAppointmentCard({
           </Text>
         </View>
 
-        <Text variant="subhead" color={colors.brand.primary} weight="bold" style={{ flexShrink: 0 }}>
+        <Text variant="subhead" color={colors.text.brand} weight="bold" style={{ flexShrink: 0 }}>
           {formatCurrency(appointment.servicePriceInCents)}
         </Text>
       </View>
@@ -180,45 +180,88 @@ export function NextAppointmentCard({
         <Button
           title="Ver na Agenda"
           variant="primary"
-          leftIcon={<Ionicons name="calendar-outline" size={18} color={colors.text.inverse} />}
+          leftIcon={<Ionicons name="calendar-outline" size={18} color="#FFFFFF" />}
           onPress={handleOpenAgenda}
-          style={{ flex: 1, minHeight: 48 }}
+          style={{ flex: isCompact ? undefined : 1, minHeight: 48, width: isCompact ? '100%' : undefined }}
         />
 
-        {appointment.customerPhone ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Enviar WhatsApp para ${appointment.customerName}`}
-            onPress={handleWhatsApp}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              {
-                borderRadius: radius.md,
-                borderColor: colors.border.default,
-                backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-              },
-            ]}
-          >
-            <Ionicons name="logo-whatsapp" size={18} color={colors.feedback.success} />
-            <Text variant="bodySm" color={colors.text.primary} weight="medium">
-              WhatsApp
-            </Text>
-          </Pressable>
-        ) : null}
+        {isCompact ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], width: '100%' }}>
+            {appointment.customerPhone ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Enviar WhatsApp para ${appointment.customerName}`}
+                onPress={handleWhatsApp}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  {
+                    flex: 1,
+                    borderRadius: radius.md,
+                    borderColor: colors.border.default,
+                    backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
+                  },
+                ]}
+              >
+                <Ionicons name="logo-whatsapp" size={18} color={colors.feedback.success} />
+                <Text variant="bodySm" color={colors.text.primary} weight="medium">
+                  WhatsApp
+                </Text>
+              </Pressable>
+            ) : null}
 
-        <Button
-          title="Cancelar"
-          variant="outline"
-          loading={isUpdating}
-          disabled={isUpdating}
-          leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
-          textStyle={{ color: colors.feedback.error }}
-          onPress={() => void handleCancel()}
-          style={{
-            minHeight: 48,
-            borderColor: colors.feedback.error,
-          }}
-        />
+            <Button
+              title="Cancelar"
+              variant="outline"
+              loading={isUpdating}
+              disabled={isUpdating}
+              leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
+              textStyle={{ color: colors.feedback.error }}
+              onPress={() => void handleCancel()}
+              style={{
+                flex: 1,
+                minHeight: 48,
+                borderColor: colors.feedback.error,
+              }}
+            />
+          </View>
+        ) : (
+          <>
+            {appointment.customerPhone ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Enviar WhatsApp para ${appointment.customerName}`}
+                onPress={handleWhatsApp}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  {
+                    borderRadius: radius.md,
+                    borderColor: colors.border.default,
+                    backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
+                  },
+                ]}
+              >
+                <Ionicons name="logo-whatsapp" size={18} color={colors.feedback.success} />
+                <Text variant="bodySm" color={colors.text.primary} weight="medium">
+                  WhatsApp
+                </Text>
+              </Pressable>
+            ) : null}
+
+            <Button
+              title="Cancelar"
+              variant="outline"
+              loading={isUpdating}
+              disabled={isUpdating}
+              leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
+              textStyle={{ color: colors.feedback.error }}
+              onPress={() => void handleCancel()}
+              style={{
+                minHeight: 48,
+                borderColor: colors.feedback.error,
+              }}
+            />
+          </>
+        )}
       </View>
     </LiquidGlassView>
   );

@@ -27,7 +27,7 @@ export function ServiceCard({
   isSelected = false,
   onSelect,
 }: ServiceCardProps) {
-  const { colors, radius, spacing, components } = useTheme();
+  const { colors, radius, spacing, components, isDark } = useTheme();
 
   const handlePress = () => {
     if (onSelect) {
@@ -54,6 +54,7 @@ export function ServiceCard({
       borderColor={isSelected ? colors.brand.primary : undefined}
       borderWidth={isSelected ? 1.5 : 1}
       style={{
+        width: '100%',
         marginVertical: spacing[1],
         opacity: service.isActive || isManagement ? 1 : 0.82,
       }}
@@ -203,14 +204,15 @@ export function ServiceCard({
                 onValueChange={handleToggle}
                 disabled={isToggling}
                 trackColor={{
-                  false: colors.border.default,
-                  true: colors.feedback.successBackground,
+                  false: colors.surface.elevated,
+                  true: colors.brand.primary,
                 }}
-                thumbColor={
-                  service.isActive
-                    ? colors.feedback.success
-                    : colors.text.muted
-                }
+                thumbColor={isDark ? '#F7F5F3' : '#FFFFFF'}
+                {...({
+                  activeThumbColor: isDark ? '#F7F5F3' : '#FFFFFF',
+                  activeTrackColor: colors.brand.primary,
+                } as any)}
+                ios_backgroundColor={colors.surface.elevated}
               />
             </View>
 

@@ -26,13 +26,8 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
     <LiquidGlassView
       variant="card"
       elevated
-      style={[
-        styles.card,
-        {
-          borderRadius: radius.lg,
-          padding: spacing[4],
-        },
-      ]}
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4] }}
     >
       <View style={styles.row}>
         <View
@@ -128,7 +123,7 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1 },
+  card: { width: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dateTile: {
     width: 64,

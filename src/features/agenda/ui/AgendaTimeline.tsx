@@ -81,7 +81,8 @@ export function AgendaTimeline({
             <LiquidGlassView
               key={index}
               variant="card"
-              style={{ minHeight: 84, gap: spacing[2], padding: spacing[4], borderRadius: radius.lg }}
+              style={{ width: '100%', minHeight: 84 }}
+              contentStyle={{ gap: spacing[2], padding: spacing[4] }}
             >
               <Skeleton width={140} height={18} />
               <Skeleton width="60%" height={14} />
@@ -93,7 +94,8 @@ export function AgendaTimeline({
         <LiquidGlassView
           variant="card"
           elevated
-          style={{ padding: spacing[6], borderRadius: radius.lg }}
+          style={{ width: '100%' }}
+          contentStyle={{ padding: spacing[6] }}
         >
           <EmptyState
             title={isClosed ? 'Barbearia fechada neste dia' : 'Nenhum horário neste dia'}

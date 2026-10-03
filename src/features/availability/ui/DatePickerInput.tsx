@@ -120,7 +120,7 @@ export function DatePickerInput({
         value={value}
         onChangeText={(text) => onChange(maskDateInput(text))}
         onBlur={onBlur}
-        placeholder="2026-12-25"
+        placeholder="AAAA-MM-DD"
         keyboardType="numeric"
         maxLength={10}
         editable={!disabled}
@@ -168,13 +168,11 @@ export function DatePickerInput({
           <LiquidGlassView
             variant="form"
             elevated
-            style={[
-              styles.calendar,
-              {
-                borderRadius: radius.lg,
-                padding: spacing[4],
-              },
-            ]}
+            style={styles.calendar}
+            contentStyle={{
+              padding: spacing[4],
+              gap: 16,
+            }}
           >
             <View style={styles.calendarTopRow}>
               <View style={styles.calendarTitleBlock}>
@@ -336,8 +334,6 @@ const styles = StyleSheet.create({
   calendar: {
     width: '100%',
     maxWidth: 420,
-    borderWidth: 1,
-    gap: 16,
   },
   calendarTopRow: {
     flexDirection: 'row',
