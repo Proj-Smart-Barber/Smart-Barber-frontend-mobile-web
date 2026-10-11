@@ -17,7 +17,12 @@ const publicWebUrl = (
 ).replace(/\/$/, '');
 
 export const ENV = {
-  API_URL: (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+  // Production web sessions use the first-party /api proxy and its HttpOnly cookie.
+  // Native clients and local development keep the explicit backend URL.
+  API_URL:
+    Platform.OS === 'web' && process.env.NODE_ENV === 'production'
+      ? ''
+      : (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
 
   /** Origem base pública para compartilhamento e links do catálogo web */
   PUBLIC_WEB_URL: publicWebUrl,

@@ -57,7 +57,7 @@ export function resolveEntryDestination(
 
   // Se o usuário tem ao menos uma unidade vinculada
   if (memberships.length > 0) {
-    return '/(app)/dashboard';
+    return '/(app)';
   }
 
   // Usuário autenticado sem unidade:

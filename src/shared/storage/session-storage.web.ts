@@ -22,7 +22,7 @@ export class WebSessionStorage implements SessionPersistence {
       // Web never stores or exposes secrets
       return {
         hasSession: parsed.hasSession ?? true,
-        accessToken: parsed.accessToken ?? null,
+        accessToken: null,
         accessExpiresAt: parsed.accessExpiresAt ?? null,
         accountTypeHint: parsed.accountTypeHint ?? null,
         selectedShopId: parsed.selectedShopId ?? null,
@@ -34,10 +34,9 @@ export class WebSessionStorage implements SessionPersistence {
 
   async save(record: StoredSession): Promise<void> {
     const storage = this.getStorage();
-    // Do NOT store refreshToken in web JS storage
+    // Access stays in memory; refresh stays in the server's HttpOnly cookie.
     const sanitized = {
       hasSession: true,
-      accessToken: record.accessToken ?? null,
       accessExpiresAt: record.accessExpiresAt ?? null,
       accountTypeHint: record.accountTypeHint ?? null,
       selectedShopId: record.selectedShopId ?? null,

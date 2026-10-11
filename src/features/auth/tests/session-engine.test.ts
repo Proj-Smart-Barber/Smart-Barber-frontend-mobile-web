@@ -85,6 +85,30 @@ describe('Session Engine Core Lifecycle', () => {
     expect(engine.getSnapshot().status).toBe('unauthenticated');
   });
 
+  it('confirmed_logout_clears_the_pending_marker_and_session_hint', async () => {
+    const engine = createSessionEngine({ transport, persistence: storage, loadIdentity, loadMemberships });
+    await engine.signIn({ email: 'carlos@example.com', password: 'password123' });
+    await engine.signOut();
+    expect(await storage.isLogoutPending()).toBe(false);
+    expect(await storage.read()).toBeNull();
+    await engine.restore();
+    expect(engine.getSnapshot().status).toBe('unauthenticated');
+  });
+
+  it('reload_renews_cookie_session_before_loading_identity', async () => {
+    const first = createSessionEngine({ transport, persistence: storage, loadIdentity, loadMemberships });
+    await first.signIn({ email: 'carlos@example.com', password: 'password123' });
+    transport.refresh.mockResolvedValue({ ...fakeGrant, accessToken: 'renewed-access', refreshToken: undefined });
+    loadIdentity.mockImplementation(async (token: string) => {
+      if (token !== 'renewed-access') throw new ApiError('Stale access', 401);
+      return fakeIdentity;
+    });
+    const reloaded = createSessionEngine({ transport, persistence: storage, loadIdentity, loadMemberships });
+    await reloaded.restore();
+    expect(reloaded.getSnapshot().status).toBe('authenticated');
+    expect(reloaded.getSnapshot().accessToken).toBe('renewed-access');
+  });
+
   it('offline_logout_survives_restart', async () => {
     const engine1 = createSessionEngine({
       transport,
