@@ -5,5 +5,6 @@ export * from './radius';
 export * from './theme.context';
 export * from './breakpoints';
 export * from './use-reduced-motion';
+export * from './use-reduced-transparency';
 export * from './primitives/motion';
 export * from './components/tokens';

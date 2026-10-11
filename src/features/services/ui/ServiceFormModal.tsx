@@ -10,9 +10,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
 import { Text, TextInput, FormField, Button, Alert } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { Service } from '../model/service.types';
 import { parsePriceToCents } from '../model/service.types';
 import { serviceFormSchema } from '../model/service.schema';
+import { maskCurrencyInput } from './input-masks';
 
 export interface ServiceFormModalProps {
   visible: boolean;
@@ -112,23 +114,21 @@ export function ServiceFormModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{
           flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backgroundColor: colors.background.overlay,
           justifyContent: 'center',
           alignItems: 'center',
           padding: spacing[4],
         }}
       >
-        <View
+        <LiquidGlassView
+          variant="form"
+          elevated
+          autoHeight={false}
+          borderRadius={radius.xl}
           style={{
             width: '100%',
             maxWidth: 520,
             maxHeight: '90%',
-            backgroundColor: components.card.background,
-            borderRadius: radius.xl,
-            borderCurve: 'continuous',
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            overflow: 'hidden',
           }}
         >
           {/* Header */}
@@ -211,8 +211,8 @@ export function ServiceFormModal({
                 >
                   <TextInput
                     value={price}
-                    onChangeText={setPrice}
-                    placeholder="45,00"
+                    onChangeText={(val) => setPrice(maskCurrencyInput(val))}
+                    placeholder="0,00"
                     keyboardType="numeric"
                     editable={!isLoading}
                   />
@@ -247,10 +247,11 @@ export function ServiceFormModal({
                 onChangeText={setDescription}
                 placeholder="Ex: Inclui lavagem com shampoo refrescante, finalização com pomada e toalha quente."
                 multiline
-                numberOfLines={3}
-                style={{ minHeight: 80, textAlignVertical: 'top' }}
+                numberOfLines={4}
                 editable={!isLoading}
                 maxLength={500}
+                containerStyle={{ minHeight: 110 }}
+                inputStyle={{ minHeight: 90 }}
               />
             </FormField>
 
@@ -280,7 +281,7 @@ export function ServiceFormModal({
               />
             </View>
           </ScrollView>
-        </View>
+        </LiquidGlassView>
       </KeyboardAvoidingView>
     </Modal>
   );

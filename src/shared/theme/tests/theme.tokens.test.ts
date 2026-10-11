@@ -22,4 +22,13 @@ describe('Design System V2 tokens', () => {
     expect(getAdaptiveSize(839)).toBe('medium');
     expect(getAdaptiveSize(840)).toBe('expanded');
   });
+
+  it('fornece foregrounds de status de alto contraste para ambos os temas', () => {
+    expect(lightColors.feedback.successForeground).toBe('#047857');
+    expect(lightColors.feedback.warningForeground).toBe('#92400E');
+    expect(lightColors.feedback.errorForeground).toBe('#B91C1C');
+    expect(lightColors.feedback.infoForeground).toBe('#1D4ED8');
+    expect(darkColors.feedback.successForeground).toBeDefined();
+    expect(darkColors.feedback.errorForeground).toBeDefined();
+  });
 });

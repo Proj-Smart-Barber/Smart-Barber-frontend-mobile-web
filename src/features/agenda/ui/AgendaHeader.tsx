@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Button, Spinner, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 
 interface AgendaHeaderProps {
   dateLabel: string;
@@ -34,28 +35,44 @@ function DayNavButton({
   const [focused, setFocused] = useState(false);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={({ pressed }) => ({
+    <LiquidGlassView
+      variant="navigation"
+      borderRadius={radius.md}
+      elevated={false}
+      borderColor={focused ? colors.border.focus : undefined}
+      borderWidth={focused ? 2 : 1}
+      style={{
         width: 44,
         height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: radius.md,
-        backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-        borderWidth: focused ? 2 : 1,
-        borderColor: focused ? colors.border.focus : colors.border.default,
         opacity: disabled ? 0.4 : 1,
-      })}
+      }}
+      contentStyle={{
+        width: '100%',
+        height: '100%',
+        padding: 0,
+      }}
     >
-      <Ionicons name={icon} size={20} color={colors.text.primary} />
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => ({
+          flex: 1,
+          width: '100%',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: pressed ? colors.surface.selected : 'transparent',
+          borderRadius: radius.md,
+        })}
+      >
+        <Ionicons name={icon} size={20} color={colors.text.primary} />
+      </Pressable>
+    </LiquidGlassView>
   );
 }
 
@@ -64,25 +81,41 @@ function BackButton({ onPress }: { onPress: () => void }) {
   const [focused, setFocused] = useState(false);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Voltar para o início"
-      onPress={onPress}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={({ pressed }) => ({
+    <LiquidGlassView
+      variant="navigation"
+      borderRadius={radius.md}
+      elevated={false}
+      borderColor={focused ? colors.border.focus : undefined}
+      borderWidth={focused ? 2 : 1}
+      style={{
         width: 44,
         height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: radius.md,
-        backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-        borderWidth: focused ? 2 : 1,
-        borderColor: focused ? colors.border.focus : colors.border.default,
-      })}
+      }}
+      contentStyle={{
+        width: '100%',
+        height: '100%',
+        padding: 0,
+      }}
     >
-      <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
-    </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Voltar para o início"
+        onPress={onPress}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => ({
+          flex: 1,
+          width: '100%',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: pressed ? colors.surface.selected : 'transparent',
+          borderRadius: radius.md,
+        })}
+      >
+        <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
+      </Pressable>
+    </LiquidGlassView>
   );
 }
 
@@ -100,7 +133,7 @@ export function AgendaHeader({
   onOpenDatePicker,
   onBack,
 }: AgendaHeaderProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const [datePickerFocused, setDatePickerFocused] = useState(false);
   const displayedDateLabel = isCompact ? dateLabelShort : dateLabel;
@@ -112,8 +145,8 @@ export function AgendaHeader({
         paddingHorizontal: isCompact ? spacing[4] : spacing[6],
         paddingVertical: spacing[3],
         borderBottomWidth: 1,
-        borderBottomColor: colors.border.subtle,
-        backgroundColor: colors.background.primary,
+        borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
+        backgroundColor: 'transparent',
         gap: spacing[3],
       }}
     >
@@ -191,51 +224,63 @@ export function AgendaHeader({
           disabled={!canGoToPreviousDay}
           onPress={onGoToPreviousDay}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Escolher data"
-          accessibilityHint="Abre o calendário para selecionar o dia da agenda"
-          onPress={onOpenDatePicker}
-          onFocus={() => setDatePickerFocused(true)}
-          onBlur={() => setDatePickerFocused(false)}
-          style={({ pressed }) => ({
+        <LiquidGlassView
+          variant="navigation"
+          borderRadius={radius.md}
+          elevated={false}
+          borderColor={datePickerFocused ? colors.border.focus : undefined}
+          borderWidth={datePickerFocused ? 2 : 1}
+          style={{
             flex: 1,
             minWidth: 0,
-            flexShrink: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing[2],
-            minHeight: 44,
-            paddingHorizontal: isCompact ? spacing[2] : spacing[3],
-            borderRadius: radius.md,
-            backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-            borderWidth: datePickerFocused ? 2 : 1,
-            borderColor: datePickerFocused ? colors.border.focus : colors.border.default,
-          })}
+          }}
+          contentStyle={{
+            padding: 0,
+            width: '100%',
+          }}
         >
-          <Ionicons
-            name="calendar-outline"
-            size={18}
-            color={colors.text.primary}
-            style={{ flexShrink: 0 }}
-          />
-          <Text
-            variant="subhead"
-            color={colors.text.primary}
-            style={{ textAlign: 'center', flexShrink: 1 }}
-            numberOfLines={1}
-            ellipsizeMode="tail"
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Escolher data"
+            accessibilityHint="Abre o calendário para selecionar o dia da agenda"
+            onPress={onOpenDatePicker}
+            onFocus={() => setDatePickerFocused(true)}
+            onBlur={() => setDatePickerFocused(false)}
+            style={({ pressed }) => ({
+              width: '100%',
+              minHeight: 44,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: spacing[2],
+              paddingHorizontal: isCompact ? spacing[2] : spacing[3],
+              borderRadius: radius.md,
+              backgroundColor: pressed ? colors.surface.selected : 'transparent',
+            })}
           >
-            {displayedDateLabel}
-          </Text>
-          <Ionicons
-            name="chevron-down"
-            size={14}
-            color={colors.text.secondary}
-            style={{ flexShrink: 0 }}
-          />
-        </Pressable>
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={colors.text.primary}
+              style={{ flexShrink: 0 }}
+            />
+            <Text
+              variant="subhead"
+              color={colors.text.primary}
+              style={{ textAlign: 'center', flexShrink: 1 }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {displayedDateLabel}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={14}
+              color={colors.text.secondary}
+              style={{ flexShrink: 0 }}
+            />
+          </Pressable>
+        </LiquidGlassView>
         <DayNavButton
           icon="chevron-forward"
           label="Próximo dia"

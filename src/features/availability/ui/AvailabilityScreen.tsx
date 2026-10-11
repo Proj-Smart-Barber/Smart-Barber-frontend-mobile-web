@@ -10,11 +10,12 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, Skeleton, Spinner, ErrorState, Button, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { useAvailabilityViewModel } from '../model/use-availability-view-model';
 import { AvailabilityError } from './AvailabilityError';
@@ -41,6 +42,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
   const vm = useAvailabilityViewModel(barbershopId);
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
+  const insets = useSafeAreaInsets();
   const [saveFeedback, setSaveFeedback] = useState<
     | { variant: 'success' | 'error'; title: string; message: string }
     | null
@@ -49,6 +51,16 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
 
   const editingException =
     vm.exceptions.find((exception) => exception.id === editingExceptionId) ?? null;
+
+  const webBackgroundStyle =
+    Platform.OS === 'web'
+      ? ({
+          backgroundImage:
+            isDark
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.08) 0%, rgba(20, 20, 20, 0.98) 70%)'
+              : 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.12) 0%, #F7F5F3 70%)',
+        } as any)
+      : null;
 
   useEffect(() => {
     if (!saveFeedback) return;
@@ -73,7 +85,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
   if (vm.isLoadingInitial) {
     return (
       <SafeAreaView
-        style={[styles.screen, { backgroundColor: colors.background.primary }]}
+        style={[styles.screen, { backgroundColor: colors.background.primary }, webBackgroundStyle]}
         edges={['top', 'bottom']}
       >
         <ScrollView
@@ -90,26 +102,24 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
         >
           <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
             <View style={styles.topBar}>
-              <View
-                style={[
-                  styles.backButton,
-                  {
-                    backgroundColor: colors.surface.default,
-                    borderColor: colors.border.subtle,
-                    borderRadius: radius.md,
-                  },
-                ]}
+              <LiquidGlassView
+                variant="navigation"
+                borderRadius={radius.md}
+                elevated={false}
+                style={styles.backButton}
+                contentStyle={{ padding: 0, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
-              </View>
+              </LiquidGlassView>
               <View style={styles.topBarTitle}>
-                <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
                   Disponibilidade
                 </Text>
-                <Text variant="caption" color={colors.text.secondary}>
+                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
                   Configuração operacional
                 </Text>
               </View>
+              <Skeleton width={88} height={40} style={{ borderRadius: 20 }} />
             </View>
 
             <View style={styles.hero}>
@@ -125,31 +135,48 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
 
             <View style={[styles.mainGrid, isExpanded && styles.mainGridExpanded]}>
               <View style={[styles.journeyColumn, isExpanded && styles.journeyColumnExpanded]}>
-                <Card style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3] }}>
+                <LiquidGlassView
+                  variant="card"
+                  style={{ width: '100%', marginBottom: spacing[3] }}
+                  contentStyle={{ padding: spacing[4], gap: spacing[3] }}
+                >
                   <Skeleton width={180} height={20} />
                   <Skeleton width="60%" height={14} />
-                </Card>
+                </LiquidGlassView>
                 <View style={{ gap: spacing[3] }}>
                   {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-                    <Card key={i} style={{ minHeight: 64, padding: spacing[4], justifyContent: 'center' }}>
+                    <LiquidGlassView
+                      key={i}
+                      variant="card"
+                      style={{ width: '100%', minHeight: 64 }}
+                      contentStyle={{ padding: spacing[4], justifyContent: 'center' }}
+                    >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Skeleton width={110} height={18} />
                         <Skeleton width={80} height={28} borderRadius={radius.md} />
                       </View>
-                    </Card>
+                    </LiquidGlassView>
                   ))}
                 </View>
               </View>
 
               <View style={[styles.sideColumn, isExpanded && styles.sideColumnExpanded]}>
-                <Card style={{ padding: spacing[4], gap: spacing[3], marginBottom: spacing[3] }}>
+                <LiquidGlassView
+                  variant="card"
+                  style={{ width: '100%', marginBottom: spacing[3] }}
+                  contentStyle={{ padding: spacing[4], gap: spacing[3] }}
+                >
                   <Skeleton width={150} height={20} />
                   <Skeleton width="70%" height={14} />
-                </Card>
-                <Card style={{ minHeight: 96, padding: spacing[4], gap: spacing[2] }}>
+                </LiquidGlassView>
+                <LiquidGlassView
+                  variant="card"
+                  style={{ width: '100%', minHeight: 96 }}
+                  contentStyle={{ padding: spacing[4], gap: spacing[2] }}
+                >
                   <Skeleton width={130} height={16} />
                   <Skeleton width="50%" height={14} />
-                </Card>
+                </LiquidGlassView>
               </View>
             </View>
           </View>
@@ -264,7 +291,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
     // via useFormContext(), eliminando prop drilling de Control
     <FormProvider {...methods}>
       <SafeAreaView
-        style={[styles.screen, { backgroundColor: colors.background.primary }]}
+        style={[styles.screen, { backgroundColor: colors.background.primary }, webBackgroundStyle]}
         edges={['top', 'bottom']}
       >
         <KeyboardAvoidingView
@@ -278,7 +305,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
               {
                 paddingHorizontal: spacing[isExpanded ? 8 : 5],
                 paddingTop: spacing[4],
-                paddingBottom: spacing[10],
+                paddingBottom: Math.max(insets.bottom, 16) + (isExpanded ? 40 : 88),
               },
             ]}
             keyboardShouldPersistTaps="handled"
@@ -287,60 +314,91 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
           >
             <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
               <View style={styles.topBar}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Voltar"
-                  hitSlop={8}
-                  onPress={() => {
-                    if (router.canGoBack()) router.back();
-                    else router.replace('/(app)');
-                  }}
-                  style={({ pressed }) => [
-                    styles.backButton,
-                    {
-                      backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-                      borderColor: colors.border.subtle,
-                      borderRadius: radius.md,
-                    },
-                  ]}
+                <LiquidGlassView
+                  variant="navigation"
+                  borderRadius={radius.md}
+                  elevated={false}
+                  style={styles.backButton}
+                  contentStyle={{ padding: 0, width: '100%', height: '100%' }}
                 >
-                  <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
-                </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Voltar"
+                    hitSlop={8}
+                    onPress={() => {
+                      if (router.canGoBack()) router.back();
+                      else router.replace('/(app)');
+                    }}
+                    style={({ pressed }) => ({
+                      width: '100%',
+                      height: '100%',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: pressed ? colors.surface.selected : 'transparent',
+                      borderRadius: radius.md,
+                    })}
+                  >
+                    <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
+                  </Pressable>
+                </LiquidGlassView>
 
                 <View style={styles.topBarTitle}>
-                  <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+                  <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
                     Disponibilidade
                   </Text>
-                  <Text variant="caption" color={colors.text.secondary}>
+                  <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
                     Configuração operacional
                   </Text>
                 </View>
 
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
-                  accessibilityHint={
-                    isDark
-                      ? 'Muda a interface para o tema claro'
-                      : 'Muda a interface para o tema escuro'
-                  }
-                  hitSlop={8}
-                  onPress={toggleTheme}
-                  style={({ pressed }) => [
-                    styles.themeButton,
-                    {
-                      backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-                      borderColor: colors.border.subtle,
-                      borderRadius: radius.full,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={isDark ? 'sunny-outline' : 'moon-outline'}
-                    size={20}
-                    color={colors.text.primary}
+                <View style={styles.topBarActions}>
+                  <LiquidGlassView
+                    variant="navigation"
+                    borderRadius={radius.full}
+                    elevated={false}
+                    style={styles.themeButton}
+                    contentStyle={{ padding: 0, width: '100%', height: '100%' }}
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
+                      accessibilityHint={
+                        isDark
+                          ? 'Muda a interface para o tema claro'
+                          : 'Muda a interface para o tema escuro'
+                      }
+                      hitSlop={8}
+                      onPress={toggleTheme}
+                      style={({ pressed }) => ({
+                        width: '100%',
+                        height: '100%',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: pressed ? colors.surface.selected : 'transparent',
+                        borderRadius: radius.full,
+                      })}
+                    >
+                      <Ionicons
+                        name={isDark ? 'sunny-outline' : 'moon-outline'}
+                        size={18}
+                        color={colors.text.primary}
+                      />
+                    </Pressable>
+                  </LiquidGlassView>
+
+                  <Button
+                    title="Salvar"
+                    loadingTitle="Salvando…"
+                    leftIcon={
+                      <Ionicons name="checkmark-sharp" size={16} color="#FFFFFF" />
+                    }
+                    onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
+                    loading={vm.isSaving}
+                    disabled={vm.isSaving}
+                    style={styles.headerSaveButton}
+                    textStyle={styles.headerSaveButtonText}
                   />
-                </Pressable>
+                </View>
               </View>
 
               <View style={styles.hero}>
@@ -538,51 +596,52 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                   )}
                 </View>
               </View>
+
+              {/* Seção terminal de confirmação e salvamento ao final do formulário */}
+              <View
+                style={[
+                  styles.saveSection,
+                  {
+                    marginTop: spacing[8],
+                    paddingTop: spacing[6],
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border.subtle,
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    flexDirection: isExpanded ? 'row' : 'column',
+                    alignItems: isExpanded ? 'center' : 'stretch',
+                    justifyContent: isExpanded ? 'space-between' : 'flex-start',
+                    width: '100%',
+                    gap: spacing[4],
+                  }}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="subhead" color={colors.text.primary}>
+                      Pronto para aplicar a jornada?
+                    </Text>
+                    <Text variant="caption" color={colors.text.secondary}>
+                      As configurações de horários e datas especiais entram em vigor imediatamente na agenda.
+                    </Text>
+                  </View>
+
+                  <Button
+                    title="Salvar alterações"
+                    loadingTitle="Salvando jornada…"
+                    leftIcon={
+                      <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                    }
+                    onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
+                    loading={vm.isSaving}
+                    disabled={vm.isSaving}
+                    style={isExpanded ? styles.saveButtonExpanded : styles.saveButtonCompact}
+                  />
+                </View>
+              </View>
             </View>
           </ScrollView>
-
-          <View
-            style={[
-              styles.footer,
-              {
-                backgroundColor: colors.background.primary,
-                borderTopColor: colors.border.subtle,
-                paddingHorizontal: spacing[isExpanded ? 8 : 5],
-                paddingVertical: spacing[3],
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.footerInner,
-                { maxWidth: contentMaxWidth },
-                isExpanded && styles.footerInnerExpanded,
-              ]}
-            >
-              {isExpanded ? (
-                <View style={styles.footerCopy}>
-                  <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
-                    Jornada da unidade
-                  </Text>
-                  <Text variant="caption" color={colors.text.secondary}>
-                    Revise os horários antes de salvar.
-                  </Text>
-                </View>
-              ) : null}
-
-              <Button
-                title="Salvar alterações"
-                loadingTitle="Salvando jornada…"
-                leftIcon={
-                  <Ionicons name="checkmark-circle-outline" size={20} color={colors.text.inverse} />
-                }
-                onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
-                loading={vm.isSaving}
-                disabled={vm.isSaving}
-                style={isExpanded ? styles.saveButtonExpanded : styles.saveButtonCompact}
-              />
-            </View>
-          </View>
         </KeyboardAvoidingView>
 
         <Modal
@@ -698,17 +757,26 @@ const styles = StyleSheet.create({
   backButton: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
   },
   topBarTitle: { flex: 1 },
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   themeButton: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
+  },
+  headerSaveButton: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  headerSaveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   feedbackBackdrop: {
     position: 'absolute',
@@ -787,16 +855,9 @@ const styles = StyleSheet.create({
   },
   timezoneIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   timezoneCopy: { flex: 1, gap: 2 },
-  footer: { borderTopWidth: 1 },
-  footerInner: { width: '100%', alignSelf: 'center' },
-  footerInnerExpanded: {
-    minHeight: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 24,
+  saveSection: {
+    width: '100%',
   },
-  footerCopy: { flex: 1 },
   saveButtonCompact: { width: '100%' },
   saveButtonExpanded: { width: 300 },
 });

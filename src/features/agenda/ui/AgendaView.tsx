@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { Platform, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -16,7 +16,7 @@ import { AgendaTimeline } from './AgendaTimeline';
  * com agendamentos, buffers, holds e horários livres consolidados.
  */
 export function AgendaView() {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, isDark } = useTheme();
   const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
 
   const {
@@ -67,10 +67,20 @@ export function AgendaView() {
     setIsDatePickerOpen(false);
   };
 
+  const webBackgroundStyle =
+    Platform.OS === 'web'
+      ? ({
+          backgroundImage:
+            isDark
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.08) 0%, rgba(20, 20, 20, 0.98) 70%)'
+              : 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.12) 0%, #F7F5F3 70%)',
+        } as any)
+      : null;
+
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
-      style={{ flex: 1, backgroundColor: colors.background.primary }}
+      style={[{ flex: 1, backgroundColor: colors.background.primary }, webBackgroundStyle]}
     >
       <AgendaHeader
         dateLabel={dateLabel}
@@ -111,7 +121,8 @@ export function AgendaView() {
           flexGrow: 1,
           alignItems: 'center',
           paddingHorizontal: isCompact ? spacing[4] : spacing[6],
-          paddingVertical: spacing[5],
+          paddingTop: spacing[5],
+          paddingBottom: isCompact ? 104 : spacing[6],
         }}
       >
         <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[5] }}>

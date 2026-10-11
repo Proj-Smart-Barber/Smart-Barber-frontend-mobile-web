@@ -1,9 +1,10 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Card, EmptyState, Skeleton, Text } from '@/shared/ui';
+import { Badge, EmptyState, Skeleton, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation';
 import type { DashboardAppointment } from '../api/dashboard.contract';
 import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/dashboard.helpers';
 
@@ -16,7 +17,7 @@ export function TodayTimeline({
   appointments,
   isLoading = false,
 }: TodayTimelineProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const router = useRouter();
 
@@ -65,22 +66,38 @@ export function TodayTimeline({
       {/* Lista de Prévia (até 3 itens) */}
       {isLoading ? (
         <View style={{ gap: spacing[2] }}>
-          <Card style={{ minHeight: 64, gap: spacing[2], padding: spacing[3] }}>
+          <LiquidGlassView
+            variant="card"
+            elevated
+            style={{ width: '100%' }}
+            contentStyle={{ minHeight: 64, gap: spacing[2], padding: spacing[3] }}
+          >
             <Skeleton width={120} height={16} />
             <Skeleton width="50%" height={12} />
-          </Card>
-          <Card style={{ minHeight: 64, gap: spacing[2], padding: spacing[3] }}>
+          </LiquidGlassView>
+          <LiquidGlassView
+            variant="card"
+            elevated
+            style={{ width: '100%' }}
+            contentStyle={{ minHeight: 64, gap: spacing[2], padding: spacing[3] }}
+          >
             <Skeleton width={120} height={16} />
             <Skeleton width="50%" height={12} />
-          </Card>
+          </LiquidGlassView>
         </View>
       ) : appointments.length === 0 ? (
-        <Card style={{ padding: spacing[4], alignItems: 'center', justifyContent: 'center' }}>
+        <LiquidGlassView
+          variant="card"
+          elevated
+          style={{ width: '100%' }}
+          contentStyle={{ padding: spacing[4], alignItems: 'center', justifyContent: 'center' }}
+          borderColor={isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.08)'}
+        >
           <EmptyState
             title="Nenhum outro atendimento na fila"
             description="Não há outros horários agendados além do destaque imediato."
           />
-        </Card>
+        </LiquidGlassView>
       ) : (
         <View style={{ gap: spacing[2] }}>
           {appointments.map((item) => {
@@ -95,12 +112,22 @@ export function TodayTimeline({
                 style={({ pressed }) => [
                   styles.previewItemCard,
                   {
-                    backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-                    borderColor: colors.border.subtle,
+                    backgroundColor: pressed
+                      ? colors.surface.selected
+                      : isDark
+                        ? 'rgba(32, 33, 38, 0.52)'
+                        : 'rgba(255, 255, 255, 0.65)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
                     borderRadius: radius.md,
                     padding: spacing[3],
                     opacity: isCompleted ? 0.6 : 1,
                   },
+                  Platform.OS === 'web'
+                    ? ({
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                      } as any)
+                    : null,
                 ]}
               >
                 {/* Horário */}
@@ -163,7 +190,7 @@ export function TodayTimeline({
           styles.footerLink,
           {
             backgroundColor: pressed ? colors.surface.selected : 'transparent',
-            borderColor: colors.border.subtle,
+            borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : colors.border.subtle,
             borderRadius: radius.md,
             paddingVertical: spacing[3],
           },

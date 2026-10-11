@@ -27,7 +27,7 @@ export function TimeRangeInput({ startPath, endPath, disabled }: TimeRangeInputP
             value={startField.value ?? ''}
             onChangeText={(value) => startField.onChange(maskTimeInput(value))}
             onBlur={startField.onBlur}
-            placeholder="08:00"
+            placeholder="HH:mm"
             keyboardType="numeric"
             maxLength={5}
             editable={!disabled}
@@ -47,7 +47,7 @@ export function TimeRangeInput({ startPath, endPath, disabled }: TimeRangeInputP
             value={endField.value ?? ''}
             onChangeText={(value) => endField.onChange(maskTimeInput(value))}
             onBlur={endField.onBlur}
-            placeholder="18:00"
+            placeholder="HH:mm"
             keyboardType="numeric"
             maxLength={5}
             editable={!disabled}

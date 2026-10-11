@@ -3,7 +3,8 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { mapStatusBadgeTone, mapStatusLabel } from '@/entities/appointment';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Card, Text } from '@/shared/ui';
+import { Badge, Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { mapPaymentStatusLabel } from '../model/agenda.helpers';
 import { confirmDestructiveAction } from './confirm-destructive-action';
@@ -120,7 +121,7 @@ export function AgendaAppointmentCard({
   onCancel,
   isCancelling = false,
 }: AgendaAppointmentCardProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const tone = mapStatusBadgeTone(entry.status);
   const priceValue =
@@ -150,7 +151,12 @@ export function AgendaAppointmentCard({
   };
 
   return (
-    <Card style={{ padding: spacing[4], gap: spacing[3], width: '100%' }}>
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4], gap: spacing[3] }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <TimeBlock entry={entry} />
 
@@ -159,9 +165,8 @@ export function AgendaAppointmentCard({
             <Text
               variant="subhead"
               color={colors.text.primary}
-              numberOfLines={isLongName ? undefined : 2}
-              ellipsizeMode={isLongName ? undefined : 'tail'}
-              style={isLongName ? { fontSize: 14, lineHeight: 19 } : undefined}
+              numberOfLines={2}
+              ellipsizeMode="tail"
             >
               {entry.customerName}
             </Text>
@@ -185,14 +190,16 @@ export function AgendaAppointmentCard({
               {entry.serviceTitle}
               {priceValue ? ` · ${priceValue}` : ''}
             </Text>
-            <Text
-              variant="caption"
-              color={colors.text.muted}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              Profissional: {entry.professionalName}
-            </Text>
+            {entry.professionalName ? (
+              <Text
+                variant="caption"
+                color={colors.text.muted}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Profissional: {entry.professionalName}
+              </Text>
+            ) : null}
           </View>
         )}
 
@@ -231,14 +238,16 @@ export function AgendaAppointmentCard({
               </Text>
             ) : null}
           </View>
-          <Text
-            variant="caption"
-            color={colors.text.muted}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            Profissional: {entry.professionalName}
-          </Text>
+          {entry.professionalName ? (
+            <Text
+              variant="caption"
+              color={colors.text.muted}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              Profissional: {entry.professionalName}
+            </Text>
+          ) : null}
           {showChips ? (
             <MetaChips entry={entry} paymentLabel={paymentLabel} gap={spacing[2]} />
           ) : null}
@@ -269,6 +278,6 @@ export function AgendaAppointmentCard({
           />
         </View>
       ) : null}
-    </Card>
+    </LiquidGlassView>
   );
 }

@@ -4,6 +4,7 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,10 +31,19 @@ export interface ServicesManagementViewProps {
 export function ServicesManagementView({
   barbershopId,
 }: ServicesManagementViewProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const webBackgroundStyle: any =
+    Platform.OS === 'web'
+      ? {
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+            : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+      : {};
 
   const {
     items,
@@ -83,11 +93,14 @@ export function ServicesManagementView({
 
   return (
     <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.background.primary,
-        paddingTop: insets.top,
-      }}
+      style={[
+        {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+          paddingTop: insets.top,
+        },
+        webBackgroundStyle,
+      ]}
     >
       {/* Header Superior - Adaptativo para evitar overflow em telas compactas (320px/360px/390px) */}
       <View
@@ -170,7 +183,7 @@ export function ServicesManagementView({
           alignSelf: 'center',
           padding: spacing[4],
           gap: spacing[4],
-          paddingBottom: insets.bottom + spacing[8],
+          paddingBottom: Math.max(insets.bottom, 16) + 88,
         }}
         refreshControl={
           <RefreshControl

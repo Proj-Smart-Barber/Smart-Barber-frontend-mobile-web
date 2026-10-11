@@ -40,27 +40,27 @@ export function Badge({
       border: colors.border.selected,
     },
     success: {
-      fg: colors.feedback.success,
+      fg: colors.feedback.successForeground,
       bg: colors.feedback.successBackground,
       border: colors.feedback.successBorder,
     },
     successAlt: {
-      fg: colors.feedback.successAlt,
+      fg: colors.feedback.successAltForeground,
       bg: colors.feedback.successAltBackground,
       border: colors.feedback.successAltBorder,
     },
     warning: {
-      fg: colors.feedback.warning,
+      fg: colors.feedback.warningForeground,
       bg: colors.feedback.warningBackground,
       border: colors.feedback.warningBorder,
     },
     error: {
-      fg: colors.feedback.error,
+      fg: colors.feedback.errorForeground,
       bg: colors.feedback.errorBackground,
       border: colors.feedback.errorBorder,
     },
     info: {
-      fg: colors.feedback.info,
+      fg: colors.feedback.infoForeground,
       bg: colors.feedback.infoBackground,
       border: colors.feedback.infoBorder,
     },

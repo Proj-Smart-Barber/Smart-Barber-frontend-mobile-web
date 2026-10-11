@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
+import { LiquidGlassView } from '@/shared/navigation';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
-import { Button, Text, Card } from '@/shared/ui';
+import { Button, Text } from '@/shared/ui';
 
 export interface SessionRecoveryScreenProps {
   onRetry: () => Promise<void> | void;
@@ -27,20 +28,36 @@ export function SessionRecoveryScreen({
   const { colors, spacing, radius, isDark } = useTheme();
   const { formMaxWidth } = useAdaptiveLayout();
 
+  const webBackgroundStyle: any =
+    Platform.OS === 'web'
+      ? {
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+            : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+      : {};
+
   return (
     <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: colors.background.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: spacing[4],
-      }}
+      style={[
+        {
+          flex: 1,
+          backgroundColor: colors.background.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: spacing[4],
+        },
+        webBackgroundStyle,
+      ]}
     >
-      <Card
+      <LiquidGlassView
+        variant="form"
+        elevated
         style={{
           width: '100%',
           maxWidth: formMaxWidth,
+        }}
+        contentStyle={{
           alignItems: 'center',
           gap: spacing[5],
           padding: spacing[6],
@@ -111,7 +128,7 @@ export function SessionRecoveryScreen({
             style={{ width: '100%' }}
           />
         </View>
-      </Card>
+      </LiquidGlassView>
     </SafeAreaView>
   );
 }

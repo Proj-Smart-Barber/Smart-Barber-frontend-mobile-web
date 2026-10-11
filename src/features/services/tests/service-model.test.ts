@@ -5,6 +5,7 @@ import {
   parsePriceToCents,
 } from '../model/service.types';
 import { serviceFormSchema } from '../model/service.schema';
+import { maskCurrencyInput } from '../ui/input-masks';
 
 describe('Service Presentation and Validation Helpers', () => {
   describe('formatPrice', () => {
@@ -113,6 +114,26 @@ describe('Service Presentation and Validation Helpers', () => {
         durationInMinutes: 600,
       };
       expect(serviceFormSchema.safeParse(invalidLong).success).toBe(false);
+    });
+  });
+
+  describe('maskCurrencyInput', () => {
+    it('deve retornar string vazia para entrada vazia ou sem dígitos', () => {
+      expect(maskCurrencyInput('')).toBe('');
+      expect(maskCurrencyInput('abc')).toBe('');
+    });
+
+    it('deve formatar centavos acumulativos em tempo real', () => {
+      expect(maskCurrencyInput('4')).toBe('0,04');
+      expect(maskCurrencyInput('45')).toBe('0,45');
+      expect(maskCurrencyInput('450')).toBe('4,50');
+      expect(maskCurrencyInput('4500')).toBe('45,00');
+      expect(maskCurrencyInput('123456')).toBe('1.234,56');
+    });
+
+    it('deve preservar formatação ao reprocessar valor já formatado', () => {
+      expect(maskCurrencyInput('45,00')).toBe('45,00');
+      expect(maskCurrencyInput('R$ 45,00')).toBe('45,00');
     });
   });
 });

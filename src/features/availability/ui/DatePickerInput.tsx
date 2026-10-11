@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useTheme } from '@/shared/theme';
 import { maskDateInput } from './input-masks'
 
@@ -119,7 +120,7 @@ export function DatePickerInput({
         value={value}
         onChangeText={(text) => onChange(maskDateInput(text))}
         onBlur={onBlur}
-        placeholder="2026-12-25"
+        placeholder="AAAA-MM-DD"
         keyboardType="numeric"
         maxLength={10}
         editable={!disabled}
@@ -164,16 +165,14 @@ export function DatePickerInput({
             accessibilityLabel="Fechar calendário"
           />
 
-          <View
-            style={[
-              styles.calendar,
-              {
-                backgroundColor: colors.background.card,
-                borderColor: colors.border.subtle,
-                borderRadius: radius.lg,
-                padding: spacing[4],
-              },
-            ]}
+          <LiquidGlassView
+            variant="form"
+            elevated
+            style={styles.calendar}
+            contentStyle={{
+              padding: spacing[4],
+              gap: 16,
+            }}
           >
             <View style={styles.calendarTopRow}>
               <View style={styles.calendarTitleBlock}>
@@ -301,7 +300,7 @@ export function DatePickerInput({
                     >
                       <Text
                         variant="bodySm"
-                        color={selected ? colors.text.inverse : colors.text.primary}
+                        color={selected ? '#FFFFFF' : colors.text.primary}
                       >
                         {day}
                       </Text>
@@ -310,7 +309,7 @@ export function DatePickerInput({
                 );
               })}
             </View>
-          </View>
+          </LiquidGlassView>
         </View>
       </Modal>
     </>
@@ -335,8 +334,6 @@ const styles = StyleSheet.create({
   calendar: {
     width: '100%',
     maxWidth: 420,
-    borderWidth: 1,
-    gap: 16,
   },
   calendarTopRow: {
     flexDirection: 'row',

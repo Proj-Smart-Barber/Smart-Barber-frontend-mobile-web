@@ -2,7 +2,8 @@ import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Card, Text } from '@/shared/ui';
+import { Text } from '@/shared/ui';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaBookingDetails } from '../api/agenda.contract';
 import { formatCurrency, formatDurationMinutes, minutesBetween } from '../model/agenda.helpers';
 import { AgendaActionButton } from './AgendaActionButton';
@@ -62,8 +63,6 @@ export function AgendaBookingCard({
   const { isCompact } = useAdaptiveLayout();
 
   const { customer, services } = booking;
-  const isLongName = customer.name.length > 15;
-  const shouldShrinkName = isCompact && isLongName;
   const durationMinutes = minutesBetween(booking.startTime, booking.endTime);
   const hasPhone = customer.phoneNumber.replace(/\D/g, '').length > 0;
 
@@ -91,7 +90,12 @@ export function AgendaBookingCard({
   };
 
   return (
-    <Card style={{ padding: spacing[4], gap: spacing[3], width: '100%' }}>
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{ width: '100%' }}
+      contentStyle={{ padding: spacing[4], gap: spacing[3] }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         <TimeBlock startTime={booking.startTime} endTime={booking.endTime} />
 
@@ -99,9 +103,8 @@ export function AgendaBookingCard({
           <Text
             variant="subhead"
             color={colors.text.primary}
-            numberOfLines={shouldShrinkName ? undefined : 2}
-            ellipsizeMode={shouldShrinkName ? undefined : 'tail'}
-            style={shouldShrinkName ? { fontSize: 14, lineHeight: 19 } : undefined}
+            numberOfLines={2}
+            ellipsizeMode="tail"
           >
             {customer.name}
           </Text>
@@ -209,6 +212,6 @@ export function AgendaBookingCard({
           />
         </View>
       ) : null}
-    </Card>
+    </LiquidGlassView>
   );
 }
