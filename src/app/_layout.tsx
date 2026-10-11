@@ -13,8 +13,10 @@ import { BootstrapScreen, ToastProvider } from '@/shared/ui';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
+import { resolveEntryDestination } from '@/features/auth/model/operational-context';
+
 function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { status, barbershop, restoreSession, signOut, error } = useSession();
+  const { status, barbershop, identity, memberships, selectedShopId, token, restoreSession, signOut, error } = useSession();
   const segments = useSegments();
   const router = useRouter();
   const { isDark } = useTheme();
@@ -25,6 +27,9 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     const inAuth = segments[0] === '(auth)';
     const inApp = segments[0] === '(app)';
     const inPublic = (segments[0] as string) === '(public)';
+    const inClient = (segments[0] as string) === '(client)';
+    const inBarber = (segments[0] as string) === '(barber)';
+    const inPlatform = (segments[0] as string) === '(platform)';
     const currentAppRoute = segments[1] as string | undefined;
 
     if (inPublic) {
@@ -33,22 +38,35 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     if (status === 'authenticated') {
       if (inAuth || !segments[0]) {
-        if (!barbershop) {
-          router.replace('/(app)/barbershop-setup' as any);
-        } else {
-          router.replace('/(app)');
-        }
+        const dest = resolveEntryDestination(
+          {
+            status: 'authenticated',
+            identity,
+            memberships,
+            selectedShopId,
+            revocationPending: false,
+            accessToken: token,
+          },
+          identity?.onboardingIntent,
+        );
+        router.replace(dest as any);
       } else if (inApp) {
         if (!barbershop && currentAppRoute !== 'barbershop-setup') {
-          router.replace('/(app)/barbershop-setup' as any);
+          if (identity?.accountType === 'OWNER' || identity?.onboardingIntent === 'SETUP_BARBERSHOP') {
+            router.replace('/(app)/barbershop-setup' as any);
+          } else if (identity?.accountType === 'BARBER') {
+            router.replace('/(app)/invitations' as any);
+          } else {
+            router.replace('/(client)' as any);
+          }
         }
       }
     }
 
-    if (status === 'unauthenticated' && (inApp || !segments[0])) {
+    if (status === 'unauthenticated' && (inApp || inClient || inBarber || inPlatform || !segments[0])) {
       router.replace('/(auth)/login');
     }
-  }, [fontsLoaded, status, barbershop, segments, router]);
+  }, [fontsLoaded, status, barbershop, identity, memberships, selectedShopId, token, segments, router]);
 
   if (!fontsLoaded || status === 'bootstrapping') {
     return (

@@ -68,6 +68,20 @@ export function LoginForm() {
         )}
       />
 
+      <View style={{ alignItems: 'flex-end', marginBottom: spacing.sm, marginTop: -spacing.xs }}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Esqueceu sua senha?"
+          onPress={() => router.push('/(auth)/password-recovery' as any)}
+          disabled={isSubmitting}
+          hitSlop={8}
+        >
+          <Text variant="caption" color={colors.brand.primary} weight="medium">
+            Esqueceu sua senha?
+          </Text>
+        </Pressable>
+      </View>
+
       <Button
         title="Entrar"
         loadingTitle="Entrando…"
