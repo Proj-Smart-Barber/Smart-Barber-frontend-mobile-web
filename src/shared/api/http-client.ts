@@ -101,7 +101,6 @@ export class HttpClient {
       headers,
       body: serializedBody,
       signal: controller.signal,
-      ...(Platform.OS === 'web' ? { credentials: 'include' as RequestCredentials } : {}),
       ...rest,
     };
 
