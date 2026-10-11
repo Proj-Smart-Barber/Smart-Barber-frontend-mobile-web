@@ -7,6 +7,19 @@ import {
 import type { SessionSnapshot } from '../model/session-engine';
 
 describe('Operational Context & Gates', () => {
+  it.each(['OWNER', 'BARBER', 'CLIENT'] as const)(
+    '%s with an authorized shop enters the existing operational home',
+    (accountType) => {
+      const snapshot: SessionSnapshot = {
+        status: 'authenticated',
+        identity: { id: 'user', name: 'Demo', email: 'demo@example.com', accountType, emailVerifiedAt: '2026-10-11T12:00:00.000Z' },
+        memberships: [{ id: 'shop', name: 'Demo', role: 'OWNER', status: 'ACTIVE', timezone: 'America/Sao_Paulo' }],
+        selectedShopId: 'shop', revocationPending: false, accessToken: 'fixture',
+      };
+      expect(resolveEntryDestination(snapshot)).toBe('/(app)');
+    },
+  );
+
   it('owner_intent_survives_verification', () => {
     const snapshot: SessionSnapshot = {
       status: 'authenticated',

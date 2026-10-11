@@ -19,7 +19,8 @@ describe('WebSessionStorage', () => {
 
     const read = await storage.read();
     expect(read).not.toBeNull();
-    expect(read?.accessToken).toBe('temp-token');
+    // The cookie renews access after reload; neither credential belongs in JS storage.
+    expect(read?.accessToken).toBeNull();
     // refreshToken MUST NOT be persisted in web JS storage
     expect(read?.refreshToken).toBeUndefined();
     expect(read?.accountTypeHint).toBe('BARBER');

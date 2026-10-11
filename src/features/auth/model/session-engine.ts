@@ -285,6 +285,7 @@ export class SessionEngine {
       if (this.currentRefreshToken || this.snapshot.accessToken) {
         await this.deps.transport.signOut(this.currentRefreshToken);
       }
+      await this.deps.persistence.clear();
     } catch {
       // Offline signOut continua garantindo logout local
     } finally {
