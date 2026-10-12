@@ -3,7 +3,8 @@ import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useReducedMotion, useTheme } from '@/shared/theme';
+import { useAdaptiveLayout, useReducedMotion, useTheme } from '@/shared/theme';
+import { useSession } from '@/features/auth';
 import { Text } from '@/shared/ui';
 import { LiquidGlassView } from './LiquidGlassView';
 import { useNavigation } from './navigation-context';
@@ -12,9 +13,12 @@ import type { AppDestination } from './navigation.types';
 interface DestinationConfig {
   id: AppDestination;
   label: string;
+  compactLabel?: string;
   route: string;
   iconActive: keyof typeof Ionicons.glyphMap;
   iconInactive: keyof typeof Ionicons.glyphMap;
+  /** Quando definido, o destino só aparece para esse papel. */
+  visibleForRole?: 'BARBER';
 }
 
 const DESTINATIONS: DestinationConfig[] = [
@@ -33,6 +37,15 @@ const DESTINATIONS: DestinationConfig[] = [
     iconInactive: 'calendar-outline',
   },
   {
+    id: 'bookings',
+    label: 'Atendimentos',
+    compactLabel: 'Atend.',
+    route: '/(app)/bookings',
+    iconActive: 'briefcase',
+    iconInactive: 'briefcase-outline',
+    visibleForRole: 'BARBER',
+  },
+  {
     id: 'availability',
     label: 'Horários',
     route: '/(app)/availability',
@@ -43,10 +56,16 @@ const DESTINATIONS: DestinationConfig[] = [
 
 export function BottomCapsuleBar() {
   const { colors, spacing, radius, isDark } = useTheme();
+  const { isCompact } = useAdaptiveLayout();
+  const { isOwner } = useSession();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { activeDestination, isDrawerOpen, drawerProgress } = useNavigation();
   const reducedMotion = useReducedMotion();
+
+  const visibleDestinations = DESTINATIONS.filter(
+    (item) => item.visibleForRole !== 'BARBER' || !isOwner,
+  );
 
   const handleNavigate = (route: string, currentId: AppDestination) => {
     if (activeDestination === currentId) return;
@@ -87,7 +106,7 @@ export function BottomCapsuleBar() {
           accessibilityLabel="Navegação principal da aplicação"
           style={styles.tablistContainer}
         >
-          {DESTINATIONS.map((item) => {
+          {visibleDestinations.map((item) => {
             const isActive = activeDestination === item.id;
             const iconName = isActive ? item.iconActive : item.iconInactive;
             const activeBg = colors.brand.primary;
@@ -118,15 +137,16 @@ export function BottomCapsuleBar() {
                 <Text
                   variant="caption"
                   weight={isActive ? 'bold' : 'medium'}
+                  numberOfLines={1}
                   style={{
                     color: isActive ? activeTextColor : inactiveTextColor,
-                    fontSize: 11,
-                    lineHeight: 14,
-                    marginTop: 2,
+                    fontSize: isCompact && item.compactLabel ? 10 : 11,
+                    lineHeight: isCompact && item.compactLabel ? 12 : 14,
+                    marginTop: isCompact && item.compactLabel ? 1 : 2,
                     textAlign: 'center',
                   }}
                 >
-                  {item.label}
+                  {isCompact ? item.compactLabel ?? item.label : item.label}
                 </Text>
               </Pressable>
             );

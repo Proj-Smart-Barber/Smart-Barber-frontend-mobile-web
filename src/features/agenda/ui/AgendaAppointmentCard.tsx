@@ -3,11 +3,10 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { mapStatusBadgeTone, mapStatusLabel } from '@/entities/appointment';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Text } from '@/shared/ui';
+import { Badge, Text, confirmDestructiveAction } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { mapPaymentStatusLabel } from '../model/agenda.helpers';
-import { confirmDestructiveAction } from './confirm-destructive-action';
 import { AgendaActionButton } from './AgendaActionButton';
 
 function statusToneColor(
