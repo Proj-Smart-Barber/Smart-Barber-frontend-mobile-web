@@ -73,6 +73,7 @@ O build de produção corrigido foi servido em `http://127.0.0.1:4173` com relay
 | Renovação explícita com corpo `{}` e cookie | 200 |
 | Saída explícita com corpo `{}` e cookie | 204 |
 | Recarga após saída | Tela de login, sem acesso restaurado |
+| Saída pelo botão da interface e segundo login | 204; marcador pendente limpo; novo dashboard renderizado |
 
 Regressões foram executadas antes do patch e falharam pelos defeitos esperados: rota inexistente, URL absoluta no web, token persistido e marcador de saída que não era limpo. Após o patch passaram. Suíte completa final: 201 testes, 34 arquivos, todos aprovados, incluindo compatibilidade native. TypeScript passou após completar a fixture de identidade. Exportação web passou, 39 rotas. Há avisos de ambiente sobre tsconfig do diretório pai e NO_COLOR/FORCE_COLOR; não houve erro de build.
 
@@ -87,4 +88,33 @@ Regressões foram executadas antes do patch e falharam pelos defeitos esperados:
 
 ## Estado da publicação
 
+Correção no [PR #26](https://github.com/Proj-Smart-Barber/Smart-Barber-frontend-mobile-web/pull/26), commit de implementação `8e0f324`. Preview Vercel aprovado às 14h15. A main exigia uma revisão humana e o check `validate`, mas o repositório não possui `.github/workflows` e esse check não foi produzido. A suíte local e o build passaram; isso não foi representado como execução do check ausente.
+
+O usuário autorizou expressamente a exceção de administrador para o merge emergencial. PR merged às 14h16min53s, commit de produção `3df9c991571ad55447081755eac7bc1d90e34fe7`. Não houve alteração ou remoção das regras de proteção. A regularização do workflow `validate` permanece como acompanhamento separado.
+
+Deployment Production `6999006562` concluído com `success` às 14h18min36s para `3df9c99`. URL exclusiva: `https://smart-barber-frontend-mobile-c3qgsuko1.vercel.app`. Os dois aliases públicos passaram a servir `entry-48fefc158ab84261fe9b05435cc7f13a.js`, diferente do bundle anterior.
+
+### Homologação pública após deploy — PASS no fluxo testado
+
+No Chrome isolado em `https://smartbarber.wellingtonsp.uk`, com a conta demo:
+
+| Verificação | Resultado real |
+| --- | --- |
+| Login pela tela | POST 201; destino `/`; dashboard renderizado |
+| Perfil e vínculos | GET 200 / 200 pelo domínio do aplicativo |
+| Agenda no dashboard | GET `/api/bookings/barberman/schedule/details` 200 |
+| Cookie recebido pelo hosting | HttpOnly=true; Secure=true; SameSite=Strict; domínio `smartbarber.wellingtonsp.uk`; Path `/api/users/sessions` |
+| Recarga com restauração | Refresh 200; perfil/vínculos 200; dashboard preservado |
+| Renovação com corpo `{}` | 200, usando cookie pelo mesmo domínio |
+| LocalStorage após restauração | Sem accessToken/refreshToken/JWT |
+| Sair da Conta pela interface | POST 204; volta para `/login`; marcador pendente ausente |
+| Recarga após saída | Continua em `/login`, sem sessão restaurada |
+| Segundo login | 201; dashboard renderizado novamente |
+| Limpeza da segunda sessão de teste | Botão Sair; POST 204; `/login` |
+
+O navegador notificou `ERR_ABORTED` no encerramento de responses 204 ao navegar após o logout; o status 204, a limpeza do marcador e a recarga sem restauração foram confirmados. Esse evento não foi tratado como falha de autenticação ou escondido.
+
+No alias `smart-barber-frontend-mobile-web-seven.vercel.app`, o novo bundle foi confirmado e `/api/users/me` sem credencial respondeu 401 JSON, comprovando encaminhamento à API em vez de retornar o HTML da SPA. O ciclo autenticado completo foi homologado no domínio principal, não repetido nesse alias.
+
+**Resultado:** incidente de login e transporte da sessão recuperado em produção no domínio testado. Não se extrapola essa prova para todos os papéis, todas as funcionalidades ou toda a arquitetura de autenticação prevista no plano.
 Correção validada localmente contra backend real. A seção de homologação pública será atualizada após publicação; até isso ocorrer, não declarar produção recuperada.

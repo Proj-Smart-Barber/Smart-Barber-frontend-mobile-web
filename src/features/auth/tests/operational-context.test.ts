@@ -82,7 +82,7 @@ describe('Operational Context & Gates', () => {
     expect(ctx).toBeNull();
 
     const destination = resolveEntryDestination(snapshot);
-    expect(destination).toBe('/(app)/invitations');
+    expect(destination).toBe('/(account)/invitations');
   });
 
   it('owner_in_barber_membership_has_unit_permissions', () => {

@@ -175,4 +175,96 @@ describe('Session Engine Core Lifecycle', () => {
     await expect(engine.restore()).rejects.toThrow('SecureStore disk failure');
     expect(engine.getSnapshot().error?.message).toContain('SecureStore disk failure');
   });
+
+  it('refreshIdentity_propagates_transient_error_without_destroying_session', async () => {
+    const engine = createSessionEngine({
+      transport,
+      persistence: storage,
+      loadIdentity,
+      loadMemberships,
+    });
+
+    await engine.signIn({ email: 'carlos@example.com', password: 'password123' });
+    expect(engine.getSnapshot().status).toBe('authenticated');
+
+    // Simula 503 temporário no refresh de perfil
+    loadIdentity.mockRejectedValueOnce(new ApiError('503 Service Unavailable', 503));
+
+    await expect(engine.refreshIdentity()).rejects.toThrow('503 Service Unavailable');
+    // Sessão continua autenticada e token preservado
+    expect(engine.getSnapshot().status).toBe('authenticated');
+    expect(engine.getSnapshot().identity?.id).toBe('user-1');
+  });
+
+  it('refreshIdentity_updates_identity_and_revalidates_selected_shop', async () => {
+    const engine = createSessionEngine({
+      transport,
+      persistence: storage,
+      loadIdentity,
+      loadMemberships,
+    });
+
+    await engine.signIn({ email: 'carlos@example.com', password: 'password123' });
+    expect(engine.getSnapshot().selectedShopId).toBe('shop-1');
+
+    // No refresh posterior, o usuário foi removido da loja 1 e agora pertence apenas à loja 2
+    const updatedMemberships: Membership[] = [
+      {
+        id: 'shop-2',
+        name: 'Smart Barber Nova',
+        role: 'BARBERMAN',
+        status: 'ACTIVE',
+        timezone: 'America/Sao_Paulo',
+      },
+    ];
+    loadMemberships.mockResolvedValueOnce(updatedMemberships);
+
+    await engine.refreshIdentity();
+
+    expect(engine.getSnapshot().memberships).toHaveLength(1);
+    expect(engine.getSnapshot().memberships[0].id).toBe('shop-2');
+    expect(engine.getSnapshot().selectedShopId).toBe('shop-2');
+  });
+
+  it('refreshIdentity_late_response_discarded_after_logout', async () => {
+    let delayedResolve: (val: any) => void;
+    const pendingPromise = new Promise((resolve) => {
+      delayedResolve = resolve;
+    });
+
+    let calls = 0;
+    const loadIdentityMock = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.resolve(fakeIdentity);
+      }
+      return pendingPromise;
+    });
+
+    const engine = createSessionEngine({
+      transport,
+      persistence: storage,
+      loadIdentity: loadIdentityMock,
+      loadMemberships,
+    });
+
+    await engine.signIn({ email: 'carlos@example.com', password: 'password123' });
+
+    // Dispara refreshIdentity que ficará em voo
+    const refreshPromise = engine.refreshIdentity();
+
+    // Usuário faz logout enquanto refreshIdentity está em voo
+    await engine.signOut();
+    expect(engine.getSnapshot().status).toBe('unauthenticated');
+    expect(engine.getSnapshot().identity).toBeNull();
+
+    // Resposta tardia chega
+    delayedResolve!(fakeIdentity);
+    await refreshPromise;
+
+    // Sessão permanece unauthenticated e limpa, não ressuscita identidade
+    expect(engine.getSnapshot().status).toBe('unauthenticated');
+    expect(engine.getSnapshot().identity).toBeNull();
+  });
 });
+

@@ -22,14 +22,21 @@ export function getOperationalContext(snapshot: SessionSnapshot): OperationalCon
     return null;
   }
 
-  // Papel unitário deriva exclusivamente do vínculo da unidade selecionada
-  const role: 'OWNER' | 'BARBERMAN' =
-    currentMembership.role === 'OWNER' ? 'OWNER' : 'BARBERMAN';
+  // Vínculo inativo não habilita operação
+  if (currentMembership.state && currentMembership.state !== 'ACTIVE') {
+    return null;
+  }
+
+  // Papel unitário deriva exclusivamente do vínculo da unidade selecionada.
+  // Falha fechado caso o papel seja desconhecido.
+  if (currentMembership.role !== 'OWNER' && currentMembership.role !== 'BARBERMAN') {
+    return null;
+  }
 
   return {
     userId: identity.id,
     shopId: currentMembership.id,
-    role,
+    role: currentMembership.role,
     timezone: currentMembership.timezone || 'America/Sao_Paulo',
   };
 }
@@ -66,13 +73,73 @@ export function resolveEntryDestination(
     return '/(app)/barbershop-setup';
   }
 
-  // Se for BARBER sem unidade
+  // Se for BARBER sem unidade - migrado para recursos de conta para evitar loop de redirect
   if (identity.accountType === 'BARBER') {
-    return '/(app)/invitations';
+    return '/(account)/invitations';
   }
 
   // CLIENT comum sem unidade
   return '/(client)';
+}
+
+export function resolveAccountDestination(
+  target: string | null | undefined,
+  options?: { hasUnit?: boolean },
+): string {
+  const fallback = '/(account)/notifications';
+  if (!target || typeof target !== 'string') {
+    return fallback;
+  }
+
+  const trimmed = target.trim();
+  // Sanitização contra URLs externas, protocolos e scheme relativo
+  if (
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('javascript:') ||
+    trimmed.startsWith('data:') ||
+    !trimmed.startsWith('/')
+  ) {
+    return fallback;
+  }
+
+  // Normalização de caminhos legados de notificações
+  if (trimmed === '/notifications' || trimmed === '/(app)/notifications') {
+    return '/(account)/notifications';
+  }
+  if (trimmed.startsWith('/notifications/')) {
+    return trimmed.replace('/notifications/', '/(account)/notifications/');
+  }
+  if (trimmed.startsWith('/(app)/notifications/')) {
+    return trimmed.replace('/(app)/notifications/', '/(account)/notifications/');
+  }
+
+  // Normalização de caminhos legados de convites
+  if (trimmed === '/invitations' || trimmed === '/(app)/invitations') {
+    return '/(account)/invitations';
+  }
+
+  // Se for rota de conta canônica
+  if (trimmed.startsWith('/(account)/')) {
+    return trimmed;
+  }
+
+  // Se for destino operacional em (app)
+  if (trimmed.startsWith('/(app)')) {
+    // Se o usuário não possui unidade, bloqueia acesso operacional e cai para notificações de conta
+    if (options?.hasUnit === false) {
+      return fallback;
+    }
+    return trimmed;
+  }
+
+  // Destinos para client ou platform
+  if (trimmed.startsWith('/(client)') || trimmed.startsWith('/(platform)')) {
+    return trimmed;
+  }
+
+  return fallback;
 }
 
 export function validateNewPassword(password: string): { isValid: boolean; error?: string } {
@@ -96,3 +163,4 @@ export function validateNewPassword(password: string): { isValid: boolean; error
 
   return { isValid: true };
 }
+

@@ -46,7 +46,8 @@ export class BookingFlowEngine {
     private transport: BookingTransport,
     serverTimestampMs?: number
   ) {
-    const key = generateUuidV7(serverTimestampMs);
+    const validTime = serverTimestampMs && serverTimestampMs > 0 ? serverTimestampMs : Date.now();
+    const key = generateUuidV7(validTime);
     this.attempt = {
       key,
       payload: {

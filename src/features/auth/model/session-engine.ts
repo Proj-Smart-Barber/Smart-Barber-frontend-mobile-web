@@ -303,17 +303,52 @@ export class SessionEngine {
 
   async refreshIdentity(): Promise<void> {
     if (!this.snapshot.accessToken) return;
+    const thisGen = this.generation;
     try {
-      const identity = await this.deps.loadIdentity(this.snapshot.accessToken);
-      const memberships = await this.deps.loadMemberships(this.snapshot.accessToken);
-      this.setSnapshot({ identity, memberships });
-    } catch {
-      // Ignora erro temporário no refresh de dados
+      const [identity, rawMemberships] = await Promise.all([
+        this.deps.loadIdentity(this.snapshot.accessToken),
+        this.deps.loadMemberships(this.snapshot.accessToken),
+      ]);
+
+      if (thisGen !== this.generation || this.snapshot.status !== 'authenticated') {
+        return;
+      }
+
+      // Filtra apenas memberships válidos com roles autorizados ('OWNER' ou 'BARBERMAN') e ativos
+      const validMemberships = rawMemberships.filter((m) => {
+        const isAuthorizedRole = m.role === 'OWNER' || m.role === 'BARBERMAN';
+        const isActive = !m.state || m.state === 'ACTIVE';
+        return isAuthorizedRole && isActive;
+      });
+
+      let nextSelectedShopId = this.snapshot.selectedShopId;
+      if (nextSelectedShopId) {
+        const stillExists = validMemberships.some((m) => m.id === nextSelectedShopId);
+        if (!stillExists) {
+          nextSelectedShopId = validMemberships.length > 0 ? validMemberships[0].id : null;
+        }
+      } else if (validMemberships.length > 0) {
+        const ownerShop = validMemberships.find((m) => m.role === 'OWNER');
+        nextSelectedShopId = ownerShop ? ownerShop.id : validMemberships[0].id;
+      }
+
+      this.setSnapshot({
+        identity,
+        memberships: validMemberships,
+        selectedShopId: nextSelectedShopId,
+      });
+    } catch (err) {
+      if (thisGen !== this.generation || this.snapshot.status !== 'authenticated') {
+        return;
+      }
+      throw err;
     }
   }
 
   selectShop(shopId: string): void {
-    const exists = this.snapshot.memberships.some((m) => m.id === shopId);
+    const exists = this.snapshot.memberships.some(
+      (m) => m.id === shopId && (!m.state || m.state === 'ACTIVE')
+    );
     if (!exists) {
       throw new Error('Unidade não pertence aos vínculos autorizados do usuário');
     }
