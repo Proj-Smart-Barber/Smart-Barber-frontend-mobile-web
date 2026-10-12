@@ -106,4 +106,89 @@ describe('R1 — OperationAttemptStore', () => {
     const read = await store.read('actor-1', sampleAttempt.requestId);
     expect(read).toBeNull();
   });
+
+  it('save sanitiza BOOKING e nao persiste DTO de cliente nem no payload nem no result', async () => {
+    const attemptWithPii: OperationAttemptRecord = {
+      ...sampleAttempt,
+      payload: {
+        serviceIds: ['s1'],
+        date: '2026-10-15',
+        startTime: '10:00',
+        customer: { id: 'c1', name: 'Nome Cliente', email: 'cliente@teste.com', phone: '11999999999' },
+      },
+      result: {
+        state: 'APPLIED',
+        operation: 'CREATE_BOOKING',
+        resource: {
+          kind: 'BOOKING',
+          id: 'b1',
+          version: 1,
+          data: {
+            customer: { id: 'c1', name: 'Nome Cliente', email: 'cliente@teste.com' },
+          },
+        },
+        serverTime: '2026-10-12T10:00:00.000Z',
+      },
+    };
+
+    await store.save('actor-1', attemptWithPii);
+    const read = await store.read('actor-1', sampleAttempt.requestId);
+
+    // Payload de BOOKING contém apenas campos do comando de agendamento
+    expect((read?.payload as any)?.customer).toBeUndefined();
+    expect(read?.payload?.serviceIds).toEqual(['s1']);
+
+    // Result não armazena data com DTO de cliente
+    expect(read?.result?.resource?.id).toBe('b1');
+    expect((read?.result?.resource as any)?.data).toBeUndefined();
+  });
+
+  it('save nao persiste formulário/e-mail/CPF/senha para REGISTRATION e INVITATION', async () => {
+    const regAttempt: OperationAttemptRecord = {
+      actorId: 'actor-1',
+      requestId: '019d75c2-e700-7000-8000-000000000009',
+      operation: 'REGISTER_BARBER',
+      resourceKind: 'REGISTRATION',
+      status: 'uncertain',
+      createdAt: Date.now(),
+      payload: {
+        name: 'Barbeiro Teste',
+        email: 'sensivel@barber.com',
+        cpf: '12345678901',
+        password: 'senha_secreta',
+      },
+    };
+
+    await store.save('actor-1', regAttempt);
+    const read = await store.read('actor-1', regAttempt.requestId);
+
+    expect(read?.payload).toBeUndefined();
+    expect(read?.resourceKind).toBe('REGISTRATION');
+  });
+
+  it('logout com resultado contendo dados privados deixa só referência opaca', async () => {
+    const attemptWithResult: OperationAttemptRecord = {
+      ...sampleAttempt,
+      requestId: '019d75c2-e700-7000-8000-000000000010',
+      status: 'uncertain',
+      errorMessage: 'Mensagem contendo dado de erro',
+      result: {
+        state: 'APPLIED',
+        serverTime: '2026-10-12T10:00:00.000Z',
+      },
+    };
+
+    await store.save('actor-1', attemptWithResult);
+    await store.clearPayloadsOnLogout('actor-1');
+
+    const read = await store.read('actor-1', attemptWithResult.requestId);
+    expect(read).not.toBeNull();
+    // Somente referência opaca é preservada
+    expect(read?.payload).toBeUndefined();
+    expect(read?.result).toBeUndefined();
+    expect(read?.errorMessage).toBeUndefined();
+    expect(read?.status).toBe('uncertain');
+    expect(read?.requestId).toBe(attemptWithResult.requestId);
+  });
 });
+

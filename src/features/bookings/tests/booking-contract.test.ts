@@ -210,6 +210,60 @@ describe('R1 — Contratos e Adapters de Reservas (Boundary Zod & Adapters)', ()
     );
   });
 
+  it('cancelBooking, rescheduleBooking e transitionBookingStatus enviam Idempotency-Key no header', async () => {
+    const key = '019d75c2-e700-7000-8000-000000000001';
+
+    const deleteSpy = vi.spyOn(httpClient, 'delete').mockResolvedValueOnce({
+      booking: { ...validBookingBackendResponse, status: 'CANCELLED' },
+      serverTime: '2026-10-12T10:00:00.000Z',
+    });
+    await cancelBooking('b1', { expectedVersion: 2 }, key);
+    expect(deleteSpy).toHaveBeenCalledWith(
+      '/api/bookings/b1/cancel',
+      expect.objectContaining({ expectedVersion: 2 }),
+      expect.objectContaining({
+        headers: { 'Idempotency-Key': key },
+      })
+    );
+
+    const patchSpy = vi.spyOn(httpClient, 'patch').mockResolvedValue({
+      booking: { ...validBookingBackendResponse, version: 3 },
+      serverTime: '2026-10-12T10:00:00.000Z',
+    });
+    await rescheduleBooking(
+      'b1',
+      {
+        expectedVersion: 2,
+        date: '2026-10-16',
+        startTime: '10:00',
+      },
+      key
+    );
+    expect(patchSpy).toHaveBeenCalledWith(
+      '/api/bookings/b1/reschedule',
+      expect.objectContaining({ expectedVersion: 2 }),
+      expect.objectContaining({
+        headers: { 'Idempotency-Key': key },
+      })
+    );
+
+    await transitionBookingStatus(
+      'b1',
+      {
+        status: 'COMPLETED',
+        expectedVersion: 3,
+      },
+      key
+    );
+    expect(patchSpy).toHaveBeenCalledWith(
+      '/api/bookings/b1/status',
+      expect.objectContaining({ status: 'COMPLETED', expectedVersion: 3 }),
+      expect.objectContaining({
+        headers: { 'Idempotency-Key': key },
+      })
+    );
+  });
+
   it('getBookingAvailability falha fechado em resposta invalida sem transformar em lista vazia', async () => {
     vi.spyOn(httpClient, 'get').mockResolvedValueOnce({
       invalid: 'response',
@@ -223,3 +277,4 @@ describe('R1 — Contratos e Adapters de Reservas (Boundary Zod & Adapters)', ()
     ).rejects.toThrow('Resposta de disponibilidade inválida');
   });
 });
+

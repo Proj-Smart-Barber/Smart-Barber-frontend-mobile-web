@@ -16,12 +16,13 @@ export interface SelectedServicesSummaryProps {
   isModalOpen: boolean;
   onOpenModal: () => void;
   onCloseModal: () => void;
+  onProceed?: () => void;
 }
 
 /**
  * Componente de Resumo de Seleção de Serviços (P06)
  * Barra flutuante adaptativa (empilha em 320px) e modal com rolagem interna
- * que comunica com clareza factual que a escolha NÃO constitui reserva efetuada.
+ * que conduz diretamente à etapa de agendamento.
  */
 export function SelectedServicesSummary({
   selectedServices,
@@ -31,6 +32,7 @@ export function SelectedServicesSummary({
   isModalOpen,
   onOpenModal,
   onCloseModal,
+  onProceed,
 }: SelectedServicesSummaryProps) {
   const { colors, spacing, radius, components } = useTheme();
   const { isCompact } = useAdaptiveLayout();
@@ -105,10 +107,10 @@ export function SelectedServicesSummary({
 
           {/* Botão de Ação */}
           <Button
-            title="Revisar Escolha"
+            title="Continuar"
             variant="primary"
             rightIcon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
-            onPress={onOpenModal}
+            onPress={onProceed ?? onOpenModal}
             style={{
               minHeight: 46,
               paddingHorizontal: spacing[4],
@@ -118,7 +120,7 @@ export function SelectedServicesSummary({
         </View>
       </LiquidGlassView>
 
-      {/* Modal Rolável de Resumo e Transparência */}
+      {/* Modal Rolável de Resumo */}
       <Modal
         visible={isModalOpen}
         animationType="fade"
@@ -243,29 +245,14 @@ export function SelectedServicesSummary({
                 </View>
               </View>
 
-              {/* Aviso Transparente Obrigatório: NÃO É RESERVA CONCLUÍDA */}
-              <View
-                style={{
-                  backgroundColor: colors.background.card,
-                  borderLeftWidth: 3,
-                  borderLeftColor: colors.brand.primary,
-                  padding: spacing[3],
-                  borderRadius: radius.sm,
-                  gap: 4,
-                }}
-              >
-                <Text variant="caption" weight="bold" color={colors.text.primary}>
-                  Aviso sobre agendamento
-                </Text>
-                <Text variant="caption" color={colors.text.secondary} style={{ lineHeight: 18 }}>
-                  A seleção destes serviços ainda não constitui nem garante uma reserva confirmada. A escolha de data, horário e barbeiro estará disponível na próxima atualização do Smart Barber.
-                </Text>
-              </View>
-
               <Button
-                title="Entendido"
+                title="Continuar para Agendamento"
                 variant="primary"
-                onPress={onCloseModal}
+                rightIcon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+                onPress={() => {
+                  onCloseModal();
+                  onProceed?.();
+                }}
                 style={{ minHeight: 46, width: '100%', marginTop: spacing[2] }}
               />
             </ScrollView>

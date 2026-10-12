@@ -11,6 +11,7 @@ export default function AccountLayoutGroup() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="notifications/[notificationId]" />
       <Stack.Screen name="invitations" />
+      <Stack.Screen name="bookings/[bookingId]" />
     </Stack>
   );
 }

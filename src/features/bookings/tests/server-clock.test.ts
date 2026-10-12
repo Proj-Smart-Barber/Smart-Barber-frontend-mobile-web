@@ -47,4 +47,16 @@ describe('R1 — ServerClock', () => {
     expect(clock.hasValidReference()).toBe(false);
     expect(clock.now()).toBeNull();
   });
+
+  it('ausencia de fonte monotonica valida falha fechado e nunca cai em Date.now', () => {
+    const brokenClock = new ServerClock(() => {
+      throw new Error('Sem performance.now');
+    });
+
+    expect(() => brokenClock.syncWithServer(1775900000000)).toThrow('monotônica');
+    expect(brokenClock.hasValidReference()).toBe(false);
+    expect(brokenClock.now()).toBeNull();
+    expect(() => brokenClock.getRequiredNow()).toThrow();
+  });
 });
+

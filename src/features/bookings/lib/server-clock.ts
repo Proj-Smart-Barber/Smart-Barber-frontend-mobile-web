@@ -8,10 +8,12 @@ export class ServerClock {
   private monotonicOriginMs: number | null = null;
 
   constructor(
-    private readonly getMonotonicTimeMs: () => number = () =>
-      typeof performance !== 'undefined' && typeof performance.now === 'function'
-        ? performance.now()
-        : Date.now()
+    private readonly getMonotonicTimeMs: () => number = () => {
+      if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+        return performance.now();
+      }
+      throw new Error('Fonte monotônica de tempo indisponível no ambiente.');
+    }
   ) {}
 
   syncWithServer(serverTime: string | number | Date): void {
@@ -35,9 +37,20 @@ export class ServerClock {
       throw new Error('serverTime inválido fornecido para sincronização.');
     }
 
-    this.serverReferenceMs = Math.floor(parsedMs);
-    this.monotonicOriginMs = this.getMonotonicTimeMs();
+    try {
+      const origin = this.getMonotonicTimeMs();
+      if (typeof origin !== 'number' || Number.isNaN(origin)) {
+        throw new Error('Tempo monotônico inválido.');
+      }
+      this.serverReferenceMs = Math.floor(parsedMs);
+      this.monotonicOriginMs = origin;
+    } catch {
+      this.serverReferenceMs = null;
+      this.monotonicOriginMs = null;
+      throw new Error('Fonte monotônica de tempo indisponível para sincronização.');
+    }
   }
+
 
   hasValidReference(): boolean {
     return this.serverReferenceMs !== null && this.monotonicOriginMs !== null;
