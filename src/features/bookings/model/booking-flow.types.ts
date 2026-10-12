@@ -36,11 +36,13 @@ export interface BookingCustomer {
 
 export interface UseBookingFlowOptions {
   mode: BookingMode;
+  flowMode?: 'CREATE' | 'RESCHEDULE';
   shopId: string;
   bookingId?: string; // Modo remarcação
+  initialBooking?: BookingDto | null;
   initialServiceIds?: string[];
-  initialDate?: string;
-  initialProfessionalId?: string;
+  initialDate?: string | null;
+  initialProfessionalId?: string | null;
   initialCustomer?: BookingCustomer | null;
 }
 

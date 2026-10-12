@@ -69,5 +69,33 @@ Base: `origin/main` (`6a17846bb792fa5e6e039ebcbe1da41573e3fa01`)
   - `src/features/bookings/tests/booking-actions-recovery.test.ts` (5 testes PASS).
   - Suíte completa de bookings: 12 arquivos, 69 testes PASS (exit code 0).
   - Typecheck frontend: `tsc --noEmit` exit code 0.
-- **Próxima Ação:** Bloco 2 / Tarefa I4 — Remarcação navegável, escopos e cache coerentes.
+---
+
+## Checkpoint I4 — Remarcação Navegável, Escopos e Cache Coerentes
+
+- **Status:** CONCLUÍDO
+- **Ações executadas:**
+  - Criado `src/features/bookings/model/resolve-booking-context.ts`:
+    - Validação de escopos `PERSONAL` vs `UNIT` e RBAC de front-end (`ADMIN`, `OWNER`, `MANAGER`, `BARBER`, `CLIENT`).
+    - Barbeiro restrito ao seu próprio `barbermanId` (não edita atendimento de outro barbeiro).
+    - Validação de autoridade sem bypass do backend: marca permissões e rejeita acessos inválidos.
+  - Atualizado `src/features/bookings/model/booking-flow.types.ts`:
+    - Adicionado suporte a `flowMode?: 'CREATE' | 'RESCHEDULE'` e `initialBooking?: BookingDto`.
+  - Atualizado `src/features/bookings/model/use-booking-flow.ts`:
+    - Despacho prioritário para `rescheduleBooking` quando em modo `RESCHEDULE`, garantindo ZERO chamadas a POST `/api/bookings/operational` ou `/api/bookings` durante remarcações.
+  - Criada rota `src/app/(account)/bookings/[bookingId]/reschedule.tsx`:
+    - Tela dedicada de remarcação consumindo `resolveBookingContext` e reutilizando `BookingFlowView`.
+  - Atualizado `src/app/(account)/bookings/[bookingId].tsx` e `src/features/bookings/ui/BookingDetailView.tsx`:
+    - Propagação do parâmetro `scope` e inclusão do botão de navegação "Remarcar Agendamento" quando `canReschedule === true`.
+  - Atualizado `src/features/bookings/model/booking-query-keys.ts`:
+    - Invalidação cirúrgica de cache por escopo e unidade (`shopId`), cobrindo `barbershop`, `bookings`, `agenda` (incluindo `['agenda', 'day', shopId]`), `dashboard` e `notifications`.
+    - Isolamento de cache verificado: mutações na Loja A não invalidam Loja B.
+- **Testes implementados e validados:**
+  - `src/features/bookings/tests/booking-scope.test.ts` (7 testes PASS).
+  - `src/features/bookings/tests/booking-reschedule-flow.test.ts` (3 testes PASS).
+  - `src/features/bookings/tests/booking-cache-invalidation.test.ts` (2 testes PASS).
+  - Suíte completa de bookings: 15 arquivos, 81 testes PASS (exit code 0).
+  - Typecheck frontend: `tsc --noEmit` exit code 0.
+- **Próxima Ação:** Bloco 3 / Tarefa I5 — Importar Apresentação de Atendimentos do PR #28 sem Endpoints Obsoletos.
+
 

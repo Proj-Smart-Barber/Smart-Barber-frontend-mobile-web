@@ -7,7 +7,7 @@ import { BookingDetailView } from '../../../features/bookings/ui/BookingDetailVi
 
 export default function AccountBookingDetailScreen() {
   const { colors, spacing } = useTheme();
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  const { bookingId, scope } = useLocalSearchParams<{ bookingId: string; scope?: string }>();
   const router = useRouter();
 
   if (!bookingId || typeof bookingId !== 'string') {
@@ -26,11 +26,13 @@ export default function AccountBookingDetailScreen() {
     );
   }
 
+  const resolvedScope = scope === 'UNIT' ? 'UNIT' : 'PERSONAL';
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <BookingDetailView
         bookingId={bookingId}
-        scope="PERSONAL"
+        scope={resolvedScope}
         onBack={() => router.back()}
       />
     </View>

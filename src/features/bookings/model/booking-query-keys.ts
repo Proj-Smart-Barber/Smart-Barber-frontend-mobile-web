@@ -65,10 +65,15 @@ export async function invalidateBookingQueries(
         queryKey: ['barbershop', params.shopId, 'bookings'],
       })
     );
-    // Agendas da unidade
+    // Agendas da unidade (invalida tanto ['agenda', shopId] quanto o formato canônico ['agenda', 'day', shopId])
     promises.push(
       queryClient.invalidateQueries({
         queryKey: ['agenda', params.shopId],
+      })
+    );
+    promises.push(
+      queryClient.invalidateQueries({
+        queryKey: ['agenda', 'day', params.shopId],
       })
     );
     // Dashboards da unidade

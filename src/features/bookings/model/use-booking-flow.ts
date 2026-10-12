@@ -20,10 +20,11 @@ import type {
 } from './booking-flow.types';
 import { BookingFlowEngine } from './booking-draft';
 import { serverClock } from '../lib/server-clock';
+import { bookingOperationEngine } from './booking-operation-engine';
 import { operationAttemptStore } from '@/shared/operations/operation-attempt-store';
 import type { BookingDto, ProfessionalDto } from '../api/bookings.dto';
 import type { Service } from '@/features/services/model/service.types';
-import type { AuthoritativeQuote } from '../lib/normalize-booking-error';
+import { normalizeBookingError, type AuthoritativeQuote } from '../lib/normalize-booking-error';
 
 export function useBookingFlow(options: UseBookingFlowOptions) {
   const {
@@ -231,108 +232,95 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
         return;
       }
 
-      const transport = {
-        createBooking: async (payload: any, idempotencyKey?: string) => {
-          if (mode === 'UNIT') {
-            return createOperationalBooking(
-              shopId,
-              {
-                ...payload,
-                customerId: customer!.id,
-                slotStartAt: selectedSlot.slotStartAt,
-              },
-              idempotencyKey
-            );
-          }
-          if (bookingId) {
-            // Remarcação
-            return rescheduleBooking(
-              bookingId,
-              {
-                date: payload.date,
-                startTime: payload.startTime,
-                barbermanId: payload.barbermanId,
-                serviceIds: payload.serviceIds,
-                slotStartAt: selectedSlot.slotStartAt,
-                expectedTotalPriceInCents: payload.expectedTotalPriceInCents,
-                expectedDurationInMinutes: payload.expectedDurationInMinutes,
-                scope: 'PERSONAL',
-              },
-              idempotencyKey
-            );
-          }
-          return createBooking(
-            {
-              ...payload,
-              shopId,
-              slotStartAt: selectedSlot.slotStartAt,
-              scope: 'PERSONAL',
-            },
-            idempotencyKey
-          );
-        },
-        getBookingById: async () => {
-          throw new Error('Not implemented inline');
-        },
-      };
+      let result: BookingDto;
+      const isRescheduling = Boolean(bookingId || options.flowMode === 'RESCHEDULE');
 
-      const engine = new BookingFlowEngine(
-        {
-          shopId,
+      if (isRescheduling) {
+        if (!bookingId) {
+          throw new Error('bookingId é obrigatório para remarcação.');
+        }
+        const prepared = await bookingOperationEngine.prepare({
+          action: 'RESCHEDULE',
+          actorId: identity?.id || 'guest-draft',
+          scope: mode,
+          bookingId,
+          expectedVersion: options.initialBooking?.version ?? 1,
+          date: selectedDate,
+          startTime: selectedSlot.startTime,
+          barbermanId: selectedProfessionalId ?? undefined,
           serviceIds: selectedServiceIds,
-          barbermanId: selectedProfessionalId,
+          expectedTotalPriceInCents: totalPriceInCents,
+          expectedDurationInMinutes: totalDurationInMinutes,
+        });
+
+        const opResult = await bookingOperationEngine.submit(prepared);
+        if (opResult.state === 'APPLIED' && opResult.resource?.data?.booking) {
+          result = opResult.resource.data.booking;
+        } else {
+          throw new Error('Remarcação não foi confirmada pelo servidor.');
+        }
+      } else {
+        const prepared = await bookingOperationEngine.prepare({
+          action: 'CREATE',
+          actorId: identity?.id || 'guest-draft',
+          scope: mode,
+          shopId,
+          customerId: customer?.id,
+          serviceIds: selectedServiceIds,
+          barbermanId: selectedProfessionalId!,
           date: selectedDate,
           startTime: selectedSlot.startTime,
           expectedTotalPriceInCents: totalPriceInCents,
           expectedDurationInMinutes: totalDurationInMinutes,
-          scope: mode,
-          customerId: customer?.id,
-        },
-        transport,
-        {
-          serverClock,
-          store: operationAttemptStore,
-          actorId: identity?.id || 'guest-draft',
-          scope: mode,
-        }
-      );
+        });
 
-      activeEngineRef.current = engine;
-      const result = await engine.submit();
+        const opResult = await bookingOperationEngine.submit(prepared);
+        if (opResult.state === 'APPLIED' && opResult.resource?.data?.booking) {
+          result = opResult.resource.data.booking;
+        } else {
+          throw new Error('Agendamento não foi confirmado pelo servidor.');
+        }
+      }
 
       setConfirmedBooking(result);
       setStatus('confirmed');
       setStep('RESULT');
 
       // Invalidação granular de cache após confirmação
+      const oldDate = options.initialBooking ? String(options.initialBooking.date).split('T')[0] : '';
       await invalidateBookingQueries(queryClient, {
         actorId: identity?.id,
         shopId,
         bookingId: result.id,
+        oldProfessionalId: options.initialBooking?.barbermanId,
         newProfessionalId: selectedProfessionalId,
-        dates: [selectedDate],
+        dates: [selectedDate, oldDate].filter(Boolean),
       });
     } catch (err: any) {
-      const engineState = activeEngineRef.current?.state;
-      if (engineState?.quoteMismatch) {
+      const normalized = normalizeBookingError(err);
+      if (normalized.code === 'QUOTE_CHANGED') {
         setStatus('error');
         setQuoteMismatch(true);
-        setAuthoritativeQuote(engineState.authoritativeQuote ?? null);
+        setAuthoritativeQuote(normalized.quote ?? null);
         setErrorMessage(
-          engineState.errorMessage ||
+          normalized.message ||
             'Os valores ou durações foram alterados. Revise o novo orçamento antes de confirmar.'
         );
         // Retorna à revisão para reconfirmação explícita do usuário
         setStep('REVIEW');
-      } else if (engineState?.status === 'uncertain') {
+      } else if (
+        normalized.code === 'NETWORK_OR_TIMEOUT' ||
+        normalized.isNetworkError ||
+        !err?.status
+      ) {
         setStatus('uncertain');
-        setUncertainKey(activeEngineRef.current?.key ?? null);
-        setErrorMessage(engineState.errorMessage);
+        setUncertainKey(null);
+        setErrorMessage(normalized.message);
         setStep('UNCERTAIN');
       } else {
         setStatus('error');
         setErrorMessage(
-          err?.message || 'Falha ao concluir agendamento. Verifique as informações.'
+          normalized.message || 'Falha ao concluir agendamento. Verifique as informações.'
         );
       }
     } finally {

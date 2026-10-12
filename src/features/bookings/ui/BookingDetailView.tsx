@@ -122,6 +122,8 @@ export function BookingDetailView({
 
   const canCancel =
     booking.canCancel ?? booking.capabilities?.cancel?.allowed ?? false;
+  const canReschedule =
+    booking.canReschedule ?? booking.capabilities?.reschedule?.allowed ?? (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
   const canComplete =
     booking.canComplete ?? booking.capabilities?.complete?.allowed ?? false;
   const canMarkNoShow =
@@ -289,6 +291,20 @@ export function BookingDetailView({
 
       {/* Action Buttons */}
       <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+        {canReschedule ? (
+          <Button
+            title="Remarcar Agendamento"
+            variant="outline"
+            onPress={() => {
+              router.push({
+                pathname: `/(account)/bookings/${booking.id}/reschedule` as any,
+                params: { scope },
+              });
+            }}
+            disabled={isMutating}
+          />
+        ) : null}
+
         {canComplete ? (
           <Button
             title="Concluir Atendimento"
