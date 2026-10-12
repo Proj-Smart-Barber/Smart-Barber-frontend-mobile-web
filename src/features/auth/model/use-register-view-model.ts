@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useRouter } from 'expo-router';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormValues } from './register.schema';
 import { useSession } from './use-session';
 import { NormalizedAuthError } from '../lib/normalize-auth-error';
 
 export function useRegisterViewModel() {
+  const router = useRouter();
   const { signUp, status, clearError } = useSession();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -31,6 +33,7 @@ export function useRegisterViewModel() {
 
     try {
       await signUp(values);
+      router.push(`/(auth)/verify-email?email=${encodeURIComponent(values.email.trim().toLowerCase())}` as any);
     } catch (err: any) {
       const normalized: NormalizedAuthError = err;
       setSubmitError(normalized.message || 'Falha ao criar conta. Tente novamente.');

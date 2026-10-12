@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { ENV } from '../config/env';
 import { tokenStorage } from '../storage';
 import { ApiError } from './api-errors';
@@ -9,18 +10,34 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   timeoutMs?: number;
 }
 
+export interface SessionHooks {
+  getAccessToken?: () => string | null;
+  onAccessExpired?: () => Promise<void>;
+}
+
 export class HttpClient {
   private baseUrl: string;
   private defaultTimeoutMs: number;
+  private sessionHooks: SessionHooks | null = null;
 
   constructor(baseUrl: string = ENV.API_URL, defaultTimeoutMs: number = 15000) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.defaultTimeoutMs = defaultTimeoutMs;
   }
 
+  setSessionHooks(hooks: SessionHooks | null): void {
+    this.sessionHooks = hooks;
+  }
+
   private buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): string {
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    const url = new URL(`${this.baseUrl}${cleanPath}`);
+
+    let base = this.baseUrl;
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && (!base || base.startsWith('/'))) {
+      base = window.location.origin;
+    }
+
+    const url = new URL(`${base}${cleanPath}`);
 
     if (params) {
       Object.entries(params).forEach(([key, val]) => {
@@ -49,13 +66,18 @@ export class HttpClient {
     // Resolução de token de autorização
     let authToken = token;
     if (authToken === undefined) {
-      authToken = await tokenStorage.get();
+      const hookToken = this.sessionHooks?.getAccessToken?.();
+      authToken = hookToken !== undefined ? hookToken : await tokenStorage.get();
     }
 
     const headers = new Headers(customHeaders);
 
     if (!headers.has('Accept')) {
       headers.set('Accept', 'application/json');
+    }
+
+    if (!headers.has('X-SmartBarber-Client')) {
+      headers.set('X-SmartBarber-Client', Platform.OS === 'web' ? 'web' : 'native');
     }
 
     if (body && !headers.has('Content-Type') && !(body instanceof FormData)) {
@@ -74,14 +96,16 @@ export class HttpClient {
       serializedBody = body instanceof FormData ? body : JSON.stringify(body);
     }
 
+    const fetchOptions: RequestInit = {
+      method,
+      headers,
+      body: serializedBody,
+      signal: controller.signal,
+      ...rest,
+    };
+
     try {
-      const response = await fetch(url, {
-        method,
-        headers,
-        body: serializedBody,
-        signal: controller.signal,
-        ...rest,
-      });
+      const response = await fetch(url, fetchOptions);
 
       clearTimeout(timeoutId);
 
@@ -108,6 +132,10 @@ export class HttpClient {
       }
 
       if (!response.ok) {
+        if (response.status === 401 && !path.includes('/sessions/')) {
+          void this.sessionHooks?.onAccessExpired?.().catch(() => {});
+        }
+
         const errorMessage =
           responseData?.error?.message ||
           (typeof responseData?.error === 'string' ? responseData.error : null) ||
@@ -126,7 +154,10 @@ export class HttpClient {
       }
 
       const isAbort = err.name === 'AbortError';
-      const isNetwork = isAbort || err.message?.includes('Network request failed') || err.message?.includes('Failed to fetch');
+      const isNetwork =
+        isAbort ||
+        err.message?.includes('Network request failed') ||
+        err.message?.includes('Failed to fetch');
 
       const message = isAbort
         ? 'A requisição excedeu o tempo limite (timeout). Verifique sua conexão.'
@@ -154,8 +185,29 @@ export class HttpClient {
     return this.request<T>(path, { ...options, method: 'PATCH', body });
   }
 
-  delete<T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T> {
-    return this.request<T>(path, { ...options, method: 'DELETE' });
+  delete<T>(
+    path: string,
+    bodyOrOptions?: any,
+    options?: Omit<RequestOptions, 'method' | 'body'>
+  ): Promise<T> {
+    if (
+      bodyOrOptions &&
+      typeof bodyOrOptions === 'object' &&
+      options === undefined &&
+      ('headers' in bodyOrOptions ||
+        'params' in bodyOrOptions ||
+        'token' in bodyOrOptions ||
+        'timeoutMs' in bodyOrOptions ||
+        'body' in bodyOrOptions)
+    ) {
+      return this.request<T>(path, { ...bodyOrOptions, method: 'DELETE' });
+    }
+
+    return this.request<T>(path, {
+      ...options,
+      method: 'DELETE',
+      body: bodyOrOptions,
+    });
   }
 }
 
