@@ -117,3 +117,4 @@ O navegador notificou `ERR_ABORTED` no encerramento de responses 204 ao navegar 
 No alias `smart-barber-frontend-mobile-web-seven.vercel.app`, o novo bundle foi confirmado e `/api/users/me` sem credencial respondeu 401 JSON, comprovando encaminhamento à API em vez de retornar o HTML da SPA. O ciclo autenticado completo foi homologado no domínio principal, não repetido nesse alias.
 
 **Resultado:** incidente de login e transporte da sessão recuperado em produção no domínio testado. Não se extrapola essa prova para todos os papéis, todas as funcionalidades ou toda a arquitetura de autenticação prevista no plano.
+Correção validada localmente contra backend real. A seção de homologação pública será atualizada após publicação; até isso ocorrer, não declarar produção recuperada.
