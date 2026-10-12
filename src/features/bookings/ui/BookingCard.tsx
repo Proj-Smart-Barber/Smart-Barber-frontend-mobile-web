@@ -25,13 +25,17 @@ export function BookingCard({ booking }: BookingCardProps) {
     booking.totalPriceInCents ??
     booking.services.reduce((acc, s) => acc + (s.priceInCents || 0), 0);
   const durationLabel = `${totalMinutes} min`;
+  const dateLabel =
+    booking.date instanceof Date
+      ? booking.date.toISOString().split('T')[0]
+      : String(booking.date ?? '');
 
   return (
     <Card style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.dateBlock}>
           <Text variant="h3" style={{ color: colors.text.primary, fontWeight: '700' }}>
-            {booking.date}
+            {dateLabel}
           </Text>
           <Text variant="caption" style={{ color: colors.text.secondary }}>
             {booking.startTime} - {booking.endTime}
@@ -50,15 +54,15 @@ export function BookingCard({ booking }: BookingCardProps) {
 
       <View style={styles.servicesContainer}>
         {booking.services.map((svc) => (
-          <View key={svc.id} style={styles.serviceRow}>
+          <View key={svc.id ?? svc.title} style={styles.serviceRow}>
             <Text variant="body" style={{ color: colors.text.primary, flex: 1 }}>
               {svc.title}
             </Text>
             <Text variant="caption" style={{ color: colors.text.secondary, marginRight: spacing.sm }}>
-              {svc.durationInMinutes} min
+              {svc.durationInMinutes ?? 0} min
             </Text>
             <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
-              {formatCentsToCurrency(svc.priceInCents)}
+              {formatCentsToCurrency(svc.priceInCents ?? 0)}
             </Text>
           </View>
         ))}

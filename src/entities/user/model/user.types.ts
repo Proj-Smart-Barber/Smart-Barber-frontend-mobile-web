@@ -28,4 +28,5 @@ export interface Membership {
   role: string;
   status: string;
   timezone: string;
+  state?: 'ACTIVE' | 'INACTIVE' | 'PENDING' | string | null;
 }

@@ -20,6 +20,7 @@ interface SessionContextData extends SessionState {
   restoreSession: () => Promise<void>;
   clearError: () => void;
   selectShop: (shopId: string) => void;
+  refreshIdentity: () => Promise<void>;
   linkBarbershop: (shopId: string) => Promise<Barbershop>;
   registerBarbershop: (data: CreateBarbershopRequestDto) => Promise<Barbershop>;
 }
@@ -136,6 +137,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [engine]
   );
 
+  const refreshIdentity = useCallback(async () => {
+    try {
+      await engine.refreshIdentity();
+    } catch (err) {
+      const norm = normalizeAuthError(err);
+      setNormalizedError(norm);
+      throw norm;
+    }
+  }, [engine]);
+
   const linkBarbershop = useCallback(
     async (shopId: string): Promise<Barbershop> => {
       const token = snapshot.accessToken;
@@ -202,9 +213,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [snapshot.identity, snapshot.selectedShopId, snapshot.memberships]);
 
   const isOwner = useMemo<boolean>(() => {
-    if (snapshot.identity?.accountType === 'OWNER') return true;
-    return snapshot.memberships.some((m) => m.role === 'OWNER');
-  }, [snapshot.identity, snapshot.memberships]);
+    if (!snapshot.selectedShopId) {
+      return snapshot.identity?.accountType === 'OWNER';
+    }
+    const currentMembership = snapshot.memberships.find((m) => m.id === snapshot.selectedShopId);
+    return currentMembership?.role === 'OWNER';
+  }, [snapshot.selectedShopId, snapshot.memberships, snapshot.identity]);
 
   const statusMapped = useMemo(() => {
     if (snapshot.status === 'restoring') return 'bootstrapping';
@@ -231,6 +245,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         restoreSession,
         clearError,
         selectShop,
+        refreshIdentity,
         linkBarbershop,
         registerBarbershop,
       }}

@@ -17,7 +17,7 @@ export function NotificationCard({ notification }: NotificationCardProps) {
 
   const handlePress = () => {
     router.push({
-      pathname: '/(app)/notifications/[notificationId]' as any,
+      pathname: '/(account)/notifications/[notificationId]' as any,
       params: { notificationId: notification.id },
     });
   };

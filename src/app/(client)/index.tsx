@@ -28,7 +28,7 @@ export default function ClientHomeScreen() {
         <Button
           title="Minhas Notificações"
           variant="secondary"
-          onPress={() => router.push('/(app)/notifications' as any)}
+          onPress={() => router.push('/(account)/notifications' as any)}
         />
         <Button
           title="Sair da Conta"

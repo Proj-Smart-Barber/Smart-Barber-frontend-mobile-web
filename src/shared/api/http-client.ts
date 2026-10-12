@@ -185,8 +185,29 @@ export class HttpClient {
     return this.request<T>(path, { ...options, method: 'PATCH', body });
   }
 
-  delete<T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>): Promise<T> {
-    return this.request<T>(path, { ...options, method: 'DELETE' });
+  delete<T>(
+    path: string,
+    bodyOrOptions?: any,
+    options?: Omit<RequestOptions, 'method' | 'body'>
+  ): Promise<T> {
+    if (
+      bodyOrOptions &&
+      typeof bodyOrOptions === 'object' &&
+      options === undefined &&
+      ('headers' in bodyOrOptions ||
+        'params' in bodyOrOptions ||
+        'token' in bodyOrOptions ||
+        'timeoutMs' in bodyOrOptions ||
+        'body' in bodyOrOptions)
+    ) {
+      return this.request<T>(path, { ...bodyOrOptions, method: 'DELETE' });
+    }
+
+    return this.request<T>(path, {
+      ...options,
+      method: 'DELETE',
+      body: bodyOrOptions,
+    });
   }
 }
 

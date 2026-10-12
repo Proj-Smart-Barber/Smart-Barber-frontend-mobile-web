@@ -1,5 +1,7 @@
 # Auditoria e plano: catálogo de serviços e preparação do agendamento
 
+> **Atualização de11/10/2026:** este documento preserva a baseline histórica de28/09. Para agendamento e rotas vigentes, usar a [auditoria atual de rotas/Swagger](D:/smart_barber/Smart-Barber-frontend-mobile-web/docs/AUDITORIA_ROTAS_SWAGGER_API_2026-10-11.md) e o plano agrupado. O POST de reserva já existe em `/api/bookings`; sua extensão PERSONAL/UNIT substitui o candidato `/api/barbershops/:shopId/bookings` mencionado abaixo. Não criar endpoints a partir da ausência observada nesta baseline antiga.
+
 **Análise do código:** 28/09/2026. **Frontend:** branch `feature/api-full-integration`, commit `481d2ca68d83cfb02fa07d9bf03fdf385d86f98f`. **API:** `main`, commit `2fb8f99a2668a6f32640ef865c1d47f29738c860`. Os checkouts estavam limpos.  
 **Natureza:** auditoria de código e plano validado com o solicitante; não houve implementação, migração nem prova de execução com API/banco vivos.  
 **Escopo aprovado:** catálogo completo por barbearia (banco, API, gestão pelo proprietário e consulta pública), com contrato e critérios de entrega para a equipe que implementará o agendamento com vários serviços. Confirmação de reserva, pagamento e marketplace ficam para a próxima frente.

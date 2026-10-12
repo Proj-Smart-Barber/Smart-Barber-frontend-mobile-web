@@ -14,6 +14,8 @@ import {
 } from './invitation-response-engine';
 import type { InvitationDto } from '../api/invitations.dto';
 
+import { useSession } from '@/features/auth';
+
 export { isInvitationExpired };
 
 export function useUserInvitations() {
@@ -33,6 +35,7 @@ export function useInvitationDetail(invitationId: string) {
 
 export function useInvitationResponse(invitationId: string) {
   const queryClient = useQueryClient();
+  const { refreshIdentity } = useSession();
   const [engineState, setEngineState] = useState(() => ({
     invitationId,
     status: 'idle' as ResponseStatus,
@@ -50,7 +53,9 @@ export function useInvitationResponse(invitationId: string) {
         declineById,
       },
       async () => {
-        await Promise.allSettled([
+        // Atualização autoritativa explícita de identidade + invalidações contextuais
+        await refreshIdentity();
+        await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['invitations'] }),
           queryClient.invalidateQueries({ queryKey: ['invitation', invitationId] }),
           queryClient.invalidateQueries({ queryKey: ['notifications'] }),
@@ -59,7 +64,7 @@ export function useInvitationResponse(invitationId: string) {
         ]);
       }
     );
-  }, [invitationId, queryClient]);
+  }, [invitationId, queryClient, refreshIdentity]);
 
   const accept = useCallback(async () => {
     try {
