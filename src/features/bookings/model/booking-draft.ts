@@ -55,12 +55,22 @@ export interface BookingFlowEngineOptions {
   scope?: 'PERSONAL' | 'UNIT';
 }
 
+import {
+  BookingOperationEngine,
+  type BookingOperationTransport,
+} from './booking-operation-engine';
+import type {
+  CreateBookingCommand,
+  PreparedBookingOperation,
+} from './booking-command.types';
+
 export class BookingFlowEngine {
   private attempt: BookingAttemptState;
   private readonly timestampMs: number;
   private store?: OperationAttemptStore;
   private actorId?: string;
   private scope: 'PERSONAL' | 'UNIT';
+  private operationEngine: BookingOperationEngine;
 
   constructor(
     private draft: BookingDraft,
@@ -116,6 +126,15 @@ export class BookingFlowEngine {
       errorMessage: null,
       quoteMismatch: false,
     };
+
+    this.operationEngine = new BookingOperationEngine({
+      store: this.store,
+      transport: {
+        createBooking: (payload: any, idempotencyKey?: string) => {
+          return this.transport.createBooking(this.attempt.payload, idempotencyKey);
+        },
+      },
+    });
   }
 
   get state(): BookingAttemptState {
@@ -151,74 +170,49 @@ export class BookingFlowEngine {
       throw new Error('Agendamento já em andamento ou confirmado.');
     }
 
-    // Persistência indispensável da tentativa antes do POST (garante zeroPOST se storage falhar)
-    if (this.store && this.actorId) {
-      await this.store.save(this.actorId, {
-        actorId: this.actorId,
-        requestId: this.attempt.key,
-        operation: 'CREATE_BOOKING',
-        resourceKind: 'BOOKING',
-        status: 'submitting',
-        createdAt: this.timestampMs,
-        payload: {
-          ...this.attempt.payload,
-          scope: this.scope,
-          shopId: this.draft.shopId,
-          customerId: this.draft.customerId,
-        },
-      });
-    }
+    const command: CreateBookingCommand = {
+      action: 'CREATE',
+      actorId: this.actorId ?? 'guest-actor',
+      scope: this.scope,
+      shopId: this.draft.shopId,
+      customerId: this.draft.customerId,
+      serviceIds: [...this.draft.serviceIds],
+      barbermanId: this.draft.barbermanId,
+      date: this.draft.date,
+      startTime: this.draft.startTime,
+      expectedTotalPriceInCents: this.draft.expectedTotalPriceInCents,
+      expectedDurationInMinutes: this.draft.expectedDurationInMinutes,
+    };
+
+    const prepared: PreparedBookingOperation = {
+      requestId: this.attempt.key,
+      command,
+      createdAt: this.timestampMs,
+    };
 
     this.attempt.status = 'submitting';
     this.attempt.errorMessage = null;
     this.attempt.quoteMismatch = false;
 
     try {
-      const response = await this.transport.createBooking(
-        this.attempt.payload,
-        this.attempt.key
-      );
-
-      this.attempt.status = 'confirmed';
-      this.attempt.confirmedBooking = response.booking;
-
-      if (this.store && this.actorId) {
-        await this.store.save(this.actorId, {
-          actorId: this.actorId,
-          requestId: this.attempt.key,
-          operation: 'CREATE_BOOKING',
-          resourceKind: 'BOOKING',
-          status: 'confirmed',
-          createdAt: this.timestampMs,
-          result: {
-            state: 'APPLIED',
-            operation: 'CREATE_BOOKING',
-            resource: {
-              kind: 'BOOKING',
-              id: response.booking.id,
-              version: (response.booking as any).version ?? 1,
-            },
-            accessChanged: false,
+      const result = await this.operationEngine.submit(prepared, {
+        store: this.store,
+        transport: {
+          createBooking: (payload: any, idempotencyKey?: string) => {
+            return this.transport.createBooking(this.attempt.payload, idempotencyKey);
           },
-        }).catch(() => {});
+        },
+      });
+
+      if (result.state === 'APPLIED' && result.resource?.data?.booking) {
+        this.attempt.status = 'confirmed';
+        this.attempt.confirmedBooking = result.resource.data.booking;
+        return result.resource.data.booking;
       }
 
-      return response.booking;
+      throw new Error('Operação concluída sem confirmação autoritativa da reserva.');
     } catch (err: any) {
       this.handleError(err);
-
-      if (this.store && this.actorId) {
-        await this.store.save(this.actorId, {
-          actorId: this.actorId,
-          requestId: this.attempt.key,
-          operation: 'CREATE_BOOKING',
-          resourceKind: 'BOOKING',
-          status: this.attempt.status,
-          createdAt: this.timestampMs,
-          errorMessage: this.attempt.errorMessage,
-        }).catch(() => {});
-      }
-
       throw err;
     }
   }

@@ -5,9 +5,9 @@ import { useTheme } from '@/shared/theme';
 import { Text, Button, Badge } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { BookingDto } from '../api/bookings.dto';
-import { cancelBooking, transitionBookingStatus } from '../api/bookings.api';
-import { generateUuidV7 } from '../lib/attempt-id';
 import { serverClock } from '../lib/server-clock';
+import { bookingOperationEngine } from '../model/booking-operation-engine';
+import { useSession } from '@/features/auth';
 
 export type BookingActionType = 'CANCEL' | 'COMPLETE' | 'NO_SHOW';
 
@@ -29,6 +29,7 @@ export function BookingActionConfirm({
   onSuccess,
 }: BookingActionConfirmProps) {
   const { colors, spacing, radius } = useTheme();
+  const { identity } = useSession();
 
   const [reason, setReason] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -44,7 +45,13 @@ export function BookingActionConfirm({
       bookingStartMs = null;
     }
 
-    const nowMs = serverClock.now() ?? Date.now();
+    const nowMs = serverClock.now();
+    if (nowMs === null) {
+      return {
+        allowed: false,
+        message: 'Aguardando sincronização de horário com o servidor.',
+      };
+    }
     const diffMinutes = bookingStartMs ? (bookingStartMs - nowMs) / (60 * 1000) : 0;
 
     if (actionType === 'CANCEL') {
@@ -99,36 +106,26 @@ export function BookingActionConfirm({
     setIsLoading(true);
     setErrorMessage(null);
 
-    const nowMs = serverClock.now() ?? Date.now();
-    const idempotencyKey = generateUuidV7(nowMs);
+    const actorId = identity?.id || booking.customerId || 'current-actor';
     const expectedVersion = booking.version ?? 1;
 
     try {
-      if (actionType === 'CANCEL') {
-        const response = await cancelBooking(
-          booking.id,
-          {
-            scope,
-            expectedVersion,
-            reason: reason.trim() || undefined,
-          },
-          idempotencyKey
-        );
-        onSuccess(response.booking);
+      const prepared = await bookingOperationEngine.prepare({
+        actorId,
+        scope,
+        action: actionType,
+        bookingId: booking.id,
+        expectedVersion,
+        reason: reason.trim() || undefined,
+      });
+
+      const result = await bookingOperationEngine.submit(prepared);
+      if (result.state === 'APPLIED') {
+        const updatedBooking = result.resource?.data?.booking ?? booking;
+        onSuccess(updatedBooking);
         onClose();
-      } else if (actionType === 'COMPLETE' || actionType === 'NO_SHOW') {
-        const targetStatus = actionType === 'COMPLETE' ? 'COMPLETED' : 'NO_SHOW';
-        const response = await transitionBookingStatus(
-          booking.id,
-          {
-            expectedVersion,
-            status: targetStatus,
-            reason: reason.trim() || undefined,
-          },
-          idempotencyKey
-        );
-        onSuccess(response.booking);
-        onClose();
+      } else {
+        setErrorMessage('Operação não aplicada pelo servidor.');
       }
     } catch (err: any) {
       setErrorMessage(

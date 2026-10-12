@@ -173,7 +173,7 @@ describe('Task R1/R2 — Reserva Múltipla Idempotente e Recuperação de Agenda
       1,
       'client-user-1',
       expect.objectContaining({
-        status: 'pending',
+        status: 'submitting',
         operation: 'CREATE_BOOKING',
       })
     );

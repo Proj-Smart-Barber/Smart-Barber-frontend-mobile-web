@@ -13,6 +13,7 @@ import type {
   TransitionBookingStatusRequestDto,
 } from '../api/bookings.dto';
 import { bookingQueryKeys, invalidateBookingQueries } from './booking-query-keys';
+import { bookingOperationEngine } from './booking-operation-engine';
 import { useSession } from '@/features/auth';
 
 export interface UseBookingDetailOptions {
@@ -66,14 +67,23 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const payload: CancelBookingRequestDto = {
-          expectedVersion: request?.expectedVersion ?? booking.version ?? undefined,
-          reason: request?.reason,
+        const actorId = identity?.id || 'session-actor';
+        const expectedVersion = request?.expectedVersion ?? booking.version ?? 1;
+        const prepared = await bookingOperationEngine.prepare({
+          action: 'CANCEL',
+          actorId,
           scope,
-        };
-        const result = await cancelBooking(booking.id, payload, idempotencyKey);
-        await handleInvalidation(result.booking);
-        return result.booking;
+          bookingId: booking.id,
+          expectedVersion,
+          reason: request?.reason,
+        });
+        if (idempotencyKey) {
+          prepared.requestId = idempotencyKey;
+        }
+        const result = await bookingOperationEngine.submit(prepared);
+        const updatedBooking = result.resource?.data?.booking ?? booking;
+        await handleInvalidation(updatedBooking);
+        return updatedBooking;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Falha ao cancelar reserva.';
         setMutationError(message);
@@ -82,7 +92,7 @@ export function useBookingDetail({
         setIsMutating(false);
       }
     },
-    [booking, scope, handleInvalidation]
+    [booking, scope, handleInvalidation, identity?.id]
   );
 
   const reschedule = useCallback(
@@ -91,17 +101,32 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const payload: RescheduleBookingRequestDto = {
-          ...request,
-          expectedVersion: request.expectedVersion ?? booking.version ?? undefined,
+        const actorId = identity?.id || 'session-actor';
+        const expectedVersion = request.expectedVersion ?? booking.version ?? 1;
+        const prepared = await bookingOperationEngine.prepare({
+          action: 'RESCHEDULE',
+          actorId,
           scope,
-        };
-        const result = await rescheduleBooking(booking.id, payload, idempotencyKey);
-        await handleInvalidation(result.booking, request.barbermanId, [
+          bookingId: booking.id,
+          expectedVersion,
+          date: request.date,
+          startTime: request.startTime,
+          barbermanId: request.barbermanId,
+          serviceIds: request.serviceIds,
+          expectedTotalPriceInCents: request.expectedTotalPriceInCents,
+          expectedDurationInMinutes: request.expectedDurationInMinutes,
+          reason: request.reason,
+        });
+        if (idempotencyKey) {
+          prepared.requestId = idempotencyKey;
+        }
+        const result = await bookingOperationEngine.submit(prepared);
+        const updatedBooking = result.resource?.data?.booking ?? booking;
+        await handleInvalidation(updatedBooking, request.barbermanId, [
           String(booking.date),
           request.date,
         ]);
-        return result.booking;
+        return updatedBooking;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Falha ao remarcar reserva.';
         setMutationError(message);
@@ -110,7 +135,7 @@ export function useBookingDetail({
         setIsMutating(false);
       }
     },
-    [booking, scope, handleInvalidation]
+    [booking, scope, handleInvalidation, identity?.id]
   );
 
   const complete = useCallback(
@@ -119,14 +144,23 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const payload: TransitionBookingStatusRequestDto = {
-          status: 'COMPLETED',
-          expectedVersion: request?.expectedVersion ?? booking.version ?? undefined,
+        const actorId = identity?.id || 'session-actor';
+        const expectedVersion = request?.expectedVersion ?? booking.version ?? 1;
+        const prepared = await bookingOperationEngine.prepare({
+          action: 'COMPLETE',
+          actorId,
+          scope,
+          bookingId: booking.id,
+          expectedVersion,
           reason: request?.reason,
-        };
-        const result = await transitionBookingStatus(booking.id, payload, idempotencyKey);
-        await handleInvalidation(result.booking);
-        return result.booking;
+        });
+        if (idempotencyKey) {
+          prepared.requestId = idempotencyKey;
+        }
+        const result = await bookingOperationEngine.submit(prepared);
+        const updatedBooking = result.resource?.data?.booking ?? booking;
+        await handleInvalidation(updatedBooking);
+        return updatedBooking;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Falha ao concluir reserva.';
         setMutationError(message);
@@ -135,7 +169,7 @@ export function useBookingDetail({
         setIsMutating(false);
       }
     },
-    [booking, handleInvalidation]
+    [booking, scope, handleInvalidation, identity?.id]
   );
 
   const noShow = useCallback(
@@ -144,14 +178,23 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const payload: TransitionBookingStatusRequestDto = {
-          status: 'NO_SHOW',
-          expectedVersion: request?.expectedVersion ?? booking.version ?? undefined,
+        const actorId = identity?.id || 'session-actor';
+        const expectedVersion = request?.expectedVersion ?? booking.version ?? 1;
+        const prepared = await bookingOperationEngine.prepare({
+          action: 'NO_SHOW',
+          actorId,
+          scope,
+          bookingId: booking.id,
+          expectedVersion,
           reason: request?.reason,
-        };
-        const result = await transitionBookingStatus(booking.id, payload, idempotencyKey);
-        await handleInvalidation(result.booking);
-        return result.booking;
+        });
+        if (idempotencyKey) {
+          prepared.requestId = idempotencyKey;
+        }
+        const result = await bookingOperationEngine.submit(prepared);
+        const updatedBooking = result.resource?.data?.booking ?? booking;
+        await handleInvalidation(updatedBooking);
+        return updatedBooking;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Falha ao registrar não comparecimento.';
         setMutationError(message);
@@ -160,7 +203,7 @@ export function useBookingDetail({
         setIsMutating(false);
       }
     },
-    [booking, handleInvalidation]
+    [booking, scope, handleInvalidation, identity?.id]
   );
 
   return {

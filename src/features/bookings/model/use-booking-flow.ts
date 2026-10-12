@@ -221,9 +221,14 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     setErrorMessage(null);
 
     try {
-      // Garante sincronização mínima com relógio autoritativo
+      // Exige referência autoritativa sincronizada pelo servidor via HTTP
       if (!serverClock.hasValidReference()) {
-        serverClock.syncWithServer(new Date().toISOString());
+        setStatus('error');
+        setErrorMessage(
+          'Aguardando sincronização de horário com o servidor. Verifique a conexão antes de confirmar.'
+        );
+        isSubmittingRef.current = false;
+        return;
       }
 
       const transport = {

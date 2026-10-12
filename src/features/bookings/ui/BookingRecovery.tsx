@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/shared/theme';
 import { Text, Button } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { findOwnAttempt, closeOwnAttempt } from '@/shared/operations/operation-attempt.api';
+import { bookingOperationEngine } from '../model/booking-operation-engine';
+import { useSession } from '@/features/auth';
 
 export interface BookingRecoveryProps {
   requestId: string;
@@ -20,6 +21,7 @@ export function BookingRecovery({
 }: BookingRecoveryProps) {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
+  const { identity } = useSession();
 
   const [isChecking, setIsChecking] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -28,16 +30,18 @@ export function BookingRecovery({
     setIsChecking(true);
     setFeedback(null);
 
+    const actorId = identity?.id || 'current-actor';
+
     try {
-      // 1. Consulta o estado autoritativo da tentativa
-      const result = await findOwnAttempt(requestId);
+      // 1. Consulta o estado autoritativo da tentativa via motor unificado
+      const result = await bookingOperationEngine.reconcile(actorId, requestId);
 
       if (result.state === 'APPLIED') {
         setFeedback('O agendamento foi confirmado pelo servidor! Você pode visualizá-lo em seus agendamentos.');
         onResolvedApplied?.();
       } else if (result.state === 'NOT_APPLIED') {
         // Fecha formalmente a tentativa para liberar nova revisão
-        await closeOwnAttempt(requestId);
+        await bookingOperationEngine.close(actorId, requestId);
         setFeedback('A tentativa anterior não foi processada. Você pode revisar e confirmar novamente.');
         onResolvedNotApplied();
       } else {
