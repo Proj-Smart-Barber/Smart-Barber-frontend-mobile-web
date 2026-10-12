@@ -3,6 +3,12 @@ import type {
   BookingDto,
 } from '../api/bookings.dto';
 import { generateUuidV7 } from '../lib/attempt-id';
+import { ServerClock } from '../lib/server-clock';
+import {
+  normalizeBookingError,
+  type AuthoritativeQuote,
+} from '../lib/normalize-booking-error';
+import type { OperationAttemptStore } from '@/shared/operations/operation-attempt.types';
 
 export type SubmissionStatus =
   | 'reviewing'
@@ -27,6 +33,8 @@ export interface BookingDraft {
   startTime: string;
   expectedTotalPriceInCents: number;
   expectedDurationInMinutes: number;
+  scope?: 'PERSONAL' | 'UNIT';
+  customerId?: string;
 }
 
 export interface BookingAttemptState {
@@ -36,18 +44,63 @@ export interface BookingAttemptState {
   confirmedBooking: BookingDto | null;
   errorMessage: string | null;
   quoteMismatch: boolean;
+  authoritativeQuote?: AuthoritativeQuote | null;
+}
+
+export interface BookingFlowEngineOptions {
+  serverTimestampMs?: number;
+  serverClock?: ServerClock;
+  store?: OperationAttemptStore;
+  actorId?: string;
+  scope?: 'PERSONAL' | 'UNIT';
 }
 
 export class BookingFlowEngine {
   private attempt: BookingAttemptState;
+  private readonly timestampMs: number;
+  private store?: OperationAttemptStore;
+  private actorId?: string;
+  private scope: 'PERSONAL' | 'UNIT';
 
   constructor(
     private draft: BookingDraft,
     private transport: BookingTransport,
-    serverTimestampMs?: number
+    optionsOrTimestamp?: number | ServerClock | BookingFlowEngineOptions
   ) {
-    const validTime = serverTimestampMs && serverTimestampMs > 0 ? serverTimestampMs : Date.now();
-    const key = generateUuidV7(validTime);
+    let resolvedTimeMs: number | null = null;
+
+    if (typeof optionsOrTimestamp === 'number') {
+      if (optionsOrTimestamp > 0 && !Number.isNaN(optionsOrTimestamp)) {
+        resolvedTimeMs = optionsOrTimestamp;
+      }
+    } else if (optionsOrTimestamp instanceof ServerClock) {
+      resolvedTimeMs = optionsOrTimestamp.getRequiredNow();
+    } else if (optionsOrTimestamp && typeof optionsOrTimestamp === 'object') {
+      this.store = optionsOrTimestamp.store;
+      this.actorId = optionsOrTimestamp.actorId;
+      this.scope = optionsOrTimestamp.scope ?? draft.scope ?? 'PERSONAL';
+
+      if (optionsOrTimestamp.serverClock) {
+        resolvedTimeMs = optionsOrTimestamp.serverClock.getRequiredNow();
+      } else if (
+        typeof optionsOrTimestamp.serverTimestampMs === 'number' &&
+        optionsOrTimestamp.serverTimestampMs > 0 &&
+        !Number.isNaN(optionsOrTimestamp.serverTimestampMs)
+      ) {
+        resolvedTimeMs = optionsOrTimestamp.serverTimestampMs;
+      }
+    }
+
+    if (!resolvedTimeMs || resolvedTimeMs <= 0) {
+      throw new Error(
+        'Server clock inválido ou não sincronizado. Impossível gerar chave de tentativa segura.'
+      );
+    }
+
+    this.timestampMs = resolvedTimeMs;
+    this.scope = draft.scope ?? 'PERSONAL';
+    const key = generateUuidV7(this.timestampMs);
+
     this.attempt = {
       key,
       payload: {
@@ -89,9 +142,31 @@ export class BookingFlowEngine {
     return this.attempt.quoteMismatch;
   }
 
+  get authoritativeQuote(): AuthoritativeQuote | null | undefined {
+    return this.attempt.authoritativeQuote;
+  }
+
   async submit(): Promise<BookingDto> {
     if (this.attempt.status === 'submitting' || this.attempt.status === 'confirmed') {
       throw new Error('Agendamento já em andamento ou confirmado.');
+    }
+
+    // Persistência indispensável da tentativa antes do POST (garante zeroPOST se storage falhar)
+    if (this.store && this.actorId) {
+      await this.store.save(this.actorId, {
+        actorId: this.actorId,
+        requestId: this.attempt.key,
+        operation: 'CREATE_BOOKING',
+        resourceKind: 'BOOKING',
+        status: 'submitting',
+        createdAt: this.timestampMs,
+        payload: {
+          ...this.attempt.payload,
+          scope: this.scope,
+          shopId: this.draft.shopId,
+          customerId: this.draft.customerId,
+        },
+      });
     }
 
     this.attempt.status = 'submitting';
@@ -106,9 +181,44 @@ export class BookingFlowEngine {
 
       this.attempt.status = 'confirmed';
       this.attempt.confirmedBooking = response.booking;
+
+      if (this.store && this.actorId) {
+        await this.store.save(this.actorId, {
+          actorId: this.actorId,
+          requestId: this.attempt.key,
+          operation: 'CREATE_BOOKING',
+          resourceKind: 'BOOKING',
+          status: 'confirmed',
+          createdAt: this.timestampMs,
+          result: {
+            state: 'APPLIED',
+            operation: 'CREATE_BOOKING',
+            resource: {
+              kind: 'BOOKING',
+              id: response.booking.id,
+              version: (response.booking as any).version ?? 1,
+            },
+            accessChanged: false,
+          },
+        }).catch(() => {});
+      }
+
       return response.booking;
     } catch (err: any) {
       this.handleError(err);
+
+      if (this.store && this.actorId) {
+        await this.store.save(this.actorId, {
+          actorId: this.actorId,
+          requestId: this.attempt.key,
+          operation: 'CREATE_BOOKING',
+          resourceKind: 'BOOKING',
+          status: this.attempt.status,
+          createdAt: this.timestampMs,
+          errorMessage: this.attempt.errorMessage,
+        }).catch(() => {});
+      }
+
       throw err;
     }
   }
@@ -119,34 +229,25 @@ export class BookingFlowEngine {
   }
 
   private handleError(err: any): void {
-    const isConflict =
-      err?.status === 409 ||
-      err?.statusCode === 409 ||
-      err?.message?.includes('alterado') ||
-      err?.message?.includes('quote_mismatch');
+    const normalized = normalizeBookingError(err);
 
-    if (isConflict) {
+    if (normalized.code === 'QUOTE_CHANGED') {
       this.attempt.status = 'error';
       this.attempt.quoteMismatch = true;
-      this.attempt.errorMessage =
-        'Os valores ou duração dos serviços foram atualizados. Revise as informações antes de confirmar.';
+      this.attempt.authoritativeQuote = normalized.quote ?? null;
+      this.attempt.errorMessage = normalized.message;
       return;
     }
 
-    const isTimeout =
-      err?.name === 'AbortError' ||
-      err?.isNetworkError === true ||
-      err?.message?.includes('timeout') ||
-      err?.message?.includes('conexão');
-
-    if (isTimeout) {
+    if (normalized.code === 'NETWORK_OR_TIMEOUT' || normalized.isNetworkError) {
       this.attempt.status = 'uncertain';
-      this.attempt.errorMessage =
-        'Ainda não foi possível confirmar o agendamento. Verifique seus agendamentos antes de tentar novamente.';
+      this.attempt.quoteMismatch = false;
+      this.attempt.errorMessage = normalized.message;
       return;
     }
 
     this.attempt.status = 'error';
-    this.attempt.errorMessage = err?.message || 'Falha ao processar o agendamento.';
+    this.attempt.quoteMismatch = false;
+    this.attempt.errorMessage = normalized.message;
   }
 }

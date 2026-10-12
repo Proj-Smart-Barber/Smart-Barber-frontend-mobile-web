@@ -14,7 +14,7 @@ export const agendaRepository: IAgendaRepository =
 export const AGENDA_QUERY_KEYS = {
   all: ['agenda'] as const,
   day: (scope: AgendaScope, date: string) =>
-    ['agenda', 'day', scope.role, scope.staffId, date] as const,
+    ['agenda', 'day', scope.shopId ?? 'no-shop', scope.role, scope.staffId, date] as const,
 };
 
 /**

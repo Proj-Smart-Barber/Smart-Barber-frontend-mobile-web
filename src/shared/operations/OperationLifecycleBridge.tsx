@@ -12,6 +12,7 @@ export class OperationLifecycleBridgeController {
   private currentActorId: string | null;
   private currentSessionState: string;
   private store: OperationAttemptStore;
+  private pendingCleanup: Promise<void> | null = null;
 
   constructor(options: {
     actorId: string | null;
@@ -21,6 +22,22 @@ export class OperationLifecycleBridgeController {
     this.currentActorId = options.actorId;
     this.currentSessionState = options.sessionState;
     this.store = options.store ?? operationAttemptStore;
+    activeBridgeController = this;
+  }
+
+  getActiveActorId(): string | null {
+    return this.currentActorId;
+  }
+
+  isActorActive(actorId: string | null): boolean {
+    if (!actorId) return false;
+    return this.currentActorId === actorId && this.currentSessionState !== 'unauthenticated';
+  }
+
+  async waitForCleanup(): Promise<void> {
+    if (this.pendingCleanup) {
+      await this.pendingCleanup;
+    }
   }
 
   handleSessionUpdate(nextActorId: string | null, nextSessionState: string): void {
@@ -49,12 +66,24 @@ export class OperationLifecycleBridgeController {
 
     if ((isLogout || isActorSwitch) && prevActorId) {
       // Limpa os payloads da tentativa, preservando apenas referências opacas incertas
-      void this.store.clearPayloadsOnLogout(prevActorId).catch(() => {});
+      this.pendingCleanup = this.store
+        .clearPayloadsOnLogout(prevActorId)
+        .catch(() => {})
+        .finally(() => {
+          this.pendingCleanup = null;
+        });
     }
 
     this.currentActorId = nextActorId;
     this.currentSessionState = nextSessionState;
   }
+}
+
+let activeBridgeController: OperationLifecycleBridgeController | null = null;
+
+export function isCurrentActorActive(actorId: string | null): boolean {
+  if (!activeBridgeController) return true;
+  return activeBridgeController.isActorActive(actorId);
 }
 
 /**

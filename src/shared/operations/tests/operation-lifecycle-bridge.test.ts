@@ -70,4 +70,33 @@ describe('R1 — OperationLifecycleBridge', () => {
     expect(postSpy).not.toHaveBeenCalled();
     expect(typeof OperationLifecycleBridge).toBe('function');
   });
+
+  it('coordena conclusao assincrona da limpeza e verifica ator ativo contra respostas tardias', async () => {
+    let resolveCleanup: () => void = () => {};
+    const cleanupPromise = new Promise<void>((resolve) => {
+      resolveCleanup = resolve;
+    });
+    mockStore.clearPayloadsOnLogout = vi.fn().mockReturnValue(cleanupPromise);
+
+    const controller = new OperationLifecycleBridgeController({
+      actorId: 'actor-1',
+      sessionState: 'authenticated',
+      store: mockStore,
+    });
+
+    expect(controller.isActorActive('actor-1')).toBe(true);
+    expect(controller.isActorActive('actor-2')).toBe(false);
+
+    // Logout
+    controller.handleSessionUpdate(null, 'unauthenticated');
+
+    // actor-1 não está mais ativo imediatamente
+    expect(controller.isActorActive('actor-1')).toBe(false);
+
+    // Libera a limpeza
+    resolveCleanup();
+    await controller.waitForCleanup();
+
+    expect(mockStore.clearPayloadsOnLogout).toHaveBeenCalledWith('actor-1');
+  });
 });

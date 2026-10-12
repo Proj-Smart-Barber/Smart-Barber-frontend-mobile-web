@@ -52,4 +52,40 @@ describe('R1 — operationAttemptApi', () => {
     expect(res.state).toBe('NOT_APPLIED');
     expect(res.operation).toBe('CLOSED');
   });
+
+  it('close com {} ou estado desconhecido nao retorna NOT_APPLIED e trata como UNKNOWN', async () => {
+    vi.spyOn(httpClient, 'post').mockResolvedValueOnce({});
+
+    const resEmpty = await closeOwnAttempt('req-empty');
+    expect(resEmpty.state).not.toBe('NOT_APPLIED');
+    expect(resEmpty.state).toBe('UNKNOWN');
+
+    vi.spyOn(httpClient, 'post').mockResolvedValueOnce({
+      state: 'SOMETHING_RANDOM',
+      serverTime: '2026-10-12T10:00:00.000Z',
+    });
+
+    const resInvalid = await closeOwnAttempt('req-invalid');
+    expect(resInvalid.state).not.toBe('NOT_APPLIED');
+    expect(resInvalid.state).toBe('UNKNOWN');
+  });
+
+  it('404 e respostas sem serverTime nao inventam relogio local autoritativo', async () => {
+    vi.spyOn(httpClient, 'get').mockRejectedValueOnce(
+      new ApiError('Não encontrada', 404, { state: 'UNKNOWN' })
+    );
+
+    const res404 = await findOwnAttempt('req-404');
+    expect(res404.state).toBe('UNKNOWN');
+    expect(res404.serverTime).toBeUndefined();
+
+    vi.spyOn(httpClient, 'post').mockResolvedValueOnce({
+      state: 'NOT_APPLIED',
+      operation: 'CLOSED',
+    });
+
+    const resNoTime = await closeOwnAttempt('req-no-time');
+    expect(resNoTime.serverTime).toBeUndefined();
+  });
 });
+

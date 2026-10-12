@@ -150,12 +150,20 @@ export async function lookupCustomer(
 
 export async function cancelBooking(
   bookingId: string,
-  request?: CancelBookingRequestDto
+  request?: CancelBookingRequestDto,
+  idempotencyKey?: string
 ): Promise<{ booking: BookingDto; serverTime?: string }> {
-  const response = await httpClient.delete<{ booking: BookingDto; serverTime?: string }>(
-    `/api/bookings/${bookingId}/cancel`,
-    request
-  );
+  const options = idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined;
+  const response = options
+    ? await httpClient.delete<{ booking: BookingDto; serverTime?: string }>(
+        `/api/bookings/${bookingId}/cancel`,
+        request,
+        options
+      )
+    : await httpClient.delete<{ booking: BookingDto; serverTime?: string }>(
+        `/api/bookings/${bookingId}/cancel`,
+        request
+      );
 
   return {
     booking: bookingDtoSchema.parse(response.booking),
@@ -165,12 +173,20 @@ export async function cancelBooking(
 
 export async function rescheduleBooking(
   bookingId: string,
-  request: RescheduleBookingRequestDto
+  request: RescheduleBookingRequestDto,
+  idempotencyKey?: string
 ): Promise<{ booking: BookingDto; serverTime?: string }> {
-  const response = await httpClient.patch<{ booking: BookingDto; serverTime?: string }>(
-    `/api/bookings/${bookingId}/reschedule`,
-    request
-  );
+  const options = idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined;
+  const response = options
+    ? await httpClient.patch<{ booking: BookingDto; serverTime?: string }>(
+        `/api/bookings/${bookingId}/reschedule`,
+        request,
+        options
+      )
+    : await httpClient.patch<{ booking: BookingDto; serverTime?: string }>(
+        `/api/bookings/${bookingId}/reschedule`,
+        request
+      );
 
   return {
     booking: bookingDtoSchema.parse(response.booking),
@@ -180,18 +196,29 @@ export async function rescheduleBooking(
 
 export async function transitionBookingStatus(
   bookingId: string,
-  request: TransitionBookingStatusRequestDto
+  request: TransitionBookingStatusRequestDto,
+  idempotencyKey?: string
 ): Promise<{ booking: BookingDto; serverTime?: string }> {
-  const response = await httpClient.patch<{ booking: BookingDto; serverTime?: string }>(
-    `/api/bookings/${bookingId}/status`,
-    request
-  );
+  const options = idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined;
+  const response = options
+    ? await httpClient.patch<{ booking: BookingDto; serverTime?: string }>(
+        `/api/bookings/${bookingId}/status`,
+        request,
+        options
+      )
+    : await httpClient.patch<{ booking: BookingDto; serverTime?: string }>(
+        `/api/bookings/${bookingId}/status`,
+        request
+      );
 
   return {
     booking: bookingDtoSchema.parse(response.booking),
     serverTime: response.serverTime,
   };
 }
+
+
+
 
 export async function getBookingAvailability(
   shopId: string,

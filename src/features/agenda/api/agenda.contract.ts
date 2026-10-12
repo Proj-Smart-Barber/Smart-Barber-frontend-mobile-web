@@ -16,7 +16,7 @@ export type AgendaPaymentStatus = 'PAID' | 'PENDING' | 'REFUNDED';
 export interface AgendaScope {
   role: 'OWNER' | 'BARBER';
   staffId: string;
-  // unitId: string — incluir quando o contrato de sessão/unidade fornecer.
+  shopId?: string;
 }
 
 export interface AgendaAppointmentEntry {

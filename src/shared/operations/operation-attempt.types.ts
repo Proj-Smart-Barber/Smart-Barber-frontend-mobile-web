@@ -34,7 +34,7 @@ export interface OperationAttemptResult<T = any> {
   operation?: string;
   resource?: OperationAttemptResource<T>;
   accessChanged?: boolean;
-  serverTime: string;
+  serverTime?: string;
 }
 
 export interface OperationAttemptRecord<TPayload = any, TData = any> {
