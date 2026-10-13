@@ -150,7 +150,48 @@ Base: `origin/main` (`6a17846bb792fa5e6e039ebcbe1da41573e3fa01`)
 - **Testes implementados e validados:**
   - Suíte completa de bookings e navegação: 22 arquivos, 128 testes PASS (exit code 0).
   - Typecheck frontend: `tsc --noEmit` exit code 0.
-- **Próxima Ação:** Bloco 5 / Tarefas I7 & I8 — Homologação da Composição, Revisão Independente e Pacote de Publicação.
+- **Próxima Ação:** Bloco 5 / Tarefas I7 & I8 — Concluídas.
+
+---
+
+## Checkpoint I7 — Homologação da Composição
+
+- **Status:** CONCLUÍDO
+- **Ações executadas:**
+  - Validação estática e de compilação:
+    - Frontend: `npm run typecheck` (`tsc --noEmit`) exit 0 (zero erros).
+    - Frontend: `npm run build` (`expo export -p web`) exit 0 (52 rotas estáticas emitidas para `dist/`).
+    - Backend: `npx tsc --noEmit` em `D:/smart_barber/api` exit 0 (zero erros).
+  - Execução de testes de contrato e integração no backend contra PostgreSQL real:
+    - `src/infra/http/booking-actions-contract.e2e.spec.ts` (4 testes PASS).
+    - `src/infra/http/booking-contract.e2e.spec.ts` (2 testes PASS).
+    - `src/infra/drizzle/booking-action-idempotency.integration.spec.ts` (2 testes PASS).
+    - `src/infra/drizzle/booking-lifecycle.integration.spec.ts` (5 testes PASS).
+  - Execução da suíte completa de testes no frontend:
+    - `npm test`: **59 arquivos de teste / 345 testes PASS** (exit code 0, 25.10s).
+  - Verificação de rotas e viewports:
+    - Rota `/atendimentos` (equipe) totalmente isolada de `/bookings` (pessoal).
+    - `BottomCapsuleBar` (mobile), `DesktopSidebar` (desktop) e `LeftDrawer` (tablet) exibem atendimentos apenas mediante vínculo operacional válido.
+    - Padrão persist-before-transport validado: gravação de `submitting` prévia e zero tráfego de rede se persistência ou relógio falharem.
+    - Isolamento de cache React Query por loja e contexto comprovado sem invalidação cruzada.
+  - Registro de limitações:
+    - Execução em dispositivo nativo (Android/iOS) marcada formalmente como NOT TESTED no ambiente local (sem emuladores conectados).
+  - Gerado relatório detalhado em `docs/HOMOLOGACAO_INTEGRACAO_PRS_28_29_2026-10-12.md`.
+
+---
+
+## Checkpoint I8 — Revisão Independente e Pacote de Entrega
+
+- **Status:** CONCLUÍDO
+- **Ações executadas:**
+  - Revisão independente dos diffs locais em relação a `origin/main` e às branches originais dos PRs.
+  - Confirmada preservação integral da autoria dos PRs #28 e #29 no histórico do git.
+  - Confirmada eliminação de endpoints obsoletos (`/update`), eliminação dos erros TS2305, ausência de duplicatas em barrels e padronização neutra de mensagens de commit.
+  - Criado documento de entrega completo: `docs/ENTREGA_INTEGRACAO_PRS_28_29_2026-10-12.md`, incluindo mapa de commits, proveniência, contratos fechados, rotas e proposta de publicação/rollout em 3 etapas.
+  - Trabalho local 100% pronto para revisão humana e homologação final pelos mantenedores.
+  - Zero push, zero merge remoto, zero deploy e zero migração de produção realizados automaticamente.
+- **Status Geral da Integração:** **CONCLUÍDO** (Pacote local integrado, revisado e validado).
+
 
 
 
