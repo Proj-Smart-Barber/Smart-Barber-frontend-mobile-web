@@ -37,6 +37,14 @@ export interface AgendaAppointmentEntry {
   /** "HH:mm" quando o cliente fez check-in. */
   checkedInAt: string | null;
   hasConflict: boolean;
+  capabilities?: {
+    cancel?: { allowed: boolean; reason?: string };
+    reschedule?: { allowed: boolean; reason?: string };
+    complete?: { allowed: boolean; reason?: string };
+    noShow?: { allowed: boolean; reason?: string };
+  };
+  version?: number | null;
+  rawBooking?: any;
 }
 
 export interface AgendaFreeSlotEntry {

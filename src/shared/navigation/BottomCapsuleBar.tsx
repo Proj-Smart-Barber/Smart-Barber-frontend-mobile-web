@@ -37,15 +37,6 @@ const DESTINATIONS: DestinationConfig[] = [
     iconInactive: 'calendar-outline',
   },
   {
-    id: 'atendimentos',
-    label: 'Atendimentos',
-    compactLabel: 'Atend.',
-    route: '/(app)/atendimentos',
-    iconActive: 'briefcase',
-    iconInactive: 'briefcase-outline',
-    visibleForRole: 'BARBER',
-  },
-  {
     id: 'availability',
     label: 'Horários',
     route: '/(app)/availability',

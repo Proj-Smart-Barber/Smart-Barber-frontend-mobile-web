@@ -32,6 +32,7 @@ export const bookingDtoSchema = z.object({
   id: z.string(),
   barbershopId: z.string(),
   barbermanId: z.string(),
+  barbermanName: z.string().nullable().optional(),
   customerId: z.string().nullable().optional(),
   shoppingCartId: z.string().nullable().optional(),
   customer: bookingCustomerSchema.nullable().optional(),
@@ -58,11 +59,12 @@ export const bookingDtoSchema = z.object({
 });
 
 export const fetchUnitBookingsResponseSchema = z.object({
-  items: z.array(bookingDtoSchema),
-  page: z.number(),
-  limit: z.number(),
-  total: z.number(),
-  hasNext: z.boolean(),
+  items: z.array(bookingDtoSchema).optional(),
+  bookings: z.array(bookingDtoSchema).optional(),
+  page: z.number().default(1),
+  limit: z.number().default(20),
+  total: z.number().optional(),
+  hasNext: z.boolean().default(false),
   serverTime: z.string().optional(),
   summary: z
     .object({
@@ -73,6 +75,13 @@ export const fetchUnitBookingsResponseSchema = z.object({
       statusCounts: z.record(z.number()).optional(),
     }).refine(s => s.totalAmountInCents !== undefined || s.totalRevenueInCents !== undefined, 'Resumo sem valor conhecido').transform(s => ({ ...s, totalRevenueInCents: s.totalAmountInCents !== undefined ? s.totalAmountInCents : s.totalRevenueInCents ?? null }))
     .optional(),
+}).transform(val => {
+  const items = val.items ?? val.bookings ?? [];
+  return {
+    ...val,
+    items,
+    total: val.total ?? items.length,
+  };
 });
 
 export const customerLookupResultSchema = z.object({

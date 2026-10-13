@@ -85,7 +85,12 @@ const INITIAL_MOCK_APPOINTMENTS: DashboardAppointment[] = [
 export class DashboardMockAdapter implements IDashboardRepository {
   private appointments: DashboardAppointment[] = [...INITIAL_MOCK_APPOINTMENTS];
 
-  async getMetrics(params: { role: 'OWNER' | 'BARBER'; staffId: string }): Promise<DashboardMetrics> {
+  async getMetrics(params: {
+    role: 'OWNER' | 'BARBER';
+    staffId: string;
+    shopId?: string | null;
+    timezone?: string;
+  }): Promise<DashboardMetrics> {
     const isOwner = params.role === 'OWNER';
     const list = isOwner
       ? this.appointments
@@ -93,7 +98,7 @@ export class DashboardMockAdapter implements IDashboardRepository {
           (a) => a.barbermanId === params.staffId || a.barbermanId === SEED_BARBER_ID,
         );
 
-    const totalRevenue = list.reduce((acc, curr) => acc + curr.servicePriceInCents, 0);
+    const totalRevenue = list.reduce((acc, curr) => acc + (curr.servicePriceInCents ?? 0), 0);
     const completed = list.filter((a) => a.status === 'COMPLETED').length;
     const total = list.length;
     const occupancyRate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -113,6 +118,8 @@ export class DashboardMockAdapter implements IDashboardRepository {
   async getTodayAppointments(params: {
     role: 'OWNER' | 'BARBER';
     staffId: string;
+    shopId?: string | null;
+    timezone?: string;
   }): Promise<DashboardAppointment[]> {
     if (params.role === 'OWNER') {
       return [...this.appointments];

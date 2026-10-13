@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useSession } from '@/features/auth';
+import { useSession, getOperationalContext } from '@/features/auth';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
-import {
-  useDashboardMetricsQuery,
-  useTodayAppointmentsQuery,
-  useUpdateAppointmentStatusMutation,
-} from '../api/dashboard.api';
+import { useUnitBookings } from '@/features/bookings/model/use-unit-bookings';
+import { projectDashboardAppointments } from '../api/dashboard.http';
 import {
   findNextAppointment,
   formatCurrency,
@@ -16,19 +13,18 @@ import {
 import type { DashboardMetricCardData, TimelineFilter } from './dashboard.types';
 
 export function useDashboardViewModel() {
-  const { staff, isOwner: sessionIsOwner, signOut, restoreSession } = useSession();
+  const session = useSession();
+  const { staff, signOut, restoreSession } = session;
   const [filter, setFilter] = useState<TimelineFilter>('ALL');
-
-  const isOwner = Boolean(sessionIsOwner || staff?.role === 'OWNER');
+  const context = getOperationalContext(session);
+  const isOwner = context?.role === 'OWNER';
   const role = isOwner ? 'OWNER' : 'BARBER';
-  const staffId = staff?.id ?? 'default-staff-id';
-
-  const metricsQuery = useDashboardMetricsQuery(role, staffId);
-  const appointmentsQuery = useTodayAppointmentsQuery(role, staffId);
-  const statusMutation = useUpdateAppointmentStatusMutation(role, staffId);
-
-  const rawAppointments = appointmentsQuery.data ?? [];
-  const metrics = metricsQuery.data;
+  const unit = useUnitBookings(context);
+  const rawAppointments = useMemo(() => projectDashboardAppointments(unit.items, unit.selectedDate), [unit.items, unit.selectedDate]);
+  const metrics = unit.summary ? {
+    totalRevenueInCents: unit.summary.hasIncompleteData || unit.summary.totalRevenueInCents === null ? null : unit.summary.totalRevenueInCents,
+    totalAppointments: unit.summary.totalBookings ?? null,
+  } : undefined;
 
   // Filtra lista de agendamentos para a timeline
   const appointments = rawAppointments.filter((a) => {
@@ -42,7 +38,7 @@ export function useDashboardViewModel() {
     return true;
   });
 
-  const nextAppointment = findNextAppointment(rawAppointments);
+  const nextAppointment = unit.nextAppointment ? rawAppointments.find(a => a.id === unit.nextAppointment!.id) ?? null : null;
 
   // Prévia enxuta do dia: até 3 agendamentos, excluindo o destaque atual
   const previewAppointments = useMemo(() => {
@@ -62,17 +58,17 @@ export function useDashboardViewModel() {
       metricCards.push(
         {
           id: 'revenue',
-          title: 'Receita Agendada Hoje',
+          title: 'Valores das Reservas',
           value: formatCurrency(metrics.totalRevenueInCents),
-          subtitle: `${metrics.totalAppointments} agendamento(s) hoje`,
+          subtitle: `Soma das reservas no filtro (${metrics.totalAppointments} agendamento(s))`,
           tone: 'brand',
           iconName: 'cash-outline',
         },
         {
           id: 'total',
           title: 'Total de Agendamentos',
-          value: `${metrics.totalAppointments}`,
-          subtitle: metrics.totalAppointments > 0 ? 'Horários reservados' : 'Nenhum agendamento hoje',
+          value: metrics.totalAppointments === null ? 'A confirmar' : `${metrics.totalAppointments}`,
+          subtitle: metrics.totalAppointments === null ? 'Resumo indisponível' : metrics.totalAppointments > 0 ? 'Horários reservados' : 'Nenhum agendamento hoje',
           tone: 'neutral',
           iconName: 'calendar-outline',
         },
@@ -82,16 +78,16 @@ export function useDashboardViewModel() {
         {
           id: 'appointments',
           title: 'Meus Agendamentos Hoje',
-          value: `${metrics.totalAppointments}`,
-          subtitle: metrics.totalAppointments > 0 ? 'Horários reservados' : 'Agenda livre hoje',
+          value: metrics.totalAppointments === null ? 'A confirmar' : `${metrics.totalAppointments}`,
+          subtitle: metrics.totalAppointments === null ? 'Resumo indisponível' : metrics.totalAppointments > 0 ? 'Horários reservados' : 'Agenda livre hoje',
           tone: 'brand',
           iconName: 'cut-outline',
         },
         {
           id: 'revenue',
-          title: 'Total dos Atendimentos',
+          title: 'Valores das Reservas',
           value: formatCurrency(metrics.totalRevenueInCents),
-          subtitle: 'Soma dos serviços agendados',
+          subtitle: 'Soma das reservas no filtro',
           tone: 'success',
           iconName: 'wallet-outline',
         },
@@ -99,18 +95,10 @@ export function useDashboardViewModel() {
     }
   }
 
-  const isLoading = metricsQuery.isLoading || appointmentsQuery.isLoading;
-  const isError = metricsQuery.isError || appointmentsQuery.isError;
-
-  const handleUpdateStatus = (id: string, status: AppointmentStatus) => {
-    statusMutation.mutate({ id, status });
-  };
-
-  const handleRefetch = () => {
-    void metricsQuery.refetch();
-    void appointmentsQuery.refetch();
-    void restoreSession();
-  };
+  const isLoading = unit.isLoading || unit.clockStatus === 'syncing';
+  const isError = !context || unit.isError || unit.clockStatus === 'error';
+  const handleUpdateStatus = (_id: string, _status: AppointmentStatus) => {};
+  const handleRefetch = () => { void unit.refetch(); void restoreSession(); };
 
   return {
     staff,
@@ -119,13 +107,14 @@ export function useDashboardViewModel() {
     metricCards,
     appointments,
     previewAppointments,
-    totalCount: rawAppointments.length,
+    totalCount: unit.total ?? rawAppointments.length,
+    isIndeterminate: unit.isPartial || unit.clockStatus !== 'valid',
     nextAppointment,
     filter,
     setFilter,
     isLoading,
     isError,
-    isUpdatingStatus: statusMutation.isPending,
+    isUpdatingStatus: false,
     handleUpdateStatus,
     handleRefetch,
     signOut,

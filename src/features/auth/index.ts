@@ -10,6 +10,7 @@ export * from './model/login.schema';
 export * from './model/register.schema';
 export * from './model/use-login-view-model';
 export * from './model/use-register-view-model';
+export * from './model/operational-context';
 
 export * from './lib/normalize-auth-error';
 export * from './lib/jwt-helper';

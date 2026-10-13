@@ -75,7 +75,7 @@ export class BookingOperationEngine {
     await store.save(actorId, record);
     if (!isCurrentActorActive(actorId) || generation !== actorSessionGeneration()) {
       await store.save(actorId, { actorId, requestId: record.requestId, operation: record.operation,
-        resourceKind: record.resourceKind, status: 'uncertain', createdAt: record.createdAt });
+        resourceKind: record.resourceKind, originScope: record.originScope, status: 'uncertain', createdAt: record.createdAt });
       throw new Error('SESSION_CHANGED');
     }
   }
@@ -144,6 +144,7 @@ export class BookingOperationEngine {
       requestId,
       operation: operationName,
       resourceKind: 'BOOKING',
+      originScope: command.scope,
       status: 'reviewing',
       createdAt: timestampMs,
       payload: sanitizedPayload,
@@ -184,6 +185,7 @@ export class BookingOperationEngine {
         requestId,
         operation: getOperationNameForAction(command.action),
         resourceKind: 'BOOKING',
+        originScope: command.scope,
         status: 'submitting',
         createdAt: prepared.createdAt,
         payload: sanitizedPayload,
@@ -334,6 +336,7 @@ export class BookingOperationEngine {
           requestId,
           operation: getOperationNameForAction(command.action),
           resourceKind: 'BOOKING',
+          originScope: command.scope,
           status: 'confirmed',
           createdAt: prepared.createdAt,
           payload: sanitizedPayload,
@@ -359,6 +362,7 @@ export class BookingOperationEngine {
             requestId,
             operation: getOperationNameForAction(command.action),
             resourceKind: 'BOOKING',
+            originScope: command.scope,
             status: 'error',
             createdAt: prepared.createdAt,
             errorMessage: normalized.message,
@@ -378,6 +382,7 @@ export class BookingOperationEngine {
             requestId,
             operation: getOperationNameForAction(command.action),
             resourceKind: 'BOOKING',
+            originScope: command.scope,
             status: 'uncertain',
             createdAt: prepared.createdAt,
             payload: sanitizedPayload,
@@ -396,6 +401,7 @@ export class BookingOperationEngine {
           requestId,
           operation: getOperationNameForAction(command.action),
           resourceKind: 'BOOKING',
+          originScope: command.scope,
           status: 'error',
           createdAt: prepared.createdAt,
           errorMessage: normalized.message,
@@ -437,6 +443,10 @@ export class BookingOperationEngine {
       serverTime: rawResult.serverTime,
     };
 
+    const existing = await store.read(actorId, requestId);
+    const existingScope = existing?.originScope === 'UNIT' || existing?.originScope === 'PERSONAL' ? existing.originScope : undefined;
+    operationResult.originScope = existingScope;
+
     if (rawResult.state === 'APPLIED') {
       try {
         await this.saveInSession(store, actorId, generation, {
@@ -444,6 +454,7 @@ export class BookingOperationEngine {
           requestId,
           operation: rawResult.operation ?? 'BOOKING_OPERATION',
           resourceKind: 'BOOKING',
+          originScope: existingScope,
           status: 'confirmed',
           createdAt: Date.now(),
           result: operationResult,
@@ -458,6 +469,7 @@ export class BookingOperationEngine {
           requestId,
           operation: rawResult.operation ?? 'BOOKING_OPERATION',
           resourceKind: 'BOOKING',
+          originScope: existingScope,
           status: 'error',
           createdAt: Date.now(),
           result: operationResult,
@@ -498,6 +510,10 @@ export class BookingOperationEngine {
       serverTime: rawResult.serverTime,
     };
 
+    const existing = await store.read(actorId, requestId);
+    const existingScope = existing?.originScope === 'UNIT' || existing?.originScope === 'PERSONAL' ? existing.originScope : undefined;
+    operationResult.originScope = existingScope;
+
     if (rawResult.state === 'NOT_APPLIED' || rawResult.state === 'APPLIED') {
       try {
         await this.saveInSession(store, actorId, generation, {
@@ -505,6 +521,7 @@ export class BookingOperationEngine {
           requestId,
           operation: rawResult.operation ?? 'BOOKING_OPERATION',
           resourceKind: 'BOOKING',
+          originScope: existingScope,
           status: rawResult.state === 'APPLIED' ? 'confirmed' : 'error',
           createdAt: Date.now(),
           result: operationResult,

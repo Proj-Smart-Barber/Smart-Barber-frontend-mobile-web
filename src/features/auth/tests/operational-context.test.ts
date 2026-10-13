@@ -101,6 +101,7 @@ describe('Operational Context & Gates', () => {
           name: 'Filial 2',
           role: 'BARBERMAN',
           status: 'ACTIVE',
+          state: 'ACTIVE',
           timezone: 'America/Sao_Paulo',
         },
       ],
@@ -130,5 +131,69 @@ describe('Operational Context & Gates', () => {
     // 73 caracteres ASCII (73 bytes) -> inválido (> 72 bytes)
     const pass73 = 'a'.repeat(73);
     expect(validateNewPassword(pass73).isValid).toBe(false);
+  });
+
+  it('diferencia status da unidade de state do vínculo (falha fechado para vínculo não ativo)', () => {
+    // Unidade INACTIVE mas vínculo ACTIVE -> contexto existe com unitStatus: 'INACTIVE'
+    const inactiveUnitSnapshot: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-1',
+        name: 'Barbeiro',
+        email: 'barber@example.com',
+        accountType: 'BARBER',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+      },
+      memberships: [
+        {
+          id: 'shop-closed',
+          name: 'Barbearia Fechada',
+          role: 'BARBERMAN',
+          status: 'INACTIVE',
+          state: 'ACTIVE',
+          timezone: 'America/Sao_Paulo',
+        },
+      ],
+      selectedShopId: 'shop-closed',
+      revocationPending: false,
+      accessToken: 'token',
+    };
+
+    const ctx = getOperationalContext(inactiveUnitSnapshot);
+    expect(ctx).not.toBeNull();
+    expect(ctx?.unitStatus).toBe('INACTIVE');
+    expect(ctx?.role).toBe('BARBERMAN');
+
+    // Vínculo PENDING ou INACTIVE -> falha fechado (retorna null)
+    const pendingMembershipSnapshot: SessionSnapshot = {
+      ...inactiveUnitSnapshot,
+      memberships: [
+        {
+          id: 'shop-closed',
+          name: 'Barbearia Fechada',
+          role: 'BARBERMAN',
+          status: 'ACTIVE',
+          state: 'PENDING',
+          timezone: 'America/Sao_Paulo',
+        },
+      ],
+    };
+    expect(getOperationalContext(pendingMembershipSnapshot)).toBeNull();
+
+    // Vínculo sem state (undefined) -> falha fechado (retorna null, sem fallback automático)
+    const missingStateSnapshot: SessionSnapshot = {
+      ...inactiveUnitSnapshot,
+      memberships: [
+        {
+          id: 'shop-closed',
+          name: 'Barbearia Fechada',
+          role: 'BARBERMAN',
+          status: 'ACTIVE',
+          state: undefined,
+          timezone: 'America/Sao_Paulo',
+        },
+      ],
+    };
+    expect(getOperationalContext(missingStateSnapshot)).toBeNull();
   });
 });

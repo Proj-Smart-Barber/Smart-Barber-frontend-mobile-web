@@ -156,6 +156,28 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
             <Text variant="caption" color={colors.text.muted}>
               Escolha um ou mais serviços para o mesmo atendimento:
             </Text>
+            {flow.servicesError && (
+              <View
+                style={{
+                  backgroundColor: colors.surface.default,
+                  borderRadius: radius.md,
+                  padding: spacing[3],
+                  borderLeftWidth: 3,
+                  borderLeftColor: colors.feedback.error,
+                  gap: spacing[2],
+                }}
+              >
+                <Text variant="caption" color={colors.feedback.error}>
+                  {flow.servicesError}
+                </Text>
+                <Button
+                  title="Tentar Novamente"
+                  variant="ghost"
+                  onPress={() => flow.refetchServices()}
+                  style={{ minHeight: 36, alignSelf: 'flex-start' }}
+                />
+              </View>
+            )}
             {flow.services.map((service) => (
               <ServiceCard
                 key={service.id}
@@ -172,6 +194,28 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
             <Text variant="caption" color={colors.text.muted}>
               Selecione o profissional de sua preferência:
             </Text>
+            {flow.professionalsError && (
+              <View
+                style={{
+                  backgroundColor: colors.surface.default,
+                  borderRadius: radius.md,
+                  padding: spacing[3],
+                  borderLeftWidth: 3,
+                  borderLeftColor: colors.feedback.error,
+                  gap: spacing[2],
+                }}
+              >
+                <Text variant="caption" color={colors.feedback.error}>
+                  {flow.professionalsError}
+                </Text>
+                <Button
+                  title="Tentar Novamente"
+                  variant="ghost"
+                  onPress={() => flow.refetchProfessionals()}
+                  style={{ minHeight: 36, alignSelf: 'flex-start' }}
+                />
+              </View>
+            )}
             <ProfessionalPicker
               professionals={flow.professionals}
               selectedProfessionalId={flow.selectedProfessionalId}
@@ -183,6 +227,28 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
 
         {flow.step === 'SLOT' && (
           <ScrollView contentContainerStyle={{ gap: spacing[3], paddingBottom: 100 }}>
+            {flow.availabilityError && (
+              <View
+                style={{
+                  backgroundColor: colors.surface.default,
+                  borderRadius: radius.md,
+                  padding: spacing[3],
+                  borderLeftWidth: 3,
+                  borderLeftColor: colors.feedback.error,
+                  gap: spacing[2],
+                }}
+              >
+                <Text variant="caption" color={colors.feedback.error}>
+                  {flow.availabilityError}
+                </Text>
+                <Button
+                  title="Tentar Novamente"
+                  variant="ghost"
+                  onPress={() => flow.refetchAvailability()}
+                  style={{ minHeight: 36, alignSelf: 'flex-start' }}
+                />
+              </View>
+            )}
             <BookingSlotPicker
               timezone={flow.barbershop?.timezone}
               selectedDate={flow.selectedDate}
@@ -222,7 +288,14 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
           <BookingResult
             booking={flow.confirmedBooking}
             barbershopName={flow.barbershop?.name}
-            onReset={() => flow.goToStep('SERVICES')}
+            mode={flow.mode}
+            onReset={() => {
+              if (onExit) {
+                onExit();
+              } else {
+                flow.resetFlow();
+              }
+            }}
           />
         )}
 
@@ -230,7 +303,27 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
           <BookingRecovery
             requestId={flow.uncertainKey}
             onResolvedNotApplied={flow.resolveUncertainAttempt}
-            onResolvedApplied={() => router.replace('/(client)/bookings' as any)}
+            onResolvedApplied={(res) => {
+              if (res?.originScope === 'UNIT') {
+                const bookingData = res?.resource?.data?.booking;
+                const dateParam = bookingData?.date
+                  ? (typeof bookingData.date === 'string'
+                      ? bookingData.date.split('T')[0]
+                      : bookingData.date.toISOString().split('T')[0])
+                  : undefined;
+                router.replace({
+                  pathname: '/(app)/agenda' as any,
+                  params: {
+                    ...(bookingData?.barbershopId ? { shopId: bookingData.barbershopId } : {}),
+                    ...(dateParam ? { date: dateParam } : {}),
+                    ...(bookingData?.barbermanId ? { barbermanId: bookingData.barbermanId } : {}),
+                    ...(bookingData?.id ? { bookingId: bookingData.id } : {}),
+                  },
+                });
+              } else {
+                router.replace('/(client)/bookings' as any);
+              }
+            }}
           />
         )}
       </View>

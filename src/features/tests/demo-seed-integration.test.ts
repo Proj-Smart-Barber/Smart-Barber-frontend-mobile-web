@@ -15,7 +15,8 @@ describe('Demo Seed Frontend Integration Contracts', () => {
     global.fetch = async () =>
       new Response(
         JSON.stringify({
-          bookings: [
+          page: 1, limit: 100, total: 1, hasNext: false, serverTime: '2026-10-13T12:00:00Z',
+          items: [
             {
               id: 'horizonte-booking-1',
               barbershopId: 'horizonte-barbershop-id',
@@ -50,6 +51,7 @@ describe('Demo Seed Frontend Integration Contracts', () => {
       const appointments = await adapter.getTodayAppointments({
         role: 'OWNER',
         staffId: 'wellington-id',
+        shopId: 'horizonte-barbershop-id',
       });
 
       expect(appointments).toHaveLength(1);
@@ -63,6 +65,7 @@ describe('Demo Seed Frontend Integration Contracts', () => {
       const metrics = await adapter.getMetrics({
         role: 'OWNER',
         staffId: 'wellington-id',
+        shopId: 'horizonte-barbershop-id',
       });
       expect(metrics.totalAppointments).toBe(1);
       expect(metrics.totalRevenueInCents).toBe(4500);

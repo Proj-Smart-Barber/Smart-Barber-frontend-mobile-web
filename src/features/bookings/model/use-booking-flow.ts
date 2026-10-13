@@ -149,6 +149,25 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     return (professionalsQuery.data ?? []).find((p) => p.id === selectedProfessionalId) ?? null;
   }, [professionalsQuery.data, selectedProfessionalId]);
 
+  // Se a unidade mudar, reseta todas as seleções de serviços, profissional, slot e cliente
+  const prevShopIdRef = useRef<string>(shopId);
+  useEffect(() => {
+    if (prevShopIdRef.current !== shopId) {
+      prevShopIdRef.current = shopId;
+      setSelectedServiceIds([]);
+      setSelectedProfessionalId(mode === 'UNIT' && ownAgendaOnly && identity ? identity.id : null);
+      setSelectedDate(null);
+      setSelectedSlot(null);
+      setCustomer(null);
+      setConfirmedBooking(null);
+      setUncertainKey(null);
+      setErrorMessage(null);
+      setQuoteMismatch(false);
+      setAuthoritativeQuote(null);
+      setStep('SERVICES');
+    }
+  }, [shopId, mode, ownAgendaOnly, identity]);
+
   // Se BARBER operando em modo UNIT, fixa o profissional para ele mesmo
   useEffect(() => {
     if (mode === 'UNIT' && ownAgendaOnly && identity) {
@@ -369,6 +388,21 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     }
   }, [uncertainKey, identity]);
 
+  const resetFlow = useCallback(() => {
+    setSelectedServiceIds([]);
+    setSelectedProfessionalId(mode === 'UNIT' && ownAgendaOnly && identity ? identity.id : null);
+    setSelectedDate(null);
+    setSelectedSlot(null);
+    setCustomer(null);
+    setConfirmedBooking(null);
+    setStatus('reviewing');
+    setErrorMessage(null);
+    setQuoteMismatch(false);
+    setAuthoritativeQuote(null);
+    setUncertainKey(null);
+    setStep('SERVICES');
+  }, [mode, ownAgendaOnly, identity]);
+
   return {
     mode,
     step,
@@ -397,6 +431,12 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
       professionalsQuery.isLoading ||
       barbershopQuery.isLoading,
     isAvailabilityLoading: availabilityQuery.isLoading,
+    servicesError: servicesQuery.error ? ((servicesQuery.error as any)?.message || 'Falha ao carregar serviços.') : null,
+    professionalsError: professionalsQuery.error ? ((professionalsQuery.error as any)?.message || 'Falha ao carregar profissionais.') : null,
+    availabilityError: availabilityQuery.error ? ((availabilityQuery.error as any)?.message || 'Falha ao carregar horários disponíveis.') : null,
+    refetchServices: servicesQuery.refetch,
+    refetchProfessionals: professionalsQuery.refetch,
+    refetchAvailability: availabilityQuery.refetch,
     toggleService,
     selectProfessional,
     selectDate,
@@ -405,5 +445,6 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     goToStep,
     submitBooking,
     resolveUncertainAttempt,
+    resetFlow,
   };
 }

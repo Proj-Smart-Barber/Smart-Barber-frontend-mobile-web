@@ -21,6 +21,70 @@ export interface BookingActionConfirmProps {
   onSuccess: (updatedBooking: BookingDto) => void;
 }
 
+export function validateTimeBoundary(
+  booking: BookingDto,
+  actionType: BookingActionType,
+  scope: 'PERSONAL' | 'UNIT'
+): { allowed: boolean; message: string | null } {
+  let bookingStartMs: number | null = null;
+  try {
+    bookingStartMs = booking.startsAt ? Date.parse(booking.startsAt) : null;
+  } catch {
+    bookingStartMs = null;
+  }
+
+  const nowMs = serverClock.now();
+  if (nowMs === null || bookingStartMs === null || !Number.isFinite(bookingStartMs)) {
+    return {
+      allowed: false,
+      message: 'Aguardando sincronização de horário com o servidor.',
+    };
+  }
+  const diffMinutes = (bookingStartMs - nowMs) / (60 * 1000);
+
+  if (actionType === 'CANCEL') {
+    if (scope === 'PERSONAL') {
+      // Pessoal: até exatamente 2 horas (120 minutos) antes
+      if (diffMinutes < 120) {
+        return {
+          allowed: false,
+          message: 'O prazo limite para cancelamento pessoal (2 horas antes do início) já expirou.',
+        };
+      }
+    } else {
+      // Equipe: antes do início do atendimento
+      if (diffMinutes <= 0) {
+        return {
+          allowed: false,
+          message: 'Cancelamento pela equipe só é permitido antes do início do atendimento.',
+        };
+      }
+    }
+  }
+
+  if (actionType === 'COMPLETE') {
+    // Conclusão manual pela equipe após o início
+    if (diffMinutes > 0) {
+      return {
+        allowed: false,
+        message: 'A conclusão do atendimento só pode ser registrada após o horário de início.',
+      };
+    }
+  }
+
+  if (actionType === 'NO_SHOW') {
+    // Não comparecimento manual após 15 minutos do início
+    if (diffMinutes > -15) {
+      return {
+        allowed: false,
+        message: 'O registro de não comparecimento (No-Show) só é permitido após 15 minutos do horário agendado.',
+      };
+    }
+  }
+
+  return { allowed: true, message: null };
+}
+
 export function BookingActionConfirm({
   booking,
   actionType,
@@ -37,70 +101,31 @@ export function BookingActionConfirm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
-  // Validação temporal de fronteiras
+  // Validação temporal de fronteiras no momento da renderização
   const timeValidation = useMemo(() => {
-    let bookingStartMs: number | null = null;
-    try {
-      bookingStartMs = booking.startsAt ? Date.parse(booking.startsAt) : null;
-    } catch {
-      bookingStartMs = null;
-    }
-
-    const nowMs = serverClock.now();
-    if (nowMs === null || bookingStartMs === null || !Number.isFinite(bookingStartMs)) {
-      return {
-        allowed: false,
-        message: 'Aguardando sincronização de horário com o servidor.',
-      };
-    }
-    const diffMinutes = bookingStartMs ? (bookingStartMs - nowMs) / (60 * 1000) : 0;
-
-    if (actionType === 'CANCEL') {
-      if (scope === 'PERSONAL') {
-        // Pessoal: até exatamente 2 horas (120 minutos) antes
-        if (diffMinutes < 120) {
-          return {
-            allowed: false,
-            message: 'O prazo limite para cancelamento pessoal (2 horas antes do início) já expirou.',
-          };
-        }
-      } else {
-        // Equipe: antes do início do atendimento
-        if (diffMinutes <= 0) {
-          return {
-            allowed: false,
-            message: 'Cancelamento pela equipe só é permitido antes do início do atendimento.',
-          };
-        }
-      }
-    }
-
-    if (actionType === 'COMPLETE') {
-      // Conclusão manual pela equipe após o início
-      if (diffMinutes > 0) {
-        return {
-          allowed: false,
-          message: 'A conclusão do atendimento só pode ser registrada após o horário de início.',
-        };
-      }
-    }
-
-    if (actionType === 'NO_SHOW') {
-      // Não comparecimento manual após 15 minutos do início
-      if (diffMinutes > -15) {
-        return {
-          allowed: false,
-          message: 'O registro de não comparecimento (No-Show) só é permitido após 15 minutos do horário agendado.',
-        };
-      }
-    }
-
-    return { allowed: true, message: null };
+    return validateTimeBoundary(booking, actionType, scope);
   }, [booking, actionType, scope]);
 
   const handleExecuteAction = async () => {
-    if (!timeValidation.allowed) {
-      setErrorMessage(timeValidation.message);
+    // Revalidação dinâmica no exato momento da submissão (impede submissão caso o prazo tenha expirado com o modal aberto)
+    const currentValidation = validateTimeBoundary(booking, actionType, scope);
+    if (!currentValidation.allowed) {
+      setErrorMessage(currentValidation.message);
+      return;
+    }
+
+    // Não libera ação se a capability do agendamento não estiver estritamente autorizada
+    const capabilityAllowed =
+      actionType === 'CANCEL'
+        ? booking.capabilities?.cancel?.allowed === true
+        : actionType === 'COMPLETE'
+        ? booking.capabilities?.complete?.allowed === true
+        : actionType === 'NO_SHOW'
+        ? booking.capabilities?.noShow?.allowed === true
+        : false;
+
+    if (!capabilityAllowed) {
+      setErrorMessage('Esta ação não está autorizada para este agendamento.');
       return;
     }
 
@@ -108,7 +133,11 @@ export function BookingActionConfirm({
     setErrorMessage(null);
 
     const actorId = identity?.id;
-    if (!actorId || !booking.version) { setIsLoading(false); setErrorMessage('Atualize a sessão e a reserva antes de confirmar.'); return; }
+    if (!actorId || !booking.version) {
+      setIsLoading(false);
+      setErrorMessage('Atualize a sessão e a reserva antes de confirmar.');
+      return;
+    }
     const expectedVersion = booking.version;
 
     try {

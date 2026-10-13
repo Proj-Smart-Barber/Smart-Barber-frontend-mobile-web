@@ -58,5 +58,68 @@ describe('R1 — ServerClock', () => {
     expect(brokenClock.now()).toBeNull();
     expect(() => brokenClock.getRequiredNow()).toThrow();
   });
+
+  it('lease expira após 5 minutos monotônicos sem nova sincronização', () => {
+    let mono = 10000;
+    const baseTime = 1775900000000;
+    clock = new ServerClock(() => mono);
+    clock.syncWithServer(baseTime);
+
+    expect(clock.hasValidReference()).toBe(true);
+    expect(clock.now()).toBe(baseTime);
+
+    // Avança 4 minutos e 59 segundos (299_000 ms) -> ainda válido
+    mono += 299_000;
+    expect(clock.hasValidReference()).toBe(true);
+    expect(clock.now()).toBe(baseTime + 299_000);
+
+    // Avança mais 2 segundos (total 301_000 ms > 5 minutos = 300_000 ms) -> expirado
+    mono += 2_000;
+    expect(clock.hasValidReference()).toBe(false);
+    expect(clock.now()).toBeNull();
+    expect(() => clock.getRequiredNow()).toThrow('Lease do relógio do servidor expirado');
+  });
+
+  it('rejeita amostras fora de ordem/atrasadas e aceita nova amostra mais recente', () => {
+    let mono = 20000;
+    const baseTime = 1775900000000;
+    clock = new ServerClock(() => mono);
+
+    // Sincroniza em mono = 20000
+    const accepted1 = clock.syncWithServer(baseTime, { sampleMonotonicMs: 20000 });
+    expect(accepted1).toBe(true);
+    expect(clock.now()).toBe(baseTime);
+
+    // Tenta aplicar uma resposta antiga gerada em mono = 15000 (atrasada)
+    const acceptedOld = clock.syncWithServer(baseTime - 5000, { sampleMonotonicMs: 15000 });
+    expect(acceptedOld).toBe(false);
+    // Relógio preserva a calibração mais recente
+    expect(clock.now()).toBe(baseTime);
+
+    // Amostra mais nova gerada em mono = 25000 é aceita
+    mono = 25000;
+    const acceptedNew = clock.syncWithServer(baseTime + 5000, { sampleMonotonicMs: 25000 });
+    expect(acceptedNew).toBe(true);
+    expect(clock.now()).toBe(baseTime + 5000);
+  });
+
+  it('clear incrementa geração e rejeita amostra tardia de sessão anterior', () => {
+    const initialGen = clock.getGeneration();
+    expect(initialGen).toBe(0);
+
+    // Requisição iniciada na geração 0
+    const requestGen = clock.getGeneration();
+
+    // Sessão encerrada / logout / clear antes da resposta chegar
+    clock.clear();
+    expect(clock.getGeneration()).toBe(1);
+
+    // Resposta tardia chega tentando sincronizar com a geração capturada no início
+    const acceptedTardy = clock.syncWithServer(1775900000000, {
+      expectedGeneration: requestGen,
+    });
+    expect(acceptedTardy).toBe(false);
+    expect(clock.hasValidReference()).toBe(false);
+  });
 });
 

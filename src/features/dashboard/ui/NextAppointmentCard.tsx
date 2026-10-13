@@ -11,6 +11,7 @@ import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/das
 interface NextAppointmentCardProps {
   appointment: DashboardAppointment | null;
   isLoading?: boolean;
+  isIndeterminate?: boolean;
   isUpdating?: boolean;
   onUpdateStatus: (id: string, status: AppointmentStatus) => void;
 }
@@ -18,6 +19,7 @@ interface NextAppointmentCardProps {
 export function NextAppointmentCard({
   appointment,
   isLoading = false,
+  isIndeterminate = false,
   isUpdating = false,
   onUpdateStatus,
 }: NextAppointmentCardProps) {
@@ -56,30 +58,34 @@ export function NextAppointmentCard({
       >
         <Ionicons name="calendar-outline" size={32} color={colors.text.muted} />
         <Text variant="subhead" weight="bold" color={colors.text.primary} align="center">
-          Nenhum agendamento pendente no momento
+          {isIndeterminate ? 'Agenda parcialmente consultada' : 'Nenhum agendamento pendente no momento'}
         </Text>
         <Text variant="bodySm" color={colors.text.secondary} align="center">
-          Não há atendimentos na fila imediata para este turno. Consulte a agenda para conferir outros horários.
+          {isIndeterminate ? 'Abra a Agenda para consultar os horários restantes.' : 'Não há atendimentos na fila imediata para este turno. Consulte a agenda para conferir outros horários.'}
         </Text>
       </LiquidGlassView>
     );
   }
 
   const handleOpenAgenda = () => {
-    router.push('/(app)/agenda' as any);
+    router.push({
+      pathname: '/(app)/agenda' as any,
+      params: {
+        ...(appointment.date ? { date: appointment.date } : {}),
+        ...(appointment.barbermanId ? { barbermanId: appointment.barbermanId } : {}),
+      },
+    });
   };
 
-  const handleCancel = async () => {
-    const confirmed = await confirmDestructiveAction({
-      title: 'Cancelar agendamento',
-      message: `Deseja realmente cancelar o agendamento de ${appointment.customerName} às ${appointment.scheduledTime}?`,
-      confirmLabel: 'Sim, cancelar',
-      cancelLabel: 'Manter',
+  const handleManage = () => {
+    router.push({
+      pathname: '/(app)/agenda' as any,
+      params: {
+        ...(appointment.date ? { date: appointment.date } : {}),
+        ...(appointment.barbermanId ? { barbermanId: appointment.barbermanId } : {}),
+        bookingId: appointment.id,
+      },
     });
-
-    if (confirmed) {
-      onUpdateStatus(appointment.id, 'CANCELLED');
-    }
   };
 
   const handleWhatsApp = () => {
@@ -131,7 +137,7 @@ export function NextAppointmentCard({
             </Text>
           </View>
           <Text variant="caption" color={colors.text.muted}>
-            ({appointment.durationMinutes} min)
+            {appointment.durationMinutes === null ? '(Duração a confirmar)' : `(${appointment.durationMinutes} min)`}
           </Text>
         </View>
 
@@ -209,17 +215,14 @@ export function NextAppointmentCard({
             ) : null}
 
             <Button
-              title="Cancelar"
+              title="Gerenciar"
               variant="outline"
-              loading={isUpdating}
-              disabled={isUpdating}
-              leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
-              textStyle={{ color: colors.feedback.error }}
-              onPress={() => void handleCancel()}
+              leftIcon={<Ionicons name="options-outline" size={18} color={colors.text.primary} />}
+              textStyle={{ color: colors.text.primary }}
+              onPress={handleManage}
               style={{
                 flex: 1,
                 minHeight: 48,
-                borderColor: colors.feedback.error,
               }}
             />
           </View>
@@ -247,16 +250,13 @@ export function NextAppointmentCard({
             ) : null}
 
             <Button
-              title="Cancelar"
+              title="Gerenciar"
               variant="outline"
-              loading={isUpdating}
-              disabled={isUpdating}
-              leftIcon={<Ionicons name="close-circle-outline" size={18} color={colors.feedback.error} />}
-              textStyle={{ color: colors.feedback.error }}
-              onPress={() => void handleCancel()}
+              leftIcon={<Ionicons name="options-outline" size={18} color={colors.text.primary} />}
+              textStyle={{ color: colors.text.primary }}
+              onPress={handleManage}
               style={{
                 minHeight: 48,
-                borderColor: colors.feedback.error,
               }}
             />
           </>

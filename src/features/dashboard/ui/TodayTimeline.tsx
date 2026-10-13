@@ -121,7 +121,16 @@ export function TodayTimeline({
                 key={item.id}
                 accessibilityRole="button"
                 accessibilityLabel={`Atendimento de ${item.customerName} às ${item.scheduledTime}. Toque para abrir na agenda.`}
-                onPress={handleOpenAgenda}
+                onPress={() => {
+                  router.push({
+                    pathname: '/(app)/agenda' as any,
+                    params: {
+                      ...(item.date ? { date: item.date } : {}),
+                      ...(item.barbermanId ? { barbermanId: item.barbermanId } : {}),
+                      bookingId: item.id,
+                    },
+                  });
+                }}
                 style={({ pressed }) => [
                   styles.previewItemCard,
                   {

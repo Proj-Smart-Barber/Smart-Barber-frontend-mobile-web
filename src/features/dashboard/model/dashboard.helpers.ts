@@ -16,8 +16,9 @@ export function getGreetingByHour(hour: number): string {
 /**
  * Formata valor em centavos para moeda corrente BRL
  */
-export function formatCurrency(cents: number): string {
-  const value = (cents || 0) / 100;
+export function formatCurrency(cents: number | null): string {
+  if (cents === null || !Number.isFinite(cents)) return 'A confirmar';
+  const value = cents / 100;
   return value
     .toLocaleString('pt-BR', {
       style: 'currency',
@@ -43,6 +44,8 @@ export function mapStatusLabel(status: AppointmentStatus): string {
       return 'Cancelado';
     case 'NO_SHOW':
       return 'Não compareceu';
+    case 'UNKNOWN':
+      return 'Status desconhecido';
     default:
       return status;
   }
@@ -53,7 +56,7 @@ export function mapStatusLabel(status: AppointmentStatus): string {
  */
 export function mapStatusBadgeTone(
   status: AppointmentStatus,
-): 'brand' | 'success' | 'successAlt' | 'warning' | 'error' | 'info' {
+): 'brand' | 'success' | 'successAlt' | 'warning' | 'error' | 'info' | 'neutral' {
   switch (status) {
     case 'COMPLETED':
       return 'success';
@@ -66,6 +69,8 @@ export function mapStatusBadgeTone(
     case 'CANCELLED':
     case 'NO_SHOW':
       return 'error';
+    case 'UNKNOWN':
+      return 'neutral';
     default:
       return 'brand';
   }

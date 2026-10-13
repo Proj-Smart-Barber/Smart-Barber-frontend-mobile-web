@@ -101,7 +101,8 @@ export async function fetchMyBookings(
 
 export async function fetchUnitBookings(
   shopId: string,
-  params?: FetchUnitBookingsParams
+  params?: FetchUnitBookingsParams,
+  options?: { skipAutoSyncClock?: boolean; sampleMonotonicMs?: number; expectedGeneration?: number }
 ): Promise<FetchUnitBookingsResponse> {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.set('page', String(params.page));
@@ -115,18 +116,50 @@ export async function fetchUnitBookings(
     ? `/api/barbershops/${shopId}/bookings?${query}`
     : `/api/barbershops/${shopId}/bookings`;
 
+  const sampleMonotonicMs =
+    typeof options?.sampleMonotonicMs === 'number'
+      ? options.sampleMonotonicMs
+      : typeof performance !== 'undefined'
+      ? performance.now()
+      : Date.now();
+  const expectedGeneration = options?.expectedGeneration ?? serverClock.getGeneration();
+
   const response = await httpClient.get<FetchUnitBookingsResponse>(url);
   const parsed = fetchUnitBookingsResponseSchema.parse(response);
-  if (parsed.serverTime && Number.isFinite(Date.parse(parsed.serverTime))) serverClock.syncWithServer(parsed.serverTime);
+  if (!options?.skipAutoSyncClock && parsed.serverTime && Number.isFinite(Date.parse(parsed.serverTime))) {
+    try {
+      serverClock.syncWithServer(parsed.serverTime, { sampleMonotonicMs, expectedGeneration });
+    } catch {
+      // Falha fechado sem quebrar o retorno do payload
+    }
+  }
   return parsed;
 }
 
-export async function getBookingById(bookingId: string, scope: 'PERSONAL' | 'UNIT' = 'PERSONAL'): Promise<BookingDto> {
+export async function getBookingById(
+  bookingId: string,
+  scope: 'PERSONAL' | 'UNIT' = 'PERSONAL',
+  options?: { skipAutoSyncClock?: boolean; sampleMonotonicMs?: number; expectedGeneration?: number }
+): Promise<BookingDto> {
+  const sampleMonotonicMs =
+    typeof options?.sampleMonotonicMs === 'number'
+      ? options.sampleMonotonicMs
+      : typeof performance !== 'undefined'
+      ? performance.now()
+      : Date.now();
+  const expectedGeneration = options?.expectedGeneration ?? serverClock.getGeneration();
+
   const response = await httpClient.get<{ booking: BookingDto }>(
     `/api/bookings/${bookingId}`, { params: { scope } }
   );
   const booking = bookingDtoSchema.parse(response.booking);
-  if (booking.serverTime && Number.isFinite(Date.parse(booking.serverTime))) serverClock.syncWithServer(booking.serverTime);
+  if (!options?.skipAutoSyncClock && booking.serverTime && Number.isFinite(Date.parse(booking.serverTime))) {
+    try {
+      serverClock.syncWithServer(booking.serverTime, { sampleMonotonicMs, expectedGeneration });
+    } catch {
+      // Falha fechado sem quebrar o retorno do payload
+    }
+  }
   return booking;
 }
 

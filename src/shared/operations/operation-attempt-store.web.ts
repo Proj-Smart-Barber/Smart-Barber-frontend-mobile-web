@@ -87,6 +87,7 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
           requestId: parsed.requestId,
           operation: parsed.operation,
           resourceKind: parsed.resourceKind,
+          originScope: parsed.originScope,
           status: parsed.status,
           createdAt: parsed.createdAt,
         };
@@ -114,6 +115,7 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
       requestId: attempt.requestId,
       operation: attempt.operation,
       resourceKind: attempt.resourceKind,
+      originScope: attempt.originScope,
       status: attempt.status,
       createdAt: attempt.createdAt || Date.now(),
       errorMessage: attempt.errorMessage ?? null,
@@ -205,6 +207,7 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
                 requestId: parsed.requestId,
                 operation: parsed.operation,
                 resourceKind: parsed.resourceKind,
+                originScope: parsed.originScope,
                 status: parsed.status,
                 createdAt: parsed.createdAt,
               });
@@ -288,6 +291,7 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
             requestId: parsed.requestId,
             operation: parsed.operation,
             resourceKind: parsed.resourceKind,
+            originScope: parsed.originScope,
             status: parsed.status,
             createdAt: parsed.createdAt,
           };
