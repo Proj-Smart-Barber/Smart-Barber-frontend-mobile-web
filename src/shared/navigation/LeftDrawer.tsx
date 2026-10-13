@@ -305,6 +305,15 @@ export function LeftDrawer() {
               isActive={activeDestination === 'agenda'}
               onPress={() => handleNavigate('/(app)/agenda')}
             />
+            {!isOwner ? (
+              <DrawerMenuItem
+                label="Atendimentos"
+                icon="briefcase-outline"
+                activeIcon="briefcase"
+                isActive={activeDestination === 'bookings'}
+                onPress={() => handleNavigate('/(app)/bookings')}
+              />
+            ) : null}
             <DrawerMenuItem
               label="Horários"
               icon="time-outline"

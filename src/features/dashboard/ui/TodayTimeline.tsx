@@ -30,16 +30,27 @@ export function TodayTimeline({
       {/* Cabeçalho da Seção com Link Rápido */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: isCompact ? 'column' : 'row',
+          alignItems: isCompact ? 'stretch' : 'center',
           justifyContent: 'space-between',
+          gap: isCompact ? spacing[1] : spacing[3],
         }}
       >
-        <View style={{ gap: 2 }}>
-          <Text variant="subhead" weight="bold" color={colors.text.primary}>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text
+            variant="subhead"
+            weight="bold"
+            color={colors.text.primary}
+            numberOfLines={1}
+          >
             Próximos da Fila
           </Text>
-          <Text variant="caption" color={colors.text.muted}>
+          <Text
+            variant="caption"
+            color={colors.text.muted}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
             Prévia dos próximos horários agendados
           </Text>
         </View>
@@ -53,6 +64,8 @@ export function TodayTimeline({
             styles.linkButton,
             {
               opacity: pressed ? 0.7 : 1,
+              minHeight: 44,
+              alignSelf: isCompact ? 'flex-end' : 'auto',
             },
           ]}
         >
@@ -210,7 +223,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: 8,
     justifyContent: 'center',
   },

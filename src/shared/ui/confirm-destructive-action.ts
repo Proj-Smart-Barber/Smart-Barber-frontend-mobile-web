@@ -8,7 +8,7 @@ interface ConfirmDestructiveActionOptions {
 }
 
 /**
- * Confirmação para ações irreversíveis da Agenda.
+ * Confirmação para ações irreversíveis.
  *
  * No nativo usa `Alert.alert` com botão destrutivo; na Web o `Alert` do
  * react-native-web não exibe diálogo, então usamos `window.confirm`.

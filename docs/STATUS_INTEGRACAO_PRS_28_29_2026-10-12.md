@@ -96,6 +96,36 @@ Base: `origin/main` (`6a17846bb792fa5e6e039ebcbe1da41573e3fa01`)
   - `src/features/bookings/tests/booking-cache-invalidation.test.ts` (2 testes PASS).
   - Suíte completa de bookings: 15 arquivos, 81 testes PASS (exit code 0).
   - Typecheck frontend: `tsc --noEmit` exit code 0.
-- **Próxima Ação:** Bloco 3 / Tarefa I5 — Importar Apresentação de Atendimentos do PR #28 sem Endpoints Obsoletos.
+---
+
+## Checkpoint I5 — Importar Apresentação de Atendimentos sem Endpoints Obsoletos
+
+- **Status:** CONCLUÍDO
+- **Ações executadas:**
+  - Realizado merge local isolado da branch de apresentação do PR #28 (`origin/update-booking-schedule`).
+  - Resolvido conflito de merge em `src/features/bookings/index.ts`, garantindo exports explícitos e eliminando a colisão de tipos (`BookingCustomer`).
+  - Eliminados os erros TS2305 ("três hooks ausentes") ao refatorar `use-bookings-view-model.ts`:
+    - Consome `useSession` e contexto operacional (`userId`, `shopId`, `role`, `timezone`).
+    - Consulta reativa via React Query com `bookingQueryKeys.unitBookings(shopId, ...)` e `fetchUnitBookings(shopId, ...)`.
+    - Mutação de remarcação e cancelamento delegadas diretamente a `bookingOperationEngine` (`prepare` + `submit`), passando `expectedVersion` e `scope: 'UNIT'`.
+    - Invalidação de queries via `invalidateBookingQueries`.
+  - Refatorado `BookingsHttpAdapter` em `src/features/bookings/api/bookings.http.ts`:
+    - Eliminado completamente o endpoint obsoleto `/update`, delegando a `rescheduleBooking` (PATCH `/api/bookings/:bookingId/reschedule`).
+    - Delegado cancelamento a `cancelBooking` (DELETE `/api/bookings/:bookingId/cancel`).
+  - Atualizado `src/features/bookings/ui/BookingManageCard.tsx`:
+    - Respeita `capabilities?.reschedule?.allowed` e `capabilities?.cancel?.allowed`.
+    - Valores desconhecidos exibem incompletude (`—`), não `0` ou `R$ 0,00`.
+    - Validação de telefone para WhatsApp: exige telefone brasileiro válido (10 a 11 dígitos), evitando links para números vazios ou inválidos.
+  - Atualizados testes de HTTP e criados novos testes contratuais:
+    - `src/features/bookings/tests/bookings.http.test.ts` (7 testes PASS).
+    - `src/features/bookings/tests/compute-end-time.test.ts` (11 testes PASS).
+    - `src/features/bookings/tests/normalize-bookings-error.test.ts` (7 testes PASS).
+    - `src/features/bookings/tests/bookings-view-model.test.ts` (3 testes PASS).
+    - `src/features/bookings/tests/bookings-management-contract.test.ts` (2 testes PASS).
+- **Testes implementados e validados:**
+  - Suíte completa de bookings: 20 arquivos, 111 testes PASS (exit code 0).
+  - Typecheck frontend: `tsc --noEmit` exit code 0.
+- **Próxima Ação:** Bloco 4 / Tarefa I6 — Rotas e navegação por perfil (criar `/atendimentos`, isolar de `/bookings` pessoal).
+
 
 

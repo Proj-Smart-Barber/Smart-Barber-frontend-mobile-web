@@ -15,3 +15,4 @@ export * from './BootstrapScreen';
 export * from './OperationStatus';
 export * from './SegmentedFilter';
 export * from './Toast';
+export * from './confirm-destructive-action';

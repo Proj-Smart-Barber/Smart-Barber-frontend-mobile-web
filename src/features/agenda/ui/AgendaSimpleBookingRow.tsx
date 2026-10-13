@@ -2,11 +2,10 @@ import React from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
-import { Card, Text } from '@/shared/ui';
+import { Card, Text, confirmDestructiveAction } from '@/shared/ui';
 import type { AgendaBooking } from '../api/agenda.contract';
 import { formatClockRange, formatDurationMinutes, minutesBetween } from '../model/agenda.helpers';
 import { AgendaActionButton } from './AgendaActionButton';
-import { confirmDestructiveAction } from './confirm-destructive-action';
 
 interface AgendaSimpleBookingRowProps {
   booking: AgendaBooking;

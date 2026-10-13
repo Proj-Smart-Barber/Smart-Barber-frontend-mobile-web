@@ -22,6 +22,11 @@ describe('Navigation Helpers', () => {
       expect(getActiveDestinationFromPathname('/(app)/agenda')).toBe('agenda');
     });
 
+    it('deve identificar rota de atendimentos do barbeiro', () => {
+      expect(getActiveDestinationFromPathname('/bookings')).toBe('bookings');
+      expect(getActiveDestinationFromPathname('/(app)/bookings')).toBe('bookings');
+    });
+
     it('deve identificar rota de horários / disponibilidade', () => {
       expect(getActiveDestinationFromPathname('/availability')).toBe('availability');
       expect(getActiveDestinationFromPathname('/(app)/availability')).toBe('availability');
