@@ -143,7 +143,7 @@ export function useBookingsViewModel() {
         barbermanId: dto.barbermanId,
         createdAt: dto.createdAt ? String(dto.createdAt) : null,
         status: dto.status ?? null,
-        version: dto.version ?? 1,
+        version: dto.version ?? null,
         startsAt: dto.startsAt ?? null,
         endsAt: dto.endsAt ?? null,
         timezone: dto.timezone ?? null,
@@ -243,7 +243,10 @@ export function useBookingsViewModel() {
       setUpdatingBookingId(input.bookingId);
       try {
         const currentItem = dayQuery.data?.items.find((b) => b.id === input.bookingId);
-        const expectedVersion = currentItem?.version ?? 1;
+        const expectedVersion = currentItem?.version;
+        if (!expectedVersion || expectedVersion < 1) {
+          throw new Error('Atualize a lista antes de remarcar este agendamento.');
+        }
 
         const prep = await bookingOperationEngine.prepare({
           action: 'RESCHEDULE',
@@ -299,7 +302,10 @@ export function useBookingsViewModel() {
       setCancellingId(bookingId);
       try {
         const currentItem = dayQuery.data?.items.find((b) => b.id === bookingId);
-        const expectedVersion = currentItem?.version ?? 1;
+        const expectedVersion = currentItem?.version;
+        if (!expectedVersion || expectedVersion < 1) {
+          throw new Error('Atualize a lista antes de cancelar este agendamento.');
+        }
 
         const prep = await bookingOperationEngine.prepare({
           action: 'CANCEL',

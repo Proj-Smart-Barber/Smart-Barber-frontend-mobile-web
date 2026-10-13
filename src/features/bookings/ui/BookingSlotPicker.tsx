@@ -37,16 +37,6 @@ function formatDayNumber(dateStr: string): string {
   }
 }
 
-function extractTimeFromIso(isoStr: string): string {
-  try {
-    // Ex: "2026-10-15T09:30:00-03:00" -> "09:30"
-    const match = isoStr.match(/T(\d{2}:\d{2})/);
-    return match ? match[1] : isoStr.substring(11, 16);
-  } catch {
-    return '00:00';
-  }
-}
-
 export function BookingSlotPicker({
   timezone,
   selectedDate,
@@ -71,6 +61,10 @@ export function BookingSlotPicker({
     }
     return dates;
   }, []);
+
+  if (!timezone) {
+    return <EmptyState title="Horários indisponíveis" description="Não foi possível identificar o fuso da barbearia. Atualize a página e tente novamente." />;
+  }
 
   return (
     <View style={{ gap: spacing[4] }}>
@@ -153,7 +147,7 @@ export function BookingSlotPicker({
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] }}>
             {availabilitySlots.map((slot) => {
-              const timeFormatted = formatSlotTime(slot.start, timezone!);
+              const timeFormatted = formatSlotTime(slot.start, timezone);
               const isSelected = selectedSlot?.slotStartAt === slot.start;
 
               return (
