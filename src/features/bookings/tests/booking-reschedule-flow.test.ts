@@ -18,7 +18,7 @@ describe('I4 — Fluxo de Remarcação e Isolamento de Operação (booking-resch
     date: '2026-10-15',
     startTime: '10:00',
     endTime: '10:30',
-    status: 'CONFIRMED',
+    status: 'CONFIRMED', capabilities: { cancel: { allowed: true }, reschedule: { allowed: true } },
     version: 3,
     services: [{ id: 'srv-1', title: 'Corte', priceInCents: 5000, durationInMinutes: 30 }],
     customer: { id: 'cust-99', name: 'Cliente Original', phoneNumber: '11999999999' },
@@ -108,7 +108,7 @@ describe('I4 — Fluxo de Remarcação e Isolamento de Operação (booking-resch
     // 1. Barbeiro tentando gerenciar sua própria reserva: permitido
     const contextSelf = resolveBookingContext({
       actorId: 'barber-1',
-      selectedMembership: { shopId: 'shop-alpha', role: 'BARBER', status: 'ACTIVE' },
+      selectedMembership: { shopId: 'shop-alpha', role: 'BARBER', status: 'ACTIVE', state: 'ACTIVE' },
       booking: mockOriginalBooking,
       requestedScope: 'UNIT',
     });
@@ -119,7 +119,7 @@ describe('I4 — Fluxo de Remarcação e Isolamento de Operação (booking-resch
     // 2. Barbeiro tentando acessar e transferir reserva de outro barbeiro: negado
     const contextOther = resolveBookingContext({
       actorId: 'barber-2',
-      selectedMembership: { shopId: 'shop-alpha', role: 'BARBER', status: 'ACTIVE' },
+      selectedMembership: { shopId: 'shop-alpha', role: 'BARBER', status: 'ACTIVE', state: 'ACTIVE' },
       booking: mockOriginalBooking, // atribuída a barber-1
       requestedScope: 'UNIT',
     });

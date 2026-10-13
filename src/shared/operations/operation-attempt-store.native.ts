@@ -93,6 +93,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
       if (attempt.resourceKind === 'BOOKING') {
         const p = attempt.payload;
         const cleanPayload: Record<string, any> = {
+          schemaVersion: p.schemaVersion, action: p.action, bookingId: p.bookingId, expectedVersion: p.expectedVersion, referenceOnly: p.referenceOnly,
           serviceIds: Array.isArray(p.serviceIds)
             ? [...p.serviceIds]
             : p.serviceId
@@ -224,7 +225,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
             } else {
               keysToSanitize.push(key);
             }
-          } catch {
+          } catch (error) {
             keysToRemove.push(key);
           }
         }
@@ -248,14 +249,13 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
               createdAt: parsed.createdAt,
             };
             await AsyncStorage.setItem(key, JSON.stringify(opaqueRef));
-          } catch {
-            await AsyncStorage.removeItem(key);
+          } catch (error) {
+            // A failed write must not erase the only reference to a possibly committed operation.
+            throw error;
           }
         }
       }
-    } catch {
-      // Falha fechado
-    }
+    } catch (error) { throw error; }
   }
 
   async clearAllForActor(actorId: string): Promise<void> {
@@ -273,3 +273,5 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
     }
   }
 }
+export const operationAttemptStore: OperationAttemptStore = new NativeOperationAttemptStore();
+export function createOperationAttemptStore(): OperationAttemptStore { return new NativeOperationAttemptStore(); }

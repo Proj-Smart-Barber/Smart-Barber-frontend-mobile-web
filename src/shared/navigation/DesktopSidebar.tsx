@@ -12,6 +12,9 @@ import { useNavigation } from './navigation-context';
 import type { AppDestination } from './navigation.types';
 
 export function DesktopSidebar() {
+  const unitSession = useSession();
+  const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+    m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const router = useRouter();
   const { staff, barbershop, isOwner, signOut } = useSession();
@@ -156,7 +159,7 @@ export function DesktopSidebar() {
               isActive={activeDestination === 'agenda'}
               onPress={() => handleNavigate('/(app)/agenda')}
             />
-            {!isOwner ? (
+            {canManageBookings ? (
               <SidebarItem
                 label="Atendimentos"
                 icon="briefcase-outline"

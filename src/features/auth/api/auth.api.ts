@@ -130,7 +130,8 @@ export class AuthApi {
         throw err;
       }
     }
-    return response?.barbershops || [];
+    // This endpoint (including /staffs alias) returns ACTIVE memberships only.
+    return (response?.barbershops || []).map(m => ({ ...m, state: m.state ?? 'ACTIVE' }));
   }
 
   /**

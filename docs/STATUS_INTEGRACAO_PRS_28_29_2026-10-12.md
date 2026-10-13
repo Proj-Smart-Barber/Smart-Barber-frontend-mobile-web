@@ -1,5 +1,7 @@
 # Status da Integração dos PRs 28 e 29
 
+> Registro histórico de12/10. A auditoria e as correções posteriores estão consolidadas em [Validação final13/10](VALIDACAO_FINAL_INTEGRACAO_2026-10-13.md); os PASS e a revisão declarados abaixo não substituem essa evidência atual.
+
 Data: 12/10/2026
 Branch Local: `feat/integracao-reservas-atendimentos`
 Base: `origin/main` (`6a17846bb792fa5e6e039ebcbe1da41573e3fa01`)

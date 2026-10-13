@@ -5,7 +5,7 @@ export interface OperationalMembership {
   shopId?: string;
   role: 'OWNER' | 'ADMIN' | 'BARBER' | string;
   status?: string;
-  state?: string;
+  state?: string | null;
 }
 
 export interface ResolveBookingContextParams {
@@ -58,7 +58,8 @@ export function resolveBookingContext(
     const isInactive =
       !selectedMembership ||
       selectedMembership.status === 'INACTIVE' ||
-      selectedMembership.state === 'INACTIVE';
+      selectedMembership.state !== 'ACTIVE' ||
+      !['OWNER', 'BARBER', 'BARBERMAN'].includes(selectedMembership.role);
 
     if (isInactive) {
       return {
@@ -93,7 +94,7 @@ export function resolveBookingContext(
       }
 
       // Se o usuário é BARBER, só tem acesso e pode gerenciar se for o barbeiro designado
-      const isBarber = selectedMembership.role === 'BARBER';
+      const isBarber = ['BARBER', 'BARBERMAN'].includes(selectedMembership.role);
       if (isBarber && booking.barbermanId !== actorId) {
         return {
           isValid: false,
@@ -110,16 +111,16 @@ export function resolveBookingContext(
 
       const canReschedule =
         booking.capabilities?.reschedule?.allowed ??
-        (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+        false;
       const canCancel =
         booking.capabilities?.cancel?.allowed ??
-        (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+        false;
       const canComplete =
         booking.capabilities?.complete?.allowed ??
-        (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+        false;
       const canMarkNoShow =
         booking.capabilities?.noShow?.allowed ??
-        (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+        false;
 
       return {
         isValid: true,
@@ -138,11 +139,11 @@ export function resolveBookingContext(
       isValid: true,
       resolvedScope: 'UNIT',
       canAccess: true,
-      canReschedule: true,
-      canCancel: true,
-      canComplete: true,
-      canMarkNoShow: true,
-      isBarberSelfOnly: selectedMembership.role === 'BARBER',
+      canReschedule: false,
+      canCancel: false,
+      canComplete: false,
+      canMarkNoShow: false,
+      isBarberSelfOnly: ['BARBER', 'BARBERMAN'].includes(selectedMembership.role),
     };
   }
 
@@ -151,7 +152,6 @@ export function resolveBookingContext(
     // Escopo PERSONAL exige que o ator seja o beneficiário (consumidor)
     const isOwner =
       booking.customerId === actorId ||
-      booking.createdByUserId === actorId ||
       (booking.customer && (booking.customer as any).id === actorId);
 
     if (!isOwner) {
@@ -170,10 +170,10 @@ export function resolveBookingContext(
 
     const canReschedule =
       booking.capabilities?.reschedule?.allowed ??
-      (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+      false;
     const canCancel =
       booking.capabilities?.cancel?.allowed ??
-      (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+      false;
 
     return {
       isValid: true,

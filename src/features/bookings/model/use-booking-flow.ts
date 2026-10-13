@@ -38,7 +38,9 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   } = options;
 
   const queryClient = useQueryClient();
-  const { identity, status: sessionStatus } = useSession();
+  const { identity, status: sessionStatus, memberships, selectedShopId } = useSession();
+  const operationalMember = memberships.find(m => m.id === selectedShopId && m.id === shopId && m.state === 'ACTIVE');
+  const ownAgendaOnly = operationalMember?.role === 'BARBERMAN';
 
   // Passos do fluxo
   const [step, setStep] = useState<BookingFlowStep>(
@@ -149,10 +151,10 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
 
   // Se BARBER operando em modo UNIT, fixa o profissional para ele mesmo
   useEffect(() => {
-    if (mode === 'UNIT' && identity?.accountType === 'BARBER') {
+    if (mode === 'UNIT' && ownAgendaOnly && identity) {
       setSelectedProfessionalId(identity.id);
     }
-  }, [mode, identity]);
+  }, [mode, identity, ownAgendaOnly]);
 
   // Ações de seleção com invalidação de dependências posteriores
   const toggleService = useCallback((serviceId: string) => {
@@ -199,6 +201,9 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
 
   // Submissão do agendamento
   const submitBooking = useCallback(async () => {
+    if (mode === 'UNIT' && (!operationalMember || !['OWNER', 'BARBERMAN'].includes(operationalMember.role) || (ownAgendaOnly && selectedProfessionalId !== identity?.id))) {
+      setErrorMessage('Vínculo ou profissional incompatível com a unidade selecionada.'); return;
+    }
     if (isSubmittingRef.current) return;
     if (selectedServices.length === 0) {
       setErrorMessage('Selecione ao menos um serviço.');
@@ -217,6 +222,8 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
       return;
     }
 
+    if (uncertainKey) { setStep('UNCERTAIN'); return; }
+    if (!identity?.id) { setErrorMessage('Entre para confirmar o agendamento.'); return; }
     isSubmittingRef.current = true;
     setStatus('submitting');
     setErrorMessage(null);
@@ -232,6 +239,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
         return;
       }
 
+      if (bookingId && !options.initialBooking?.version) throw new Error('Atualize a reserva antes de remarcar.');
       let result: BookingDto;
       const isRescheduling = Boolean(bookingId || options.flowMode === 'RESCHEDULE');
 
@@ -241,12 +249,13 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
         }
         const prepared = await bookingOperationEngine.prepare({
           action: 'RESCHEDULE',
-          actorId: identity?.id || 'guest-draft',
+          actorId: identity.id,
           scope: mode,
           bookingId,
-          expectedVersion: options.initialBooking?.version ?? 1,
+          expectedVersion: options.initialBooking?.version!,
           date: selectedDate,
           startTime: selectedSlot.startTime,
+          slotStartAt: selectedSlot.slotStartAt,
           barbermanId: selectedProfessionalId ?? undefined,
           serviceIds: selectedServiceIds,
           expectedTotalPriceInCents: totalPriceInCents,
@@ -262,7 +271,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
       } else {
         const prepared = await bookingOperationEngine.prepare({
           action: 'CREATE',
-          actorId: identity?.id || 'guest-draft',
+          actorId: identity.id,
           scope: mode,
           shopId,
           customerId: customer?.id,
@@ -270,6 +279,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
           barbermanId: selectedProfessionalId!,
           date: selectedDate,
           startTime: selectedSlot.startTime,
+          slotStartAt: selectedSlot.slotStartAt,
           expectedTotalPriceInCents: totalPriceInCents,
           expectedDurationInMinutes: totalDurationInMinutes,
         });
@@ -297,6 +307,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
         dates: [selectedDate, oldDate].filter(Boolean),
       });
     } catch (err: any) {
+      if (err.requestId) { setUncertainKey(err.requestId); setStatus('uncertain'); setStep('UNCERTAIN'); setErrorMessage(err.message); return; }
       const normalized = normalizeBookingError(err);
       if (normalized.code === 'QUOTE_CHANGED') {
         setStatus('error');
@@ -330,6 +341,9 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     mode,
     shopId,
     bookingId,
+    uncertainKey,
+    operationalMember,
+    ownAgendaOnly,
     customer,
     selectedServices,
     selectedServiceIds,
@@ -361,7 +375,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     shopId,
     barbershop: barbershopQuery.data,
     services: availableServices,
-    professionals: professionalsQuery.data ?? [],
+    professionals: mode === 'UNIT' && ownAgendaOnly ? (professionalsQuery.data ?? []).filter(p => p.id === identity?.id) : professionalsQuery.data ?? [],
     availabilitySlots: availabilityQuery.data?.slots ?? [],
     selectedServiceIds,
     selectedServices,

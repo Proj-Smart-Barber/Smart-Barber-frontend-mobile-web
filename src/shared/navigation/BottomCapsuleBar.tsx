@@ -55,6 +55,9 @@ const DESTINATIONS: DestinationConfig[] = [
 ];
 
 export function BottomCapsuleBar() {
+  const unitSession = useSession();
+  const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+    m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const { isOwner } = useSession();
@@ -64,7 +67,7 @@ export function BottomCapsuleBar() {
   const reducedMotion = useReducedMotion();
 
   const visibleDestinations = DESTINATIONS.filter(
-    (item) => item.visibleForRole !== 'BARBER' || !isOwner,
+    (item) => item.visibleForRole !== 'BARBER' || canManageBookings,
   );
 
   const handleNavigate = (route: string, currentId: AppDestination) => {

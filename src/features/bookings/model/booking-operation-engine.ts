@@ -2,6 +2,7 @@ import { generateUuidV7 } from '../lib/attempt-id';
 import { ServerClock, serverClock as defaultServerClock } from '../lib/server-clock';
 import { normalizeBookingError } from '../lib/normalize-booking-error';
 import { operationAttemptStore as defaultOperationAttemptStore } from '@/shared/operations/operation-attempt-store';
+import { isCurrentActorActive, actorSessionGeneration, awaitOperationCleanup } from '@/shared/operations/OperationLifecycleBridge';
 import {
   findOwnAttempt,
   closeOwnAttempt,
@@ -9,6 +10,7 @@ import {
 import type {
   OperationAttemptResult,
   OperationAttemptStore,
+  OperationAttemptRecord,
 } from '@/shared/operations/operation-attempt.types';
 import {
   createBooking,
@@ -65,6 +67,18 @@ export class BookingOperationEngine {
   private store: OperationAttemptStore;
   private transport?: BookingOperationTransport;
   private activeSubmissions = new Set<string>();
+  private assertSession(actorId: string, generation: number) {
+    if (!isCurrentActorActive(actorId) || generation !== actorSessionGeneration()) throw new Error('SESSION_CHANGED');
+  }
+  private async saveInSession(store: OperationAttemptStore, actorId: string, generation: number, record: OperationAttemptRecord): Promise<void> {
+    this.assertSession(actorId, generation);
+    await store.save(actorId, record);
+    if (!isCurrentActorActive(actorId) || generation !== actorSessionGeneration()) {
+      await store.save(actorId, { actorId, requestId: record.requestId, operation: record.operation,
+        resourceKind: record.resourceKind, status: 'uncertain', createdAt: record.createdAt });
+      throw new Error('SESSION_CHANGED');
+    }
+  }
 
   constructor(options?: BookingOperationEngineOptions) {
     this.serverClock = options?.serverClock ?? defaultServerClock;
@@ -78,6 +92,17 @@ export class BookingOperationEngine {
   ): Promise<PreparedBookingOperation> {
     const clock = overrideOptions?.serverClock ?? this.serverClock;
     const store = overrideOptions?.store ?? this.store;
+
+    const generation = actorSessionGeneration();
+    await awaitOperationCleanup();
+    this.assertSession(command.actorId, generation);
+
+    for (const ref of await store.listReferences?.(command.actorId) ?? []) {
+      if (!['submitting', 'uncertain', 'error'].includes(ref.status)) continue;
+      const saved = await store.read(command.actorId, ref.requestId);
+      if (saved?.result?.state === 'NOT_APPLIED' || saved?.result?.state === 'APPLIED') continue;
+      throw Object.assign(new Error('Verifique a operação anterior antes de confirmar novamente.'), { requestId: ref.requestId });
+    }
 
     if (!command.actorId || command.actorId.trim() === '') {
       throw new Error('Ator (actorId) é obrigatório para preparar a operação.');
@@ -114,7 +139,7 @@ export class BookingOperationEngine {
     const sanitizedPayload = sanitizeCommandForStorage(command);
 
     // Persistência inicial da tentativa no store local com status reviewing
-    await store.save(command.actorId, {
+    await this.saveInSession(store, command.actorId, generation, {
       actorId: command.actorId,
       requestId,
       operation: operationName,
@@ -126,8 +151,9 @@ export class BookingOperationEngine {
 
     return {
       requestId,
-      command: Object.freeze({ ...command }),
+      command: Object.freeze({ ...command, ...('serviceIds' in command ? { serviceIds: [...(command.serviceIds ?? [])] } : {}) }),
       createdAt: timestampMs,
+      sessionGeneration: generation,
     };
   }
 
@@ -139,6 +165,9 @@ export class BookingOperationEngine {
     const clock = overrideOptions?.serverClock ?? this.serverClock;
     const transport = overrideOptions?.transport ?? this.transport;
     const { requestId, command } = prepared;
+    const generation = prepared.sessionGeneration ?? actorSessionGeneration();
+    await awaitOperationCleanup();
+    this.assertSession(command.actorId, generation);
 
     if (this.activeSubmissions.has(requestId)) {
       throw new Error('Operação já está em processamento.');
@@ -150,7 +179,7 @@ export class BookingOperationEngine {
     // Se falhar a persistência aqui, zero requisições são disparadas e nenhum re-save ocorre.
     const sanitizedPayload = sanitizeCommandForStorage(command);
     try {
-      await store.save(command.actorId, {
+      await this.saveInSession(store, command.actorId, generation, {
         actorId: command.actorId,
         requestId,
         operation: getOperationNameForAction(command.action),
@@ -166,6 +195,7 @@ export class BookingOperationEngine {
 
     try {
       // 2. Despacho HTTP pelo contrato canônico com Idempotency-Key
+      this.assertSession(command.actorId, generation);
       let apiResult: { booking: BookingDto; serverTime?: string };
 
       switch (command.action) {
@@ -180,6 +210,7 @@ export class BookingOperationEngine {
                 barbermanId: command.barbermanId,
                 date: command.date,
                 startTime: command.startTime,
+                slotStartAt: command.slotStartAt,
                 expectedTotalPriceInCents: command.expectedTotalPriceInCents,
                 expectedDurationInMinutes: command.expectedDurationInMinutes,
               },
@@ -195,6 +226,7 @@ export class BookingOperationEngine {
                 barbermanId: command.barbermanId,
                 date: command.date,
                 startTime: command.startTime,
+                slotStartAt: command.slotStartAt,
                 expectedTotalPriceInCents: command.expectedTotalPriceInCents,
                 expectedDurationInMinutes: command.expectedDurationInMinutes,
                 scope: command.scope,
@@ -213,6 +245,7 @@ export class BookingOperationEngine {
               expectedVersion: command.expectedVersion,
               date: command.date,
               startTime: command.startTime,
+                slotStartAt: command.slotStartAt,
               barbermanId: command.barbermanId,
               serviceIds: command.serviceIds,
               expectedTotalPriceInCents: command.expectedTotalPriceInCents,
@@ -268,6 +301,7 @@ export class BookingOperationEngine {
         }
       }
 
+      this.assertSession(command.actorId, generation);
       // Sincronizar relógio com autoridade retornada
       if (apiResult.serverTime) {
         try {
@@ -295,7 +329,7 @@ export class BookingOperationEngine {
 
       // 3. Atualizar store como confirmed com resultado durável
       try {
-        await store.save(command.actorId, {
+        await this.saveInSession(store, command.actorId, generation, {
           actorId: command.actorId,
           requestId,
           operation: getOperationNameForAction(command.action),
@@ -309,13 +343,18 @@ export class BookingOperationEngine {
         // Falha no save após APPLIED não invalida o fato consumado no servidor
       }
 
-      return operationResult;
+      this.assertSession(command.actorId, generation);
+      this.assertSession(command.actorId, generation);
+    return operationResult;
     } catch (err: any) {
+      // Session cleanup already retained the opaque reference; never resurrect its payload.
+      if (!isCurrentActorActive(command.actorId) || generation !== actorSessionGeneration()) throw new Error('SESSION_CHANGED');
+      if (err && typeof err === 'object') err.requestId = requestId;
       const normalized = normalizeBookingError(err);
 
       if (normalized.code === 'QUOTE_CHANGED') {
         try {
-          await store.save(command.actorId, {
+          await this.saveInSession(store, command.actorId, generation, {
             actorId: command.actorId,
             requestId,
             operation: getOperationNameForAction(command.action),
@@ -330,11 +369,11 @@ export class BookingOperationEngine {
         throw err;
       }
 
-      if (normalized.code === 'NETWORK_OR_TIMEOUT' || normalized.isNetworkError || !err?.status) {
+      if (normalized.code === 'NETWORK_OR_TIMEOUT' || normalized.isNetworkError || !err?.status || err.status >= 500) {
         // Erro de transporte / timeout / resposta perdida: marcar como uncertain
         try {
           const sanitizedPayload = sanitizeCommandForStorage(command);
-          await store.save(command.actorId, {
+          await this.saveInSession(store, command.actorId, generation, {
             actorId: command.actorId,
             requestId,
             operation: getOperationNameForAction(command.action),
@@ -352,7 +391,7 @@ export class BookingOperationEngine {
 
       // Demais erros HTTP terminais (400, 403, 404, 409 slot unavailable)
       try {
-        await store.save(command.actorId, {
+        await this.saveInSession(store, command.actorId, generation, {
           actorId: command.actorId,
           requestId,
           operation: getOperationNameForAction(command.action),
@@ -377,7 +416,11 @@ export class BookingOperationEngine {
     overrideOptions?: BookingOperationEngineOptions
   ): Promise<BookingOperationResult> {
     const store = overrideOptions?.store ?? this.store;
+    const generation = actorSessionGeneration();
+    await awaitOperationCleanup();
+    this.assertSession(actorId, generation);
     const rawResult = await findOwnAttempt(requestId);
+    this.assertSession(actorId, generation);
 
     const operationResult: BookingOperationResult = {
       state: rawResult.state,
@@ -396,7 +439,7 @@ export class BookingOperationEngine {
 
     if (rawResult.state === 'APPLIED') {
       try {
-        await store.save(actorId, {
+        await this.saveInSession(store, actorId, generation, {
           actorId,
           requestId,
           operation: rawResult.operation ?? 'BOOKING_OPERATION',
@@ -410,7 +453,7 @@ export class BookingOperationEngine {
       }
     } else if (rawResult.state === 'NOT_APPLIED') {
       try {
-        await store.save(actorId, {
+        await this.saveInSession(store, actorId, generation, {
           actorId,
           requestId,
           operation: rawResult.operation ?? 'BOOKING_OPERATION',
@@ -424,6 +467,7 @@ export class BookingOperationEngine {
       }
     }
 
+    this.assertSession(actorId, generation);
     return operationResult;
   }
 
@@ -433,7 +477,11 @@ export class BookingOperationEngine {
     overrideOptions?: BookingOperationEngineOptions
   ): Promise<BookingOperationResult> {
     const store = overrideOptions?.store ?? this.store;
+    const generation = actorSessionGeneration();
+    await awaitOperationCleanup();
+    this.assertSession(actorId, generation);
     const rawResult = await closeOwnAttempt(requestId);
+    this.assertSession(actorId, generation);
 
     const operationResult: BookingOperationResult = {
       state: rawResult.state,
@@ -450,14 +498,14 @@ export class BookingOperationEngine {
       serverTime: rawResult.serverTime,
     };
 
-    if (rawResult.state === 'NOT_APPLIED') {
+    if (rawResult.state === 'NOT_APPLIED' || rawResult.state === 'APPLIED') {
       try {
-        await store.save(actorId, {
+        await this.saveInSession(store, actorId, generation, {
           actorId,
           requestId,
           operation: rawResult.operation ?? 'BOOKING_OPERATION',
           resourceKind: 'BOOKING',
-          status: 'error',
+          status: rawResult.state === 'APPLIED' ? 'confirmed' : 'error',
           createdAt: Date.now(),
           result: operationResult,
         });
@@ -466,6 +514,7 @@ export class BookingOperationEngine {
       }
     }
 
+    this.assertSession(actorId, generation);
     return operationResult;
   }
 }

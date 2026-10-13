@@ -13,6 +13,7 @@ import { BookingsHeader } from './BookingsHeader';
 import { BookingCancelDialog } from './BookingCancelDialog';
 import { BookingManageCard } from './BookingManageCard';
 import { EditBookingSheet } from './EditBookingSheet';
+import { BookingRecovery } from './BookingRecovery';
 
 function BookingsSummary({
   count,
@@ -22,7 +23,7 @@ function BookingsSummary({
 }: {
   count: number;
   durationMinutes: number;
-  priceInCents: number;
+  priceInCents: number | null;
   isLoading: boolean;
 }) {
   const { colors, spacing } = useTheme();
@@ -53,11 +54,11 @@ function BookingsSummary({
           {formatDurationMinutes(durationMinutes)} de trabalho no dia
         </Text>
       </View>
-      {priceInCents > 0 ? (
+      {priceInCents != null ? (
         <Text variant="subhead" color={colors.text.primary} weight="bold" style={{ flexShrink: 0 }}>
           {formatCurrency(priceInCents)}
         </Text>
-      ) : null}
+      ) : <Text variant="caption">Valor incompleto</Text>}
     </LiquidGlassView>
   );
 }
@@ -69,7 +70,7 @@ function BookingsSummary({
 export function BookingsView() {
   const { colors, spacing, isDark } = useTheme();
   const { contentMaxWidth, isCompact } = useAdaptiveLayout();
-  const { isOwner } = useSession();
+  const { selectedShopId, memberships } = useSession();
   const router = useRouter();
 
   const viewModel = useBookingsViewModel();
@@ -117,7 +118,7 @@ export function BookingsView() {
         } as any)
       : null;
 
-  if (isOwner) {
+  if (!memberships.some(m => m.id === selectedShopId && m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role))) {
     return (
       <SafeAreaView
         edges={['top', 'left', 'right']}
@@ -133,7 +134,7 @@ export function BookingsView() {
         >
           <EmptyState
             title="Área do barbeiro"
-            description="O gerenciamento de atendimentos é exclusivo do barbeiro da unidade."
+            description="Selecione uma unidade com vínculo profissional ativo para consultar os atendimentos."
             style={{ maxWidth: contentMaxWidth }}
           />
         </View>
@@ -252,6 +253,7 @@ export function BookingsView() {
         </View>
       </ScrollView>
 
+      {viewModel.recoveryRequestId && <BookingRecovery requestId={viewModel.recoveryRequestId} onResolvedNotApplied={viewModel.resolveRecovery} onResolvedApplied={viewModel.resolveRecovery} />}
       <EditBookingSheet
         visible={editBooking !== null}
         booking={editBooking}

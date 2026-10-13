@@ -15,14 +15,14 @@ describe('Booking Query Keys & Invalidation Contract', () => {
 
     const unit1 = bookingQueryKeys.unitBookings('shop-1', { page: 1, limit: 20 });
     const unit2 = bookingQueryKeys.unitBookings('shop-2', { page: 1, limit: 20 });
-    expect(unit1).toEqual(['barbershop', 'shop-1', 'bookings', { page: 1, limit: 20 }]);
-    expect(unit2).toEqual(['barbershop', 'shop-2', 'bookings', { page: 1, limit: 20 }]);
+    expect(unit1).toEqual(['barbershop', 'shop-1', 'bookings', 'anon', { page: 1, limit: 20 }]);
+    expect(unit2).toEqual(['barbershop', 'shop-2', 'bookings', 'anon', { page: 1, limit: 20 }]);
     expect(unit1).not.toEqual(unit2);
 
     const detailPersonal = bookingQueryKeys.detail('b-1', 'PERSONAL');
     const detailUnit = bookingQueryKeys.detail('b-1', 'UNIT');
-    expect(detailPersonal).toEqual(['bookings', 'detail', 'b-1', 'PERSONAL']);
-    expect(detailUnit).toEqual(['bookings', 'detail', 'b-1', 'UNIT']);
+    expect(detailPersonal).toEqual(['bookings', 'detail', 'b-1', 'PERSONAL', 'anon']);
+    expect(detailUnit).toEqual(['bookings', 'detail', 'b-1', 'UNIT', 'anon']);
   });
 
   it('invalidates affected availability, unit bookings, agenda, dashboard, and notifications', async () => {

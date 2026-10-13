@@ -13,6 +13,7 @@ describe('I4 — Validação de Escopos, RBAC Frontend e Não-Elevação de Priv
     startTime: '10:00',
     endTime: '10:30',
     status: 'CONFIRMED',
+    capabilities: { cancel: { allowed: true }, reschedule: { allowed: true }, complete: { allowed: true }, noShow: { allowed: true } },
     version: 1,
     services: [{ id: 'srv-1', title: 'Corte', priceInCents: 5000, durationInMinutes: 30 }],
   };
@@ -68,7 +69,7 @@ describe('I4 — Validação de Escopos, RBAC Frontend e Não-Elevação de Priv
     it('OWNER da unidade A não ganha acesso a reservas da unidade B', () => {
       const res = resolveBookingContext({
         actorId: 'owner-user',
-        selectedMembership: { shopId: 'shop-B', role: 'OWNER', status: 'ACTIVE' },
+        selectedMembership: { shopId: 'shop-B', role: 'OWNER', status: 'ACTIVE', state: 'ACTIVE' },
         booking: fakeBookingShopA, // pertence ao shop-A
         requestedScope: 'UNIT',
       });
@@ -80,7 +81,7 @@ describe('I4 — Validação de Escopos, RBAC Frontend e Não-Elevação de Priv
       // 1. Barbeiro correto
       const resAllowed = resolveBookingContext({
         actorId: 'barber-carlos',
-        selectedMembership: { shopId: 'shop-A', role: 'BARBER', status: 'ACTIVE' },
+        selectedMembership: { shopId: 'shop-A', role: 'BARBER', status: 'ACTIVE', state: 'ACTIVE' },
         booking: fakeBookingShopA,
         requestedScope: 'UNIT',
       });
@@ -90,7 +91,7 @@ describe('I4 — Validação de Escopos, RBAC Frontend e Não-Elevação de Priv
       // 2. Barbeiro diferente na mesma unidade
       const resDenied = resolveBookingContext({
         actorId: 'barber-outro',
-        selectedMembership: { shopId: 'shop-A', role: 'BARBER', status: 'ACTIVE' },
+        selectedMembership: { shopId: 'shop-A', role: 'BARBER', status: 'ACTIVE', state: 'ACTIVE' },
         booking: fakeBookingShopA, // pertence a barber-carlos
         requestedScope: 'UNIT',
       });
@@ -101,7 +102,7 @@ describe('I4 — Validação de Escopos, RBAC Frontend e Não-Elevação de Priv
     it('OWNER da unidade A pode acessar agendamentos de qualquer profissional da sua unidade', () => {
       const resOwner = resolveBookingContext({
         actorId: 'owner-shop-A',
-        selectedMembership: { shopId: 'shop-A', role: 'OWNER', status: 'ACTIVE' },
+        selectedMembership: { shopId: 'shop-A', role: 'OWNER', status: 'ACTIVE', state: 'ACTIVE' },
         booking: fakeBookingShopA,
         requestedScope: 'UNIT',
       });

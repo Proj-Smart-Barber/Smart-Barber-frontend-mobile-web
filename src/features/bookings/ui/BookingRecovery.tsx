@@ -30,7 +30,8 @@ export function BookingRecovery({
     setIsChecking(true);
     setFeedback(null);
 
-    const actorId = identity?.id || 'current-actor';
+    const actorId = identity?.id;
+    if (!actorId) { setFeedback('Entre novamente para verificar a operação.'); setIsChecking(false); return; }
 
     try {
       // 1. Consulta o estado autoritativo da tentativa via motor unificado
@@ -41,7 +42,8 @@ export function BookingRecovery({
         onResolvedApplied?.();
       } else if (result.state === 'NOT_APPLIED') {
         // Fecha formalmente a tentativa para liberar nova revisão
-        await bookingOperationEngine.close(actorId, requestId);
+        const closed = await bookingOperationEngine.close(actorId, requestId);
+        if (closed.state !== 'NOT_APPLIED') { setFeedback('A operação permanece indefinida.'); return; }
         setFeedback('A tentativa anterior não foi processada. Você pode revisar e confirmar novamente.');
         onResolvedNotApplied();
       } else {
@@ -54,6 +56,18 @@ export function BookingRecovery({
     } finally {
       setIsChecking(false);
     }
+  };
+
+  const handleCloseAttempt = async () => {
+    if (!identity?.id) return;
+    setIsChecking(true);
+    try {
+      const result = await bookingOperationEngine.close(identity.id, requestId);
+      if (result.state === 'NOT_APPLIED') onResolvedNotApplied();
+      else if (result.state === 'APPLIED') onResolvedApplied?.();
+      else setFeedback('Aguarde: o resultado da operação permanece indefinido.');
+    } catch { setFeedback('Não foi possível resolver a operação agora.'); }
+    finally { setIsChecking(false); }
   };
 
   return (
@@ -137,9 +151,9 @@ export function BookingRecovery({
           />
 
           <Button
-            title="Ver Meus Agendamentos"
+            title="Encerrar tentativa não aplicada"
             variant="ghost"
-            onPress={() => router.replace('/(client)/bookings' as any)}
+            onPress={handleCloseAttempt}
             style={{ minHeight: 48, width: '100%' }}
           />
         </View>

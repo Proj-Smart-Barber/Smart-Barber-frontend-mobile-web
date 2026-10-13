@@ -32,7 +32,7 @@ export function useBookingDetail({
   const [isMutating, setIsMutating] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const queryKey = bookingQueryKeys.detail(bookingId, scope);
+  const queryKey = bookingQueryKeys.detail(bookingId, scope, identity?.id);
 
   const {
     data: booking,
@@ -42,7 +42,7 @@ export function useBookingDetail({
     refetch,
   } = useQuery<BookingDto>({
     queryKey,
-    queryFn: () => getBookingById(bookingId),
+    queryFn: () => getBookingById(bookingId, scope),
     enabled: Boolean(bookingId) && enabled,
     staleTime: 1000 * 30, // 30s
   });
@@ -67,7 +67,8 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const actorId = identity?.id || 'session-actor';
+        const actorId = identity?.id;
+        if (!actorId || !booking.version) throw new Error('Atualize a sessão e a reserva.');
         const expectedVersion = request?.expectedVersion ?? booking.version ?? 1;
         const prepared = await bookingOperationEngine.prepare({
           action: 'CANCEL',
@@ -78,7 +79,7 @@ export function useBookingDetail({
           reason: request?.reason,
         });
         if (idempotencyKey) {
-          prepared.requestId = idempotencyKey;
+          if (prepared.requestId !== idempotencyKey) throw new Error('Reutilize a tentativa persistida em vez de trocar sua chave.');
         }
         const result = await bookingOperationEngine.submit(prepared);
         const updatedBooking = result.resource?.data?.booking ?? booking;
@@ -101,7 +102,8 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const actorId = identity?.id || 'session-actor';
+        const actorId = identity?.id;
+        if (!actorId || !booking.version) throw new Error('Atualize a sessão e a reserva.');
         const expectedVersion = request.expectedVersion ?? booking.version ?? 1;
         const prepared = await bookingOperationEngine.prepare({
           action: 'RESCHEDULE',
@@ -118,7 +120,7 @@ export function useBookingDetail({
           reason: request.reason,
         });
         if (idempotencyKey) {
-          prepared.requestId = idempotencyKey;
+          if (prepared.requestId !== idempotencyKey) throw new Error('Reutilize a tentativa persistida em vez de trocar sua chave.');
         }
         const result = await bookingOperationEngine.submit(prepared);
         const updatedBooking = result.resource?.data?.booking ?? booking;
@@ -144,7 +146,8 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const actorId = identity?.id || 'session-actor';
+        const actorId = identity?.id;
+        if (!actorId || !booking.version) throw new Error('Atualize a sessão e a reserva.');
         const expectedVersion = request?.expectedVersion ?? booking.version ?? 1;
         const prepared = await bookingOperationEngine.prepare({
           action: 'COMPLETE',
@@ -155,7 +158,7 @@ export function useBookingDetail({
           reason: request?.reason,
         });
         if (idempotencyKey) {
-          prepared.requestId = idempotencyKey;
+          if (prepared.requestId !== idempotencyKey) throw new Error('Reutilize a tentativa persistida em vez de trocar sua chave.');
         }
         const result = await bookingOperationEngine.submit(prepared);
         const updatedBooking = result.resource?.data?.booking ?? booking;
@@ -178,7 +181,8 @@ export function useBookingDetail({
       setIsMutating(true);
       setMutationError(null);
       try {
-        const actorId = identity?.id || 'session-actor';
+        const actorId = identity?.id;
+        if (!actorId || !booking.version) throw new Error('Atualize a sessão e a reserva.');
         const expectedVersion = request?.expectedVersion ?? booking.version ?? 1;
         const prepared = await bookingOperationEngine.prepare({
           action: 'NO_SHOW',
@@ -189,7 +193,7 @@ export function useBookingDetail({
           reason: request?.reason,
         });
         if (idempotencyKey) {
-          prepared.requestId = idempotencyKey;
+          if (prepared.requestId !== idempotencyKey) throw new Error('Reutilize a tentativa persistida em vez de trocar sua chave.');
         }
         const result = await bookingOperationEngine.submit(prepared);
         const updatedBooking = result.resource?.data?.booking ?? booking;

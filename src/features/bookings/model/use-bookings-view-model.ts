@@ -75,7 +75,7 @@ export function useBookingsViewModel() {
         ? 'OWNER'
         : null;
 
-    if (!role) return null;
+    if (!role || (currentMembership?.state != null && currentMembership.state !== 'ACTIVE')) return null;
 
     return {
       userId: identity.id,
@@ -94,7 +94,7 @@ export function useBookingsViewModel() {
     queryKey: bookingQueryKeys.unitBookings(shopId ?? 'unknown', {
       date: selectedDate,
       barbermanId: isBarber ? userId : undefined,
-    }),
+    }, userId),
     queryFn: async () => {
       if (!shopId) return { items: [] as BookingDto[] };
       return fetchUnitBookings(shopId, {
@@ -182,8 +182,10 @@ export function useBookingsViewModel() {
       }
     }
 
-    return { count, durationMinutes, priceInCents };
-  }, [bookings]);
+    const summary = dayQuery.data && 'summary' in dayQuery.data ? dayQuery.data.summary : undefined;
+    const incomplete = bookings.some(b => b.services.some(s => s.priceInCents == null));
+    return { count: summary?.totalBookings ?? count, durationMinutes, priceInCents: summary ? (summary.hasIncompleteData ? null : summary.totalRevenueInCents) : incomplete ? null : priceInCents };
+  }, [bookings, dayQuery.data]);
 
   const isInitialLoading = dayQuery.isLoading && !dayQuery.isPlaceholderData;
   const isFetching = dayQuery.isFetching;
@@ -222,6 +224,7 @@ export function useBookingsViewModel() {
     }
   }, [normalizedError, signOut]);
 
+  const [recoveryRequestId, setRecoveryRequestId] = useState<string | null>(null);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<{ bookingId: string; message: string } | null>(
     null,
@@ -273,6 +276,7 @@ export function useBookingsViewModel() {
         });
         return { ok: true, message: null };
       } catch (error) {
+        if ((error as any)?.requestId) setRecoveryRequestId((error as any).requestId);
         const normalized = normalizeBookingError(error);
         setUpdateError({ bookingId: input.bookingId, message: normalized.message });
         if (normalized.statusCode === 401) {
@@ -327,6 +331,7 @@ export function useBookingsViewModel() {
         });
         return { ok: true, message: null };
       } catch (error) {
+        if ((error as any)?.requestId) setRecoveryRequestId((error as any).requestId);
         const normalized = normalizeBookingError(error);
         setCancelError({ bookingId, message: normalized.message });
         if (normalized.statusCode === 401) {
@@ -345,6 +350,8 @@ export function useBookingsViewModel() {
   }, []);
 
   return {
+    recoveryRequestId,
+    resolveRecovery: () => { setRecoveryRequestId(null); void dayQuery.refetch(); },
     // Navegação de data
     selectedDate,
     dateLabel: formatDateLabel(selectedDate),

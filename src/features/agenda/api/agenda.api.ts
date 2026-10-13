@@ -4,6 +4,8 @@ import type { AgendaDay, AgendaScope, IAgendaRepository } from './agenda.contrac
 import { AgendaMockAdapter } from './agenda.mock';
 import { AgendaHttpAdapter, bookingScheduleHttpAdapter } from './agenda.http';
 import { ENV } from '@/shared/config/env';
+import { getBookingById } from '@/features/bookings/api/bookings.api';
+import { bookingOperationEngine } from '@/features/bookings/model/booking-operation-engine';
 
 // Port / Adapter singleton: usa AgendaHttpAdapter por padrão no ambiente HTTP
 export const agendaRepository: IAgendaRepository =
@@ -36,11 +38,19 @@ export function useAgendaDayQuery(scope: AgendaScope, date: string) {
  * Mutação para cancelamento de agendamento:
  * DELETE /api/bookings/:bookingId/cancel
  */
-export function useCancelBookingMutation() {
+export function useCancelBookingMutation(scope?: AgendaScope) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (bookingId: string) => bookingScheduleHttpAdapter.cancelBooking(bookingId),
+    mutationFn: async (bookingId: string) => {
+      if (!scope?.staffId) throw new Error('Selecione uma unidade com vínculo ativo.');
+      const booking = await getBookingById(bookingId, 'UNIT');
+      if (!booking.version || !booking.capabilities?.cancel?.allowed) throw new Error('Cancelamento indisponível.');
+      const attempt = await bookingOperationEngine.prepare({ action: 'CANCEL', actorId: scope.staffId, scope: 'UNIT', bookingId, expectedVersion: booking.version });
+      const result = await bookingOperationEngine.submit(attempt);
+      if (result.state !== 'APPLIED' || !result.resource?.data?.booking) throw new Error('Verifique a operação anterior.');
+      return result.resource.data.booking;
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: AGENDA_QUERY_KEYS.all });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });

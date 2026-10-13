@@ -8,6 +8,7 @@ import type { BookingDto } from '../api/bookings.dto';
 import { serverClock } from '../lib/server-clock';
 import { bookingOperationEngine } from '../model/booking-operation-engine';
 import { useSession } from '@/features/auth';
+import { BookingRecovery } from './BookingRecovery';
 
 export type BookingActionType = 'CANCEL' | 'COMPLETE' | 'NO_SHOW';
 
@@ -34,19 +35,19 @@ export function BookingActionConfirm({
   const [reason, setReason] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
   // Validação temporal de fronteiras
   const timeValidation = useMemo(() => {
     let bookingStartMs: number | null = null;
     try {
-      const dateStr = typeof booking.date === 'string' ? booking.date.split('T')[0] : '';
-      bookingStartMs = Date.parse(`${dateStr}T${booking.startTime}:00`);
+      bookingStartMs = booking.startsAt ? Date.parse(booking.startsAt) : null;
     } catch {
       bookingStartMs = null;
     }
 
     const nowMs = serverClock.now();
-    if (nowMs === null) {
+    if (nowMs === null || bookingStartMs === null || !Number.isFinite(bookingStartMs)) {
       return {
         allowed: false,
         message: 'Aguardando sincronização de horário com o servidor.',
@@ -106,8 +107,9 @@ export function BookingActionConfirm({
     setIsLoading(true);
     setErrorMessage(null);
 
-    const actorId = identity?.id || booking.customerId || 'current-actor';
-    const expectedVersion = booking.version ?? 1;
+    const actorId = identity?.id;
+    if (!actorId || !booking.version) { setIsLoading(false); setErrorMessage('Atualize a sessão e a reserva antes de confirmar.'); return; }
+    const expectedVersion = booking.version;
 
     try {
       const prepared = await bookingOperationEngine.prepare({
@@ -128,6 +130,7 @@ export function BookingActionConfirm({
         setErrorMessage('Operação não aplicada pelo servidor.');
       }
     } catch (err: any) {
+      if (err.requestId) setPendingRequestId(err.requestId);
       setErrorMessage(
         err?.message || 'Falha ao executar ação. O agendamento pode ter sido alterado.'
       );
@@ -135,6 +138,8 @@ export function BookingActionConfirm({
       setIsLoading(false);
     }
   };
+
+  if (pendingRequestId) return <Modal visible={isOpen} transparent onRequestClose={onClose}><View style={{ flex: 1, backgroundColor: colors.background.primary, padding: 24 }}><BookingRecovery requestId={pendingRequestId} onResolvedNotApplied={() => setPendingRequestId(null)} onResolvedApplied={() => { setPendingRequestId(null); onSuccess(booking); onClose(); }} /><Button title="Voltar" onPress={onClose} /></View></Modal>;
 
   const actionTitle = {
     CANCEL: 'Cancelar Agendamento',

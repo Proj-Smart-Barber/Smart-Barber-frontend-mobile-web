@@ -184,6 +184,7 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
         {flow.step === 'SLOT' && (
           <ScrollView contentContainerStyle={{ gap: spacing[3], paddingBottom: 100 }}>
             <BookingSlotPicker
+              timezone={flow.barbershop?.timezone}
               selectedDate={flow.selectedDate}
               selectedSlot={flow.selectedSlot}
               availabilitySlots={flow.availabilitySlots}

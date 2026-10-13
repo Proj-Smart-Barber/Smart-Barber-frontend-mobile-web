@@ -12,7 +12,7 @@ export default function RescheduleBookingScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
   const { bookingId, scope } = useLocalSearchParams<{ bookingId: string; scope?: string }>();
-  const { identity } = useSession();
+  const { identity, memberships, selectedShopId } = useSession();
 
   const resolvedScope = scope === 'UNIT' ? 'UNIT' : 'PERSONAL';
 
@@ -77,13 +77,7 @@ export default function RescheduleBookingScreen() {
   const context = resolveBookingContext({
     actorId: identity?.id,
     selectedMembership:
-      identity?.accountType === 'BARBER' || identity?.accountType === 'OWNER'
-        ? {
-            shopId: booking.barbershopId,
-            role: identity.accountType as any,
-            status: 'ACTIVE',
-          }
-        : null,
+      memberships.find(member => member.id === selectedShopId && member.id === booking.barbershopId) ?? null,
     booking,
     requestedScope: resolvedScope,
   });

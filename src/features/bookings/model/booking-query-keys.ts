@@ -8,10 +8,10 @@ export const bookingQueryKeys = {
     ['barbershop', shopId, 'availability', params] as const,
   myBookings: (actorId?: string | null, params?: FetchMyBookingsParams) =>
     ['bookings', 'me', actorId ?? 'anon', params ?? {}] as const,
-  unitBookings: (shopId: string, params?: FetchUnitBookingsParams) =>
-    ['barbershop', shopId, 'bookings', params ?? {}] as const,
-  detail: (bookingId: string, scope?: string) =>
-    ['bookings', 'detail', bookingId, scope ?? 'PERSONAL'] as const,
+  unitBookings: (shopId: string, params?: FetchUnitBookingsParams, actorId?: string | null) =>
+    ['barbershop', shopId, 'bookings', actorId ?? 'anon', params ?? {}] as const,
+  detail: (bookingId: string, scope?: string, actorId?: string | null) =>
+    ['bookings', 'detail', bookingId, scope ?? 'PERSONAL', actorId ?? 'anon'] as const,
   agenda: (shopId: string, professionalId?: string | null, date?: string | null) =>
     ['agenda', shopId, professionalId ?? 'all', date ?? 'all'] as const,
   dashboard: (shopId: string, date?: string | null) =>
@@ -83,6 +83,8 @@ export async function invalidateBookingQueries(
       })
     );
   }
+
+  if (params.actorId) promises.push(queryClient.invalidateQueries({ predicate: q => q.queryKey[0] === 'dashboard' && q.queryKey.includes(params.actorId!) }));
 
   // 4. Notificações do ator
   if (params.actorId) {

@@ -1,5 +1,7 @@
 # Relatório de Homologação da Integração dos PRs #28 e #29
 
+> Registro histórico de12/10. A auditoria e as correções posteriores estão consolidadas em [Validação final13/10](VALIDACAO_FINAL_INTEGRACAO_2026-10-13.md); os PASS e a revisão declarados abaixo não substituem essa evidência atual.
+
 Data: 12/10/2026  
 Branch Integrada (Frontend): `feat/integracao-reservas-atendimentos` (HEAD: `2ac1941`)  
 Branch API (Backend): `feat/booking-lifecycle-and-contracts` (HEAD: `2d5ebd5`)  
@@ -53,9 +55,9 @@ Todos os critérios indispensáveis definidos em `docs/planos/2026-10-12-integra
   # Test Files  2 passed (2)
   # Tests       6 passed (6)
   ```
-  - `POST /api/bookings/:id/cancel`: valida idempotência, exige motivo se aplicável, deduz versionamento e persiste evento.
+  - `DELETE /api/bookings/:id/cancel`: valida idempotência, exige motivo se aplicável, deduz versionamento e persiste evento.
   - `PATCH /api/bookings/:id/reschedule`: valida versionamento concorrente, bloqueia alteração de loja/cliente, atualiza agendamento e preserva histórico.
-  - `PATCH /api/bookings/:id/status`: valida transições permitidas da máquina de estados (`CONFIRMED`, `COMPLETED`, `NO_SHOW`).
+  - `PATCH /api/bookings/:id/status`: valida transições permitidas da máquina de estados (`COMPLETED`, `NO_SHOW`).
 - **Testes de Idempotência e Persistência Drizzle (PostgreSQL):**
   ```bash
   $ npx vitest run src/infra/drizzle/booking-action-idempotency.integration.spec.ts src/infra/drizzle/booking-lifecycle.integration.spec.ts
@@ -102,7 +104,7 @@ Todos os critérios indispensáveis definidos em `docs/planos/2026-10-12-integra
 2. **Contexto Operacional e RBAC Frontend:**
    - Implementado em `src/features/bookings/model/resolve-booking-context.ts`.
    - Um usuário com papel `BARBER` acessa estritamente sua própria agenda e atendimentos sob seu `barbermanId`.
-   - Um usuário com papel `OWNER` / `MANAGER` pode gerenciar a equipe ou sua própria agenda caso também atue como profissional.
+   - Um usuário com papel `OWNER` pode gerenciar a equipe ou sua própria agenda caso também atue como profissional.
    - Um cliente sem vínculo de equipe não tem acesso ao destino `/atendimentos`.
 3. **Isolamento de Cache React Query:**
    - Invalidação baseada em chaves estruturadas com prefixo de loja (`shopId`):

@@ -67,11 +67,9 @@ export function BookingManageCard({
   const isBusy = isEditing || isCancelling;
 
   const canReschedule =
-    booking.capabilities?.reschedule?.allowed ??
-    (booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED');
+    booking.capabilities?.reschedule?.allowed === true;
   const canCancel =
-    booking.capabilities?.cancel?.allowed ??
-    (booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED');
+    booking.capabilities?.cancel?.allowed === true;
 
   const serviceTitles = services.map((service) => service.title).filter(Boolean);
   const serviceListLabel = serviceTitles.length > 0 ? serviceTitles.join(', ') : 'Atendimento';

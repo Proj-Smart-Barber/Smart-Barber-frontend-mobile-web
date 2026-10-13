@@ -1,3 +1,4 @@
+import { serverClock } from '../lib/server-clock';
 import { httpClient } from '../../../shared/api/http-client';
 import {
   bookingDtoSchema,
@@ -115,14 +116,18 @@ export async function fetchUnitBookings(
     : `/api/barbershops/${shopId}/bookings`;
 
   const response = await httpClient.get<FetchUnitBookingsResponse>(url);
-  return fetchUnitBookingsResponseSchema.parse(response);
+  const parsed = fetchUnitBookingsResponseSchema.parse(response);
+  if (parsed.serverTime && Number.isFinite(Date.parse(parsed.serverTime))) serverClock.syncWithServer(parsed.serverTime);
+  return parsed;
 }
 
-export async function getBookingById(bookingId: string): Promise<BookingDto> {
+export async function getBookingById(bookingId: string, scope: 'PERSONAL' | 'UNIT' = 'PERSONAL'): Promise<BookingDto> {
   const response = await httpClient.get<{ booking: BookingDto }>(
-    `/api/bookings/${bookingId}`
+    `/api/bookings/${bookingId}`, { params: { scope } }
   );
-  return bookingDtoSchema.parse(response.booking);
+  const booking = bookingDtoSchema.parse(response.booking);
+  if (booking.serverTime && Number.isFinite(Date.parse(booking.serverTime))) serverClock.syncWithServer(booking.serverTime);
+  return booking;
 }
 
 export async function lookupCustomer(

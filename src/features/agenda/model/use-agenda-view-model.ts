@@ -109,7 +109,7 @@ export function useAgendaViewModel() {
     return () => clearTimeout(timer);
   }, [isFetching, showsDataForSelectedDate]);
 
-  const cancelMutation = useCancelBookingMutation();
+  const cancelMutation = useCancelBookingMutation(scope);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const handleCancelBooking = useCallback(

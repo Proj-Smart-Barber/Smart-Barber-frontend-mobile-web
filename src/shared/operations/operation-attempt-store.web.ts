@@ -141,6 +141,7 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
       if (attempt.resourceKind === 'BOOKING') {
         const p = attempt.payload;
         const cleanPayload: Record<string, any> = {
+          schemaVersion: p.schemaVersion, action: p.action, bookingId: p.bookingId, expectedVersion: p.expectedVersion, referenceOnly: p.referenceOnly,
           serviceIds: Array.isArray(p.serviceIds)
             ? [...p.serviceIds]
             : p.serviceId
@@ -291,8 +292,8 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
             createdAt: parsed.createdAt,
           };
           this.setItem(key, JSON.stringify(opaqueRef));
-        } catch {
-          this.removeItem(key);
+        } catch (error) {
+          throw error;
         }
       }
     }
@@ -311,3 +312,6 @@ export class WebOperationAttemptStore implements OperationAttemptStore {
     }
   }
 }
+// Metro selects this file directly on web; expose the same public entry point as the base module.
+export const operationAttemptStore: OperationAttemptStore = new WebOperationAttemptStore();
+export function createOperationAttemptStore(): OperationAttemptStore { return new WebOperationAttemptStore(); }

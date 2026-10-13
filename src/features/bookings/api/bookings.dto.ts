@@ -39,6 +39,7 @@ export interface CreateBookingRequestDto {
 }
 
 export interface CreateOperationalBookingRequestDto {
+  slotStartAt?: string;
   customerId: string;
   serviceIds: string[];
   barbermanId: string;

@@ -5,8 +5,10 @@ import { Text, Skeleton, EmptyState } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AvailabilitySlotDto } from '../api/bookings.dto';
 import type { SelectedSlot } from '../model/booking-flow.types';
+import {formatSlotTime} from '../lib/slot-time';
 
 export interface BookingSlotPickerProps {
+  timezone?: string;
   selectedDate: string | null;
   selectedSlot: SelectedSlot | null;
   availabilitySlots: AvailabilitySlotDto[];
@@ -46,6 +48,7 @@ function extractTimeFromIso(isoStr: string): string {
 }
 
 export function BookingSlotPicker({
+  timezone,
   selectedDate,
   selectedSlot,
   availabilitySlots,
@@ -150,7 +153,7 @@ export function BookingSlotPicker({
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] }}>
             {availabilitySlots.map((slot) => {
-              const timeFormatted = extractTimeFromIso(slot.start);
+              const timeFormatted = formatSlotTime(slot.start, timezone!);
               const isSelected = selectedSlot?.slotStartAt === slot.start;
 
               return (

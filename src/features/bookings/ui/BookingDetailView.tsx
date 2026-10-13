@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, Linking, Alert as NativeAlert } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
+import { invalidateBookingQueries } from '../model/booking-query-keys';
+import { useSession } from '@/features/auth';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../../shared/theme';
 import { Text, Card, Badge, Button, Spinner, Alert, type BadgeTone } from '../../../shared/ui';
@@ -50,6 +53,8 @@ export function BookingDetailView({
 }: BookingDetailViewProps) {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { identity } = useSession();
   const [activeAction, setActiveAction] = useState<BookingActionType | null>(null);
 
   const {
@@ -123,7 +128,7 @@ export function BookingDetailView({
   const canCancel =
     booking.canCancel ?? booking.capabilities?.cancel?.allowed ?? false;
   const canReschedule =
-    booking.canReschedule ?? booking.capabilities?.reschedule?.allowed ?? (booking.status === 'CONFIRMED' || booking.status === 'PENDING');
+    booking.capabilities?.reschedule?.allowed === true;
   const canComplete =
     booking.canComplete ?? booking.capabilities?.complete?.allowed ?? false;
   const canMarkNoShow =
@@ -342,6 +347,7 @@ export function BookingDetailView({
           scope={scope}
           onClose={() => setActiveAction(null)}
           onSuccess={async () => {
+            await invalidateBookingQueries(queryClient, { actorId: identity?.id, shopId: booking.barbershopId, bookingId: booking.id });
             setActiveAction(null);
             await refetch();
           }}

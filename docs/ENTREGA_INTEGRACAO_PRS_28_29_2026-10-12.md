@@ -1,5 +1,7 @@
 # Documento de Entrega — Integração dos PRs #28 e #29
 
+> Registro histórico de12/10. A auditoria e as correções posteriores estão consolidadas em [Validação final13/10](VALIDACAO_FINAL_INTEGRACAO_2026-10-13.md); os PASS e a revisão declarados abaixo não substituem essa evidência atual.
+
 Data: 12/10/2026  
 Branch Local Integrada: `feat/integracao-reservas-atendimentos`  
 Repositório Frontend: `D:/smart_barber/Smart-Barber-frontend-mobile-web`  
@@ -62,14 +64,14 @@ No backend (`D:/smart_barber/api`):
 
 ### Endpoints da API Reconciliados
 - `POST /api/bookings`: Criação de agendamento com suporte a múltiplos serviços e `Idempotency-Key`.
-- `POST /api/bookings/:id/cancel`: Cancelamento lógico com justificativa, `Idempotency-Key` (UUIDv7) e registro de evento.
+- `DELETE /api/bookings/:id/cancel`: Cancelamento lógico com justificativa, `Idempotency-Key` (UUIDv7) e registro de evento.
 - `PATCH /api/bookings/:id/reschedule`: Remarcação mantendo o mesmo ID de reserva e beneficiário, exigindo `expectedVersion`, bloqueando POST acidental.
-- `PATCH /api/bookings/:id/status`: Transição de status (`CONFIRMED`, `COMPLETED`, `NO_SHOW`) sob travas transacionais.
+- `PATCH /api/bookings/:id/status`: Transição de status (`COMPLETED`, `NO_SHOW`) sob travas transacionais.
 - `GET /api/bookings/:id`: Detalhe de reserva com validação rigorosa de escopo (`PERSONAL` para cliente dono, `UNIT` para profissionais com vínculo ativo na loja).
 
 ### Rotas de Frontend Consolidadas
 - `/(client)/bookings` (`/bookings`): Histórico e acompanhamento pessoal de agendamentos do cliente.
-- `/(app)/atendimentos` (`/atendimentos`): Painel operacional de atendimentos da barbearia (exclusivo para equipe: barbeiros, gerentes e proprietários).
+- `/(app)/atendimentos` (`/atendimentos`): Painel operacional de atendimentos da barbearia (exclusivo para equipe: barbeiros e proprietários).
 - `/(account)/bookings/[bookingId]` (`/bookings/:bookingId`): Detalhe completo da reserva com capacidades e ações contextuais.
 - `/(account)/bookings/[bookingId]/reschedule` (`/bookings/:bookingId/reschedule`): Interface navegável de remarcação com pré-carregamento dos dados originais.
 
@@ -81,8 +83,8 @@ No backend (`D:/smart_barber/api`):
    - *Achado Original:* Testes e código anterior utilizavam vocabulário misto de submissão (`pending` vs `submitting`) e permitiam cliques subsequentes gerando novas chaves antes de persistir o comando.
    - *Solução Aplicada:* O store e o motor agora gravam o comando completo com status `submitting` no storage antes do transporte HTTP. Se houver falha de storage ou indisponibilidade de relógio confiável, a requisição é cancelada imediatamente sem tráfego de rede.
 2. **Endpoint Obsoleto `/update` no Frontend:**
-   - *Achado Original:* O PR #28 continha um adapter com chamadas a `POST /update`, que não existe no backend canônico.
-   - *Solução Aplicada:* `BookingsHttpAdapter` refatorado para delegar exclusivamente a `rescheduleBooking` (PATCH `/api/bookings/:bookingId/reschedule`) e `cancelBooking` (POST `/api/bookings/:bookingId/cancel`), garantindo idempotência e integridade.
+   - *Achado Original:* O PR #28 continha um adapter com chamadas a `PATCH /update`, que não existe no backend canônico.
+   - *Solução Aplicada:* `BookingsHttpAdapter` refatorado para delegar exclusivamente a `rescheduleBooking` (PATCH `/api/bookings/:bookingId/reschedule`) e `cancelBooking` (DELETE `/api/bookings/:bookingId/cancel`), garantindo idempotência e integridade.
 3. **Rotas Ambigüas de Atendimentos:**
    - *Achado Original:* Ambiguidade entre `(app)/bookings.tsx` (equipe) e `(client)/bookings.tsx` (cliente) sob a URL base `/bookings`.
    - *Solução Aplicada:* A rota de equipe foi movida para `src/app/(app)/atendimentos.tsx` (`/atendimentos`). A barra de navegação, o drawer lateral e a sidebar desktop agora apontam com precisão para `/atendimentos` quando o usuário possui perfil e vínculo profissional ativo.

@@ -12,7 +12,7 @@ describe('I6 — Rotas e Navegação por Perfil (bookings-navigation)', () => {
     date: '2026-10-15',
     startTime: '10:00',
     endTime: '10:30',
-    status: 'CONFIRMED',
+    status: 'CONFIRMED', capabilities: { cancel: { allowed: true }, reschedule: { allowed: true } },
     version: 1,
     services: [{ id: 'srv-1', title: 'Corte', priceInCents: 5000, durationInMinutes: 30 }],
   };

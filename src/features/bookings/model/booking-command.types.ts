@@ -31,6 +31,7 @@ export interface CreateBookingCommand extends BaseBookingCommand {
   barbermanId: string;
   date: string;
   startTime: string;
+  slotStartAt?: string;
   expectedTotalPriceInCents: number;
   expectedDurationInMinutes: number;
 }
@@ -41,6 +42,7 @@ export interface RescheduleBookingCommand extends BaseBookingCommand {
   expectedVersion: number;
   date: string;
   startTime: string;
+  slotStartAt?: string;
   barbermanId?: string;
   serviceIds?: string[];
   expectedTotalPriceInCents?: number;
@@ -80,6 +82,7 @@ export interface PreparedBookingOperation {
   requestId: string;
   command: Readonly<BookingCommand>;
   createdAt: number;
+  sessionGeneration?: number;
 }
 
 export interface BookingOperationData {
@@ -105,6 +108,8 @@ export function getOperationNameForAction(action: BookingCommandAction): Booking
 
 export interface PersistedBookingPayload {
   schemaVersion: 1;
+  customerId?: string;
+  referenceOnly?: boolean;
   action: BookingCommandAction;
   scope: 'PERSONAL' | 'UNIT';
   shopId?: string;
@@ -112,6 +117,7 @@ export interface PersistedBookingPayload {
   expectedVersion?: number;
   date?: string;
   startTime?: string;
+  slotStartAt?: string;
   barbermanId?: string;
   serviceIds?: string[];
   expectedTotalPriceInCents?: number;
@@ -121,6 +127,9 @@ export interface PersistedBookingPayload {
 export function sanitizeCommandForStorage(command: BookingCommand): PersistedBookingPayload {
   return {
     schemaVersion: 1,
+    customerId: command.action === 'CREATE' ? command.customerId : undefined,
+    referenceOnly: 'reason' in command && Boolean(command.reason),
+    slotStartAt: 'slotStartAt' in command ? command.slotStartAt : undefined,
     action: command.action,
     scope: command.scope,
     shopId: command.shopId,
