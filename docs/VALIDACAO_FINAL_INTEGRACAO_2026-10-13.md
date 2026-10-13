@@ -55,3 +55,13 @@ Não foram testados dispositivos Android/iOS ou viewport tablet. A trilha cronol
 ## Retomada do projeto
 
 Depois da consolidação aprovada, retomar Grupo5 (E2+G2+G3). O Grupo4 corrigido fornece rotas/actions reais para gestão de equipe; geolocalização e novas homes permanecem nos grupos/backlog previstos.
+
+## Publicação para revisão
+
+- Frontend consolidado: https://github.com/Proj-Smart-Barber/Smart-Barber-frontend-mobile-web/pull/30.
+- API correspondente: https://github.com/Proj-Smart-Barber/api/pull/51.
+- PRs28/29 receberam comentários com o link da consolidação e permanecem abertos até sua aprovação/merge; branches dos autores preservadas.
+- A main atual da API foi integrada na cópia isolada. A árvore de código validada foi preservada e os8testes HTTP de contrato passaram novamente após a integração. Ambos os PRs estão sem conflitos de merge.
+- Revisão estática independente final: PASS, nenhum achado anterior aberto. A revisão não executou testes nem homologou produção.
+- Guardas finais: versão ausente não é substituída por1 nas alterações de Atendimentos; fuso ausente bloqueia a escolha de slots. TypeScript e5testes de gestão passaram após esse ajuste; export web final passou.
+- Sem merge/deploy de produção; preview da Vercel é ambiente de revisão, não homologação de produção.
