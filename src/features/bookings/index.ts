@@ -21,6 +21,8 @@ export * from './model/resolve-booking-context';
 export * from './model/bookings-state';
 export * from './model/compute-end-time';
 export * from './model/use-bookings-view-model';
+export * from './model/unit-bookings.types';
+export * from './model/use-unit-bookings';
 
 export * from './lib/server-clock';
 export * from './lib/booking-time';

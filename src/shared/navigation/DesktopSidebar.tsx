@@ -159,15 +159,6 @@ export function DesktopSidebar() {
               isActive={activeDestination === 'agenda'}
               onPress={() => handleNavigate('/(app)/agenda')}
             />
-            {canManageBookings ? (
-              <SidebarItem
-                label="Atendimentos"
-                icon="briefcase-outline"
-                activeIcon="briefcase"
-                isActive={activeDestination === 'atendimentos'}
-                onPress={() => handleNavigate('/(app)/atendimentos')}
-              />
-            ) : null}
             <SidebarItem
               label="Horários"
               icon="time-outline"

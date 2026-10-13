@@ -11,7 +11,7 @@ import { useSession } from '@/features/auth';
 export interface BookingRecoveryProps {
   requestId: string;
   onResolvedNotApplied: () => void;
-  onResolvedApplied?: () => void;
+  onResolvedApplied?: (result?: any) => void;
 }
 
 export function BookingRecovery({
@@ -38,8 +38,12 @@ export function BookingRecovery({
       const result = await bookingOperationEngine.reconcile(actorId, requestId);
 
       if (result.state === 'APPLIED') {
-        setFeedback('O agendamento foi confirmado pelo servidor! Você pode visualizá-lo em seus agendamentos.');
-        onResolvedApplied?.();
+        if (result.accessChanged || !result.resource?.data?.booking || !result.originScope) {
+          setFeedback('Operação aplicada. Os detalhes ou o contexto original não estão disponíveis. Não repita esta ação.');
+          return;
+        }
+        setFeedback('Operação confirmada pelo servidor.');
+        onResolvedApplied?.(result);
       } else if (result.state === 'NOT_APPLIED') {
         // Fecha formalmente a tentativa para liberar nova revisão
         const closed = await bookingOperationEngine.close(actorId, requestId);
@@ -64,7 +68,10 @@ export function BookingRecovery({
     try {
       const result = await bookingOperationEngine.close(identity.id, requestId);
       if (result.state === 'NOT_APPLIED') onResolvedNotApplied();
-      else if (result.state === 'APPLIED') onResolvedApplied?.();
+      else if (result.state === 'APPLIED') {
+        if (result.accessChanged || !result.resource?.data?.booking || !result.originScope) setFeedback('Operação aplicada. Os detalhes ou o contexto original não estão disponíveis. Não repita esta ação.');
+        else onResolvedApplied?.(result);
+      }
       else setFeedback('Aguarde: o resultado da operação permanece indefinido.');
     } catch { setFeedback('Não foi possível resolver a operação agora.'); }
     finally { setIsChecking(false); }

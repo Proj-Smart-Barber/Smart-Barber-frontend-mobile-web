@@ -22,9 +22,9 @@ describe('Navigation Helpers', () => {
       expect(getActiveDestinationFromPathname('/(app)/agenda')).toBe('agenda');
     });
 
-    it('deve identificar rota de atendimentos do barbeiro', () => {
-      expect(getActiveDestinationFromPathname('/atendimentos')).toBe('atendimentos');
-      expect(getActiveDestinationFromPathname('/(app)/atendimentos')).toBe('atendimentos');
+    it('deve identificar rota de atendimentos legada como agenda unificada', () => {
+      expect(getActiveDestinationFromPathname('/atendimentos')).toBe('agenda');
+      expect(getActiveDestinationFromPathname('/(app)/atendimentos')).toBe('agenda');
     });
 
     it('não deve interpretar rotas de reservas pessoais como atendimentos da unidade', () => {

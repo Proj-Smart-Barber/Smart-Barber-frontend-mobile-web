@@ -18,9 +18,9 @@ describe('I6 — Rotas e Navegação por Perfil (bookings-navigation)', () => {
   };
 
   it('rotas públicas de atendimento e reservas pessoais são estritamente distintas', () => {
-    // /atendimentos é rota operacional de equipe
-    expect(getActiveDestinationFromPathname('/atendimentos')).toBe('atendimentos');
-    expect(getActiveDestinationFromPathname('/(app)/atendimentos')).toBe('atendimentos');
+    // /atendimentos é rota operacional legada redirecionada para agenda
+    expect(getActiveDestinationFromPathname('/atendimentos')).toBe('agenda');
+    expect(getActiveDestinationFromPathname('/(app)/atendimentos')).toBe('agenda');
 
     // /bookings e /(client)/bookings são consumo pessoal e não ativam aba atendimentos
     expect(getActiveDestinationFromPathname('/bookings')).not.toBe('atendimentos');

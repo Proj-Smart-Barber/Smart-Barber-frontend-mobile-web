@@ -1,19 +1,29 @@
 import type { SessionSnapshot } from './session-engine';
+import type { Membership } from '@/entities/user';
 
 export interface OperationalContext {
   userId: string;
   shopId: string;
   role: 'OWNER' | 'BARBERMAN';
   timezone: string;
+  unitStatus?: string;
 }
 
-export function getOperationalContext(snapshot: SessionSnapshot): OperationalContext | null {
-  if (snapshot.status !== 'authenticated' || !snapshot.identity) {
+export interface OperationalSessionSource {
+  status: string;
+  identity?: { id: string } | null;
+  selectedShopId?: string | null;
+  memberships?: Membership[];
+  barbershop?: { timezone?: string; status?: string } | null;
+}
+
+export function getOperationalContext(snapshot: OperationalSessionSource | null | undefined): OperationalContext | null {
+  if (!snapshot || snapshot.status !== 'authenticated' || !snapshot.identity) {
     return null;
   }
 
   const { selectedShopId, memberships, identity } = snapshot;
-  if (!selectedShopId || memberships.length === 0) {
+  if (!selectedShopId || !memberships || memberships.length === 0) {
     return null;
   }
 
@@ -22,8 +32,9 @@ export function getOperationalContext(snapshot: SessionSnapshot): OperationalCon
     return null;
   }
 
-  // Vínculo inativo não habilita operação
-  if (currentMembership.state && currentMembership.state !== 'ACTIVE') {
+  // Vínculo inativo ou sem estado explícito não habilita operação (falha fechado).
+  // A normalização active-only da API reside exclusivamente no adapter da API.
+  if (currentMembership.state !== 'ACTIVE') {
     return null;
   }
 
@@ -38,6 +49,7 @@ export function getOperationalContext(snapshot: SessionSnapshot): OperationalCon
     shopId: currentMembership.id,
     role: currentMembership.role,
     timezone: currentMembership.timezone || 'America/Sao_Paulo',
+    unitStatus: currentMembership.status,
   };
 }
 

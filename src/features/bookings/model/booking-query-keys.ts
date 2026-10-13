@@ -8,8 +8,22 @@ export const bookingQueryKeys = {
     ['barbershop', shopId, 'availability', params] as const,
   myBookings: (actorId?: string | null, params?: FetchMyBookingsParams) =>
     ['bookings', 'me', actorId ?? 'anon', params ?? {}] as const,
-  unitBookings: (shopId: string, params?: FetchUnitBookingsParams, actorId?: string | null) =>
-    ['barbershop', shopId, 'bookings', actorId ?? 'anon', params ?? {}] as const,
+  unitBookings: (
+    shopId: string,
+    params?: FetchUnitBookingsParams,
+    actorId?: string | null,
+    role?: string | null
+  ) =>
+    role
+      ? (['barbershop', shopId, 'bookings', actorId ?? 'anon', role, params ?? {}] as const)
+      : (['barbershop', shopId, 'bookings', actorId ?? 'anon', params ?? {}] as const),
+  unitBookingsBootstrap: (
+    shopId: string,
+    actorId?: string | null,
+    role?: string | null,
+    barbermanId?: string | null
+  ) =>
+    ['barbershop', shopId, 'bookings', 'bootstrap', actorId ?? 'anon', role ?? 'unknown', barbermanId ?? 'all'] as const,
   detail: (bookingId: string, scope?: string, actorId?: string | null) =>
     ['bookings', 'detail', bookingId, scope ?? 'PERSONAL', actorId ?? 'anon'] as const,
   agenda: (shopId: string, professionalId?: string | null, date?: string | null) =>

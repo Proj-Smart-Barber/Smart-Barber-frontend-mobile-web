@@ -11,19 +11,36 @@ import { formatPrice } from '@/features/services/model/service.types';
 export interface BookingResultProps {
   booking: BookingDto;
   barbershopName?: string;
+  mode?: 'PERSONAL' | 'UNIT';
   onReset?: () => void;
 }
 
 export function BookingResult({
   booking,
   barbershopName = 'Barbearia',
+  mode = 'PERSONAL',
   onReset,
 }: BookingResultProps) {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
 
-  const handleGoToBookings = () => {
-    router.replace('/(client)/bookings' as any);
+  const handleGoToDestination = () => {
+    if (mode === 'UNIT') {
+      const dateParam = booking.date
+        ? (typeof booking.date === 'string' ? booking.date.split('T')[0] : booking.date.toISOString().split('T')[0])
+        : undefined;
+      router.replace({
+        pathname: '/(app)/agenda' as any,
+        params: {
+          shopId: booking.barbershopId,
+          ...(dateParam ? { date: dateParam } : {}),
+          ...(booking.barbermanId ? { barbermanId: booking.barbermanId } : {}),
+          ...(booking.id ? { bookingId: booking.id } : {}),
+        },
+      });
+    } else {
+      router.replace('/(client)/bookings' as any);
+    }
   };
 
   return (
@@ -117,10 +134,10 @@ export function BookingResult({
 
         <View style={{ width: '100%', gap: spacing[2], marginTop: spacing[3] }}>
           <Button
-            title="Ver Meus Agendamentos"
+            title={mode === 'UNIT' ? 'Ver na Agenda' : 'Ver Meus Agendamentos'}
             variant="primary"
             rightIcon={<Ionicons name="calendar-outline" size={18} color="#FFFFFF" />}
-            onPress={handleGoToBookings}
+            onPress={handleGoToDestination}
             style={{ minHeight: 48, width: '100%' }}
           />
 

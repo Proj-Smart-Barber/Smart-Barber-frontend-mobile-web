@@ -6,14 +6,17 @@ import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Button, useToast } from '@/shared/ui';
 import { getPublicCatalogUrl } from '@/shared/config/env';
 
-import { useSession } from '@/features/auth';
+import { useSession, getOperationalContext } from '@/features/auth';
 
 export function QuickActionsBar() {
   const { colors, spacing } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const { showToast } = useToast();
   const router = useRouter();
-  const { barbershop } = useSession();
+  const session = useSession();
+  const { barbershop } = session;
+  const operationalContext = getOperationalContext(session);
+  const isUnitActive = operationalContext?.unitStatus !== 'INACTIVE';
 
   const handleOpenAgenda = () => {
     router.push('/(app)/agenda' as any);
@@ -23,11 +26,12 @@ export function QuickActionsBar() {
     router.push('/(app)/services' as any);
   };
 
-  const handleQuickBooking = () => {
-    Alert.alert(
-      'Novo Encaixe (Em breve)',
-      'A criação direta de agendamentos e encaixes aguarda a disponibilização do endpoint de reservas na API do backend.',
-    );
+  const handleNewBooking = () => {
+    if (!isUnitActive) {
+      showToast('Esta unidade encontra-se inativa para novos agendamentos.', 'error');
+      return;
+    }
+    router.push('/(app)/new-booking' as any);
   };
 
   const handleBlockSlot = () => {
@@ -125,13 +129,13 @@ export function QuickActionsBar() {
       />
 
       <Button
-        title="Novo Encaixe (Em breve)"
+        title="Novo Agendamento"
         variant="outline"
-        leftIcon={<Ionicons name="time-outline" size={18} color={colors.text.secondary} />}
-        onPress={handleQuickBooking}
-        textStyle={{ color: colors.text.secondary }}
+        disabled={!isUnitActive}
+        leftIcon={<Ionicons name="add-circle-outline" size={18} color={isUnitActive ? colors.text.primary : colors.text.muted} />}
+        onPress={handleNewBooking}
+        textStyle={{ color: isUnitActive ? colors.text.primary : colors.text.muted }}
         style={{ flex: 1, minHeight: 48 }}
-        accessibilityHint="Aguardando disponibilização do endpoint de reservas no backend"
       />
     </View>
   );

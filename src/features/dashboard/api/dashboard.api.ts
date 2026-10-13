@@ -16,22 +16,22 @@ export const dashboardRepository: IDashboardRepository =
     : new DashboardHttpAdapter();
 
 export const DASHBOARD_QUERY_KEYS = {
-  metrics: (role: string, staffId: string) => ['dashboard', 'metrics', role, staffId] as const,
-  appointments: (role: string, staffId: string) => ['dashboard', 'appointments', role, staffId] as const,
+  metrics: (role: string, staffId: string, shopId?: string | null) => ['dashboard', 'metrics', role, staffId, shopId] as const,
+  appointments: (role: string, staffId: string, shopId?: string | null) => ['dashboard', 'appointments', role, staffId, shopId] as const,
 };
 
-export function useDashboardMetricsQuery(role: 'OWNER' | 'BARBER', staffId: string) {
+export function useDashboardMetricsQuery(role: 'OWNER' | 'BARBER', staffId: string, shopId?: string | null, timezone?: string) {
   return useQuery<DashboardMetrics>({
-    queryKey: DASHBOARD_QUERY_KEYS.metrics(role, staffId),
-    queryFn: () => dashboardRepository.getMetrics({ role, staffId }),
+    queryKey: DASHBOARD_QUERY_KEYS.metrics(role, staffId, shopId),
+    queryFn: () => dashboardRepository.getMetrics({ role, staffId, shopId, timezone }),
     staleTime: 1000 * 60 * 2, // 2 minutos
   });
 }
 
-export function useTodayAppointmentsQuery(role: 'OWNER' | 'BARBER', staffId: string) {
+export function useTodayAppointmentsQuery(role: 'OWNER' | 'BARBER', staffId: string, shopId?: string | null, timezone?: string) {
   return useQuery<DashboardAppointment[]>({
-    queryKey: DASHBOARD_QUERY_KEYS.appointments(role, staffId),
-    queryFn: () => dashboardRepository.getTodayAppointments({ role, staffId }),
+    queryKey: DASHBOARD_QUERY_KEYS.appointments(role, staffId, shopId),
+    queryFn: () => dashboardRepository.getTodayAppointments({ role, staffId, shopId, timezone }),
     staleTime: 1000 * 60 * 2, // 2 minutos
   });
 }

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { ThemeProvider, useTheme } from '@/shared/theme';
 import { SessionProvider, useSession, SessionRecoveryScreen } from '@/features/auth';
 import { BootstrapScreen, ToastProvider } from '@/shared/ui';
+import { serverClock } from '@/features/bookings';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -112,6 +114,10 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
 
   return (
     <>
+      <ClockLifecycleBridge
+        actorId={identity?.id ?? null}
+        sessionStatus={status}
+      />
       <OperationLifecycleBridge
         actorId={identity?.id ?? null}
         sessionState={status}
@@ -120,6 +126,57 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
       <Slot />
     </>
   );
+}
+
+function ClockLifecycleBridge({
+  actorId,
+  sessionStatus,
+}: {
+  actorId: string | null;
+  sessionStatus: string;
+}) {
+  const prevActorIdRef = useRef<string | null>(actorId);
+
+  useEffect(() => {
+    // Invalida o relógio no logout ou na troca de ator/conta
+    if (
+      sessionStatus === 'unauthenticated' ||
+      (prevActorIdRef.current !== null && prevActorIdRef.current !== actorId)
+    ) {
+      serverClock.clear();
+    }
+    prevActorIdRef.current = actorId;
+  }, [actorId, sessionStatus]);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextStatus: AppStateStatus) => {
+      // Ao ir para background ou inativo, invalida o lease para exigir nova referência autorizada
+      if (nextStatus !== 'active') {
+        serverClock.clear();
+      }
+    };
+
+    const sub = AppState.addEventListener('change', handleAppStateChange);
+
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        serverClock.clear();
+      }
+    };
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+
+    return () => {
+      sub.remove();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibility);
+      }
+    };
+  }, []);
+
+  return null;
 }
 
 function AppReady() {

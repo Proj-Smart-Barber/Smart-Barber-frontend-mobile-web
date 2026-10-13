@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSession } from '@/features/auth';
-import { useAgendaDayQuery, useCancelBookingMutation } from '../api/agenda.api';
-import { normalizeAgendaError } from '../api/normalize-agenda-error';
-import type { AgendaScope } from '../api/agenda.contract';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams } from 'expo-router';
+import { useSession, getOperationalContext } from '@/features/auth';
+import {
+  useUnitBookings,
+  listBarbershopProfessionals,
+  bookingQueryKeys,
+  invalidateBookingQueries,
+  type BookingDto,
+} from '@/features/bookings';
+import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { AGENDA_SYNC_CONFIG } from './agenda-state';
 import {
   addDays,
@@ -11,29 +18,118 @@ import {
   formatDateLabelShort,
   formatLastUpdated,
   isWithinNavigationLimit,
-  sortAgendaEntriesChronologically,
   toISODate,
 } from './agenda.helpers';
-import { buildAgendaSummaryView } from './agenda.types';
+import type { AgendaSummaryView } from './agenda.types';
 
 export function useAgendaViewModel() {
-  const { staff, selectedShopId } = useSession();
-  const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
+  const session = useSession();
+  const queryClient = useQueryClient();
 
-  const scope = useMemo<AgendaScope>(
-    () => ({
-      role: staff?.role === 'OWNER' ? 'OWNER' : 'BARBER',
-      staffId: staff?.id ?? 'default-staff-id',
-      shopId: selectedShopId ?? undefined,
-    }),
-    [staff?.role, staff?.id, selectedShopId],
+  // 1. Contexto operacional estrito
+  const operationalContext = useMemo(() => {
+    const ctx = getOperationalContext(session);
+    return ctx;
+  }, [session]);
+
+  const shopId = operationalContext?.shopId;
+  const isOwner = operationalContext?.role === 'OWNER';
+  const isBarberman = operationalContext?.role === 'BARBERMAN';
+
+  // Leitura e validação dos parâmetros de rota
+  const {
+    date: paramDate,
+    shopId: paramShopId,
+    barbermanId: paramBarbermanId,
+    bookingId: paramBookingId,
+  } = useLocalSearchParams<{
+    date?: string;
+    shopId?: string;
+    barbermanId?: string;
+    bookingId?: string;
+  }>();
+
+  // Validação segura de data civil (yyyy-MM-dd)
+  const validParamDate = useMemo(() => {
+    if (paramDate && /^\d{4}-\d{2}-\d{2}$/.test(paramDate) && !Number.isNaN(Date.parse(paramDate))) {
+      return paramDate;
+    }
+    return undefined;
+  }, [paramDate]);
+
+  // 2. Consulta de profissionais da unidade (para OWNER filtrar e para exibir nomes reais)
+  const professionalsQuery = useQuery({
+    queryKey: shopId ? bookingQueryKeys.professionals(shopId) : ['disabled-professionals'],
+    queryFn: () => (shopId ? listBarbershopProfessionals(shopId) : Promise.resolve([])),
+    enabled: Boolean(shopId),
+    staleTime: 5 * 60_000,
+  });
+
+  const professionals = useMemo(() => {
+    return Array.isArray(professionalsQuery.data) ? professionalsQuery.data : [];
+  }, [professionalsQuery.data]);
+
+  const professionalsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const prof of professionals) {
+      if (prof.id && prof.name) {
+        map.set(prof.id, prof.name);
+      }
+    }
+    return map;
+  }, [professionals]);
+
+  // Filtro de profissional: BARBERMAN ignora colega; OWNER pode filtrar se for válido
+  const validParamBarbermanId = useMemo(() => {
+    if (!isOwner || !paramBarbermanId) return undefined;
+    return paramBarbermanId;
+  }, [isOwner, paramBarbermanId]);
+
+  // Filtro de profissional selecionado pelo OWNER
+  const [selectedProfessionalId, setSelectedProfessionalId] = useState<string | null>(
+    validParamBarbermanId ?? null
   );
 
-  const dayQuery = useAgendaDayQuery(scope, selectedDate);
+  // 3. Read Model Canônico de reservas da unidade com filtro inicial validado
+  const destinationMismatch = Boolean(paramShopId && paramShopId !== operationalContext?.shopId);
+  const unitBookings = useUnitBookings(destinationMismatch ? null : operationalContext, {
+    date: validParamDate,
+    barbermanId: validParamBarbermanId,
+  });
+  const setAgendaDate = unitBookings.setSelectedDate;
+  const setAgendaProfessional = unitBookings.setBarbermanId;
 
-  const todayIso = toISODate(new Date());
-  const daysFromToday = diffInDays(todayIso, selectedDate);
+  // Atualiza data selecionada se rota mudar após montagem
+  useEffect(() => {
+    if (validParamDate) {
+      setAgendaDate(validParamDate);
+    }
+  }, [validParamDate, setAgendaDate]);
+
+  // Atualiza profissional se rota mudar após montagem
+  useEffect(() => {
+    if (isOwner && paramBarbermanId !== undefined) {
+      const nextId = paramBarbermanId || null;
+      setSelectedProfessionalId(nextId);
+      setAgendaProfessional(nextId ?? undefined);
+    }
+  }, [isOwner, paramBarbermanId, setAgendaProfessional]);
+
+  // Aplica filtro de profissional para o OWNER
+  const handleSelectProfessional = useCallback(
+    (profId: string | null) => {
+      setSelectedProfessionalId(profId);
+      unitBookings.setBarbermanId(profId ?? undefined);
+    },
+    [unitBookings]
+  );
+
+  // 4. Navegação de Datas
+  const selectedDate = unitBookings.selectedDate;
+  const todayIso = unitBookings.unitTodayDate || toISODate(new Date());
+  const daysFromToday = diffInDays(todayIso, selectedDate || todayIso);
   const isToday = daysFromToday === 0;
+
   const canGoToPreviousDay = daysFromToday > -AGENDA_SYNC_CONFIG.navigationLimitDays;
   const canGoToNextDay = daysFromToday < AGENDA_SYNC_CONFIG.navigationLimitDays;
   const minSelectableDateIso = addDays(todayIso, -AGENDA_SYNC_CONFIG.navigationLimitDays);
@@ -42,93 +138,196 @@ export function useAgendaViewModel() {
   const goToDate = useCallback(
     (iso: string) => {
       if (isWithinNavigationLimit(iso, todayIso, AGENDA_SYNC_CONFIG.navigationLimitDays)) {
-        setSelectedDate(iso);
+        unitBookings.setSelectedDate(iso);
       }
     },
-    [todayIso],
+    [todayIso, unitBookings]
   );
 
   const goToPreviousDay = useCallback(() => {
-    setSelectedDate((current) => addDays(current, -1));
-  }, []);
+    unitBookings.setSelectedDate(addDays(selectedDate, -1));
+  }, [selectedDate, unitBookings]);
 
   const goToNextDay = useCallback(() => {
-    setSelectedDate((current) => addDays(current, 1));
-  }, []);
+    unitBookings.setSelectedDate(addDays(selectedDate, 1));
+  }, [selectedDate, unitBookings]);
 
   const goToToday = useCallback(() => {
-    setSelectedDate(todayIso);
-  }, [todayIso]);
+    unitBookings.followToday();
+  }, [todayIso, unitBookings]);
 
-  const handleRefresh = useCallback(() => {
-    void dayQuery.refetch();
-  }, [dayQuery]);
+  // 5. Mapeamento de BookingDto para AgendaAppointmentEntry completo
+  const entries = useMemo<AgendaAppointmentEntry[]>(() => {
+    return unitBookings.items.map((dto: BookingDto): AgendaAppointmentEntry => {
+      const startTime =
+        dto.startTime ||
+        (dto.startsAt && dto.startsAt.includes('T') ? dto.startsAt.split('T')[1].slice(0, 5) : '00:00');
+      const endTime =
+        dto.endTime ||
+        (dto.endsAt && dto.endsAt.includes('T') ? dto.endsAt.split('T')[1].slice(0, 5) : '00:00');
 
-  const day = dayQuery.data ?? null;
-  // Com keepPreviousData, `data` pode ser do dia anterior durante a
-  // atualização — só é "dado do dia selecionado" quando não é placeholder.
-  const showsDataForSelectedDate = day !== null && !dayQuery.isPlaceholderData;
+      const services = Array.isArray(dto.services) ? dto.services : [];
+      const serviceTitle = services.map((s) => s.title).filter(Boolean).join(', ') || 'Atendimento';
 
-  const entries = useMemo(
-    () => sortAgendaEntriesChronologically(day?.entries ?? []),
-    [day?.entries],
+      const hasServicePrices = services.some((s) => s.priceInCents != null);
+      const calculatedPrice = services.reduce((sum, s) => sum + (s.priceInCents ?? 0), 0);
+      const totalPrice =
+        dto.totalPriceInCents != null
+          ? dto.totalPriceInCents
+          : hasServicePrices && calculatedPrice > 0
+          ? calculatedPrice
+          : null;
+
+      const customerName = dto.customer?.name?.trim() || 'Cliente';
+      const profId = dto.barbermanId || '';
+      const profName = professionalsMap.get(profId) || dto.barbermanName || '';
+
+      const statusUpper = (dto.status || 'UNKNOWN').toUpperCase();
+
+      return {
+        type: 'APPOINTMENT',
+        id: dto.id,
+        startTime,
+        endTime,
+        customerName,
+        serviceTitle,
+        servicePriceInCents: totalPrice,
+        professionalId: profId,
+        professionalName: profName,
+        status: statusUpper as any,
+        paymentStatus: null,
+        checkedInAt: null,
+        hasConflict: false,
+        capabilities: dto.capabilities,
+        version: dto.version,
+        rawBooking: dto,
+      };
+    });
+  }, [unitBookings.items, professionalsMap]);
+
+  // 6. Resumo da Agenda
+  const summary = useMemo<AgendaSummaryView | null>(() => {
+    const next = unitBookings.nextAppointment
+      ? {
+          startTime: unitBookings.nextAppointment.startTime,
+          customerName: unitBookings.nextAppointment.customerName,
+          serviceTitle: unitBookings.nextAppointment.serviceTitle,
+          professionalName: unitBookings.nextAppointment.professionalName || '',
+        }
+      : null;
+
+    const totalBookings = unitBookings.total;
+    const occupancyDetail =
+      totalBookings !== null && totalBookings > 0
+        ? `${totalBookings} reserva${totalBookings === 1 ? '' : 's'} no filtro`
+        : null;
+
+    return {
+      occupancyPercent: null,
+      occupancyLabel: null,
+      occupancyDetail,
+      next,
+    };
+  }, [unitBookings.nextAppointment, unitBookings.total]);
+
+  // 7. Detalhes e Ações de Reserva
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    destinationMismatch ? null : paramBookingId ?? null
   );
 
-  const summary = useMemo(() => buildAgendaSummaryView(day?.summary ?? null), [day?.summary]);
-
-  const isInitialLoading = dayQuery.isLoading && !dayQuery.isPlaceholderData;
-  const isFetching = dayQuery.isFetching;
-  const isUpdatingDate = isFetching && dayQuery.isPlaceholderData;
-  const isRefreshing = isFetching && !isInitialLoading;
-
-  const isError = dayQuery.isError;
-  const isFatalError = isError && !showsDataForSelectedDate;
-  const isErrorWithCachedData = isError && showsDataForSelectedDate;
-  const normalizedError = useMemo(
-    () => (dayQuery.error ? normalizeAgendaError(dayQuery.error) : null),
-    [dayQuery.error],
-  );
-
-  const lastUpdatedAtLabel = showsDataForSelectedDate
-    ? formatLastUpdated(dayQuery.dataUpdatedAt)
-    : null;
-  const isDataStale =
-    showsDataForSelectedDate &&
-    !isFetching &&
-    Date.now() - dayQuery.dataUpdatedAt > AGENDA_SYNC_CONFIG.staleDataThresholdMs;
-
-  // Detecção de sincronização lenta: fetch em andamento acima do
-  // threshold enquanto existem dados em cache para exibir.
-  const [isSlowSync, setIsSlowSync] = useState(false);
   useEffect(() => {
-    if (!isFetching || !showsDataForSelectedDate) {
-      setIsSlowSync(false);
-      return;
+    if (destinationMismatch) {
+      setSelectedBookingId(null);
+    } else if (paramBookingId) {
+      setSelectedBookingId(paramBookingId);
     }
-    const timer = setTimeout(() => setIsSlowSync(true), AGENDA_SYNC_CONFIG.slowSyncThresholdMs);
-    return () => clearTimeout(timer);
-  }, [isFetching, showsDataForSelectedDate]);
+  }, [paramBookingId, destinationMismatch]);
 
-  const cancelMutation = useCancelBookingMutation(scope);
+  const [actionConfirm, setActionConfirm] = useState<{
+    isOpen: boolean;
+    actionType: 'CANCEL' | 'COMPLETE' | 'NO_SHOW';
+    booking: BookingDto;
+  } | null>(null);
+
+  const openDetail = useCallback((bookingId: string) => {
+    setSelectedBookingId(bookingId);
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setSelectedBookingId(null);
+  }, []);
+
+  const handleOpenActionConfirm = useCallback(
+    (actionType: 'CANCEL' | 'COMPLETE' | 'NO_SHOW', booking: BookingDto) => {
+      setActionConfirm({
+        isOpen: true,
+        actionType,
+        booking,
+      });
+    },
+    []
+  );
+
+  const closeActionConfirm = useCallback(() => {
+    setActionConfirm(null);
+  }, []);
+
+  const handleActionSuccess = useCallback(async () => {
+    if (operationalContext) {
+      await invalidateBookingQueries(queryClient, {
+        actorId: operationalContext.userId,
+        shopId: operationalContext.shopId,
+        bookingId: actionConfirm?.booking.id,
+      });
+    }
+    setActionConfirm(null);
+    await unitBookings.refetch();
+  }, [queryClient, operationalContext, actionConfirm?.booking.id, unitBookings]);
+
+  // Para compatibilidade com a prop onCancel antiga do AgendaAppointmentCard
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-
   const handleCancelBooking = useCallback(
-    async (bookingId: string) => {
-      setCancellingId(bookingId);
-      try {
-        await cancelMutation.mutateAsync(bookingId);
-      } finally {
-        setCancellingId(null);
+    (bookingId: string) => {
+      const item = unitBookings.items.find((b) => b.id === bookingId);
+      if (item) {
+        handleOpenActionConfirm('CANCEL', item);
       }
     },
-    [cancelMutation],
+    [unitBookings.items, handleOpenActionConfirm]
   );
 
+  // Estados de erro e sincronização
+  const isInitialLoading = unitBookings.isLoading && unitBookings.items.length === 0;
+  const isUpdatingDate = unitBookings.isFetching && !unitBookings.isLoading;
+  const isRefreshing = unitBookings.isRefreshing;
+
+  const isFatalError = destinationMismatch || unitBookings.isError && unitBookings.items.length === 0;
+  const isErrorWithCachedData = unitBookings.isError && unitBookings.items.length > 0;
+
+  const errorTitle = destinationMismatch ? 'Selecione a unidade do agendamento' : 'Não foi possível carregar as reservas da unidade.';
+  const errorDescription =
+    destinationMismatch ? 'O resultado pertence a outra unidade. Selecione explicitamente essa unidade antes de abrir a Agenda.' : unitBookings.error?.message || 'Verifique sua conexão ou tente novamente em instantes.';
+
+  const isDataStale = unitBookings.isDataStale;
+  const lastUpdatedAtLabel = unitBookings.lastAcceptedSyncAtMs
+    ? formatLastUpdated(unitBookings.lastAcceptedSyncAtMs)
+    : null;
+
   return {
+    // Contexto
+    operationalContext,
+    isOwner,
+    isBarberman,
+    isUnitActive: unitBookings.isUnitActive,
+    barbershopName: session.barbershop?.name || 'Unidade Atual',
+    professionals,
+    selectedProfessionalId,
+    onSelectProfessional: handleSelectProfessional,
+
     // Navegação de data
     selectedDate,
-    dateLabel: formatDateLabel(selectedDate),
-    dateLabelShort: formatDateLabelShort(selectedDate),
+    dateLabel: formatDateLabel(selectedDate || todayIso),
+    dateLabelShort: formatDateLabelShort(selectedDate || todayIso),
     todayIso,
     minSelectableDateIso,
     maxSelectableDateIso,
@@ -140,10 +339,16 @@ export function useAgendaViewModel() {
     goToToday,
     goToDate,
 
-    // Dados do dia
+    // Dados da Agenda
     entries,
     summary,
-    isClosed: day?.summary.isClosed ?? false,
+    isClosed: false,
+    totalBookings: unitBookings.total,
+    isPartial: unitBookings.isPartial,
+    hasNext: unitBookings.hasNext,
+    loadMore: unitBookings.loadMore,
+    loadMoreError: unitBookings.loadMoreError,
+    isLoadingMore: unitBookings.isLoadingMore,
 
     // Estados de carregamento
     isInitialLoading,
@@ -153,16 +358,25 @@ export function useAgendaViewModel() {
     // Erros
     isFatalError,
     isErrorWithCachedData,
-    errorTitle: normalizedError?.title ?? 'Não foi possível carregar sua agenda.',
-    errorDescription: normalizedError?.description ?? 'Tente novamente em instantes.',
+    errorTitle,
+    errorDescription,
 
     // Sincronização
     lastUpdatedAtLabel,
     isDataStale,
-    isSlowSync,
-    handleRefresh,
+    isSlowSync: unitBookings.isSlowSync,
+    handleRefresh: unitBookings.refetch,
 
-    // Cancelamento
+    // Detalhe e Ações UNIT
+    selectedBookingId,
+    openDetail,
+    closeDetail,
+    actionConfirm,
+    handleOpenActionConfirm,
+    closeActionConfirm,
+    handleActionSuccess,
+
+    // Compatibilidade
     handleCancelBooking,
     cancellingId,
   };

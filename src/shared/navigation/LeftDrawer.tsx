@@ -308,15 +308,6 @@ export function LeftDrawer() {
               isActive={activeDestination === 'agenda'}
               onPress={() => handleNavigate('/(app)/agenda')}
             />
-            {canManageBookings ? (
-              <DrawerMenuItem
-                label="Atendimentos"
-                icon="briefcase-outline"
-                activeIcon="briefcase"
-                isActive={activeDestination === 'atendimentos'}
-                onPress={() => handleNavigate('/(app)/atendimentos')}
-              />
-            ) : null}
             <DrawerMenuItem
               label="Horários"
               icon="time-outline"

@@ -1,13 +1,14 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { mapStatusBadgeTone, mapStatusLabel } from '@/entities/appointment';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Text, confirmDestructiveAction } from '@/shared/ui';
+import { Badge, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
+import { serverClock } from '@/features/bookings';
 import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { mapPaymentStatusLabel } from '../model/agenda.helpers';
-import { AgendaActionButton } from './AgendaActionButton';
 
 function statusToneColor(
   tone: ReturnType<typeof mapStatusBadgeTone>,
@@ -29,7 +30,6 @@ function statusToneColor(
   }
 }
 
-/** Coluna de horário com largura fixa; valores nunca quebram em linha. */
 function TimeBlock({ entry }: { entry: AgendaAppointmentEntry }) {
   const { colors, spacing, radius } = useTheme();
   const tone = mapStatusBadgeTone(entry.status);
@@ -37,7 +37,7 @@ function TimeBlock({ entry }: { entry: AgendaAppointmentEntry }) {
   return (
     <View
       style={{
-        width: 64,
+        width: 68,
         flexShrink: 0,
         paddingVertical: spacing[2],
         borderRadius: radius.md,
@@ -59,7 +59,6 @@ function TimeBlock({ entry }: { entry: AgendaAppointmentEntry }) {
   );
 }
 
-/** Chips de pagamento / check-in / conflito; quebram por linha, nunca por palavra. */
 function MetaChips({
   entry,
   paymentLabel,
@@ -101,51 +100,88 @@ function MetaChips({
   );
 }
 
-interface AgendaAppointmentCardProps {
+export interface AgendaAppointmentCardProps {
   entry: AgendaAppointmentEntry;
+  onSelect?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onReschedule?: (booking: any) => void;
+  onComplete?: (booking: any) => void;
+  onNoShow?: (booking: any) => void;
   isCancelling?: boolean;
 }
 
-/**
- * Agendamento confirmado: horário, cliente, serviço, profissional,
- * status e pagamento (somente quando presentes no contrato).
- *
- * No mobile (compact) os dados secundários (serviço, profissional,
- * pagamento) são reorganizados em uma seção abaixo do cabeçalho,
- * com truncamento em até duas linhas, para manter o card compacto.
- */
 export function AgendaAppointmentCard({
   entry,
+  onSelect,
   onCancel,
+  onReschedule,
+  onComplete,
+  onNoShow,
   isCancelling = false,
 }: AgendaAppointmentCardProps) {
   const { colors, spacing, radius } = useTheme();
   const { isCompact } = useAdaptiveLayout();
+  const router = useRouter();
+  const [isFocused, setIsFocused] = useState(false);
+
   const tone = mapStatusBadgeTone(entry.status);
+  const paymentLabel = entry.paymentStatus ? mapPaymentStatusLabel(entry.paymentStatus) : null;
+  const showChips = Boolean(paymentLabel || entry.checkedInAt || entry.hasConflict);
+
   const priceValue =
-    entry.servicePriceInCents !== null
+    typeof entry.servicePriceInCents === 'number' && entry.servicePriceInCents > 0
       ? (entry.servicePriceInCents / 100).toLocaleString('pt-BR', {
           style: 'currency',
           currency: 'BRL',
         })
       : null;
-  const paymentLabel = entry.paymentStatus ? mapPaymentStatusLabel(entry.paymentStatus) : null;
-  const showChips = Boolean(paymentLabel || entry.checkedInAt || entry.hasConflict);
-  const isLongName = entry.customerName.length > 15;
 
-  const handleCancel = async () => {
-    if (!onCancel || isCancelling) return;
+  // Capabilities da reserva exigem autorização estrita (allowed === true), versão válida e relógio sincronizado
+  const isClockValid = serverClock.hasValidReference();
+  const hasValidVersion = typeof (entry.version ?? entry.rawBooking?.version) === 'number';
 
-    const confirmed = await confirmDestructiveAction({
-      title: 'Cancelar agendamento',
-      message: `O agendamento de ${entry.startTime} (${entry.customerName}) será cancelado e excluído da agenda.`,
-      confirmLabel: 'Sim, cancelar',
-      cancelLabel: 'Manter',
-    });
+  const canCancel =
+    isClockValid &&
+    hasValidVersion &&
+    entry.capabilities?.cancel?.allowed === true &&
+    entry.status !== 'CANCELLED' &&
+    entry.status !== 'COMPLETED' &&
+    entry.status !== 'NO_SHOW';
 
-    if (confirmed) {
-      onCancel(entry.id);
+  const canReschedule =
+    isClockValid &&
+    hasValidVersion &&
+    entry.capabilities?.reschedule?.allowed === true &&
+    entry.status !== 'CANCELLED' &&
+    entry.status !== 'COMPLETED' &&
+    entry.status !== 'NO_SHOW';
+
+  const canComplete =
+    isClockValid &&
+    hasValidVersion &&
+    entry.capabilities?.complete?.allowed === true &&
+    (entry.status === 'CONFIRMED' || entry.status === 'IN_SERVICE');
+
+  const canNoShow =
+    isClockValid &&
+    hasValidVersion &&
+    entry.capabilities?.noShow?.allowed === true &&
+    entry.status === 'CONFIRMED';
+
+  const handleOpenDetail = () => {
+    if (onSelect) {
+      onSelect(entry.id);
+    }
+  };
+
+  const handleReschedule = () => {
+    if (onReschedule && entry.rawBooking) {
+      onReschedule(entry.rawBooking);
+    } else {
+      router.push({
+        pathname: `/(account)/bookings/${entry.id}/reschedule` as any,
+        params: { scope: 'UNIT' },
+      });
     }
   };
 
@@ -153,90 +189,52 @@ export function AgendaAppointmentCard({
     <LiquidGlassView
       variant="card"
       elevated
+      borderRadius={radius.lg}
+      borderColor={isFocused ? colors.border.focus : undefined}
+      borderWidth={isFocused ? 2 : 1}
       style={{ width: '100%' }}
-      contentStyle={{ padding: spacing[4], gap: spacing[3] }}
+      contentStyle={{
+        gap: spacing[3],
+        padding: isCompact ? spacing[3] : spacing[4],
+      }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+      {/* Linha principal com TimeBlock e informações do cliente */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Agendamento das ${entry.startTime} às ${entry.endTime}, cliente ${entry.customerName}`}
+        accessibilityHint="Toque para ver os detalhes completos deste agendamento"
+        onPress={handleOpenDetail}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing[3],
+          opacity: pressed ? 0.85 : 1,
+        })}
+      >
         <TimeBlock entry={entry} />
 
-        {isCompact ? (
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Text
-              variant="subhead"
-              color={colors.text.primary}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {entry.customerName}
-            </Text>
-          </View>
-        ) : (
-          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-            <Text
-              variant="subhead"
-              color={colors.text.primary}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {entry.customerName}
-            </Text>
-            <Text
-              variant="caption"
-              color={colors.text.secondary}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {entry.serviceTitle}
-              {priceValue ? ` · ${priceValue}` : ''}
-            </Text>
-            {entry.professionalName ? (
-              <Text
-                variant="caption"
-                color={colors.text.muted}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                Profissional: {entry.professionalName}
-              </Text>
-            ) : null}
-          </View>
-        )}
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <Text
+            variant="body"
+            weight="bold"
+            color={colors.text.primary}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {entry.customerName}
+          </Text>
 
-        <View style={{ flexShrink: 0 }}>
-          <Badge label={mapStatusLabel(entry.status)} tone={tone} />
-        </View>
-      </View>
+          <Text
+            variant="caption"
+            color={colors.text.secondary}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {entry.serviceTitle}
+          </Text>
 
-      {isCompact ? (
-        <View
-          style={{
-            gap: spacing[2],
-            borderTopWidth: 1,
-            borderTopColor: colors.border.subtle,
-            paddingTop: spacing[2],
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
-            <Text
-              variant="caption"
-              color={colors.text.secondary}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-              style={{ flex: 1, minWidth: 0 }}
-            >
-              {entry.serviceTitle}
-            </Text>
-            {priceValue ? (
-              <Text
-                variant="caption"
-                color={colors.text.primary}
-                numberOfLines={1}
-                style={{ flexShrink: 0 }}
-              >
-                {priceValue}
-              </Text>
-            ) : null}
-          </View>
           {entry.professionalName ? (
             <Text
               variant="caption"
@@ -247,36 +245,141 @@ export function AgendaAppointmentCard({
               Profissional: {entry.professionalName}
             </Text>
           ) : null}
-          {showChips ? (
-            <MetaChips entry={entry} paymentLabel={paymentLabel} gap={spacing[2]} />
+        </View>
+
+        <View style={{ flexShrink: 0, alignItems: 'flex-end', gap: spacing[1] }}>
+          <Badge label={mapStatusLabel(entry.status)} tone={tone} />
+          {priceValue ? (
+            <Text variant="caption" weight="bold" color={colors.text.primary} numberOfLines={1}>
+              {priceValue}
+            </Text>
           ) : null}
         </View>
-      ) : showChips ? (
-        <MetaChips entry={entry} paymentLabel={paymentLabel} gap={spacing[3]} />
+      </Pressable>
+
+      {/* Chips adicionais se houver */}
+      {showChips ? (
+        <MetaChips entry={entry} paymentLabel={paymentLabel} gap={spacing[2]} />
       ) : null}
 
-      {onCancel ? (
-        <View
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: colors.border.subtle,
-            paddingTop: spacing[2],
-            flexDirection: 'row',
-            justifyContent: 'flex-end',
-          }}
+      {/* Barra de ações acessíveis */}
+      <View
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: colors.border.subtle,
+          paddingTop: spacing[2],
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: spacing[2],
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ver detalhes do agendamento"
+          onPress={handleOpenDetail}
+          style={({ pressed }) => ({
+            minHeight: 36,
+            paddingHorizontal: spacing[3],
+            paddingVertical: spacing[1],
+            borderRadius: radius.md,
+            backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+            justifyContent: 'center',
+            alignItems: 'center',
+          })}
         >
-          <AgendaActionButton
-            title="Cancelar"
-            loadingTitle="Cancelando…"
-            tone="destructive"
-            loading={isCancelling}
+          <Text variant="caption" weight="bold" color={colors.text.primary}>
+            Detalhes
+          </Text>
+        </Pressable>
+
+        {canReschedule ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remarcar agendamento"
+            onPress={handleReschedule}
+            style={({ pressed }) => ({
+              minHeight: 36,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              borderRadius: radius.md,
+              backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+              justifyContent: 'center',
+              alignItems: 'center',
+            })}
+          >
+            <Text variant="caption" weight="bold" color={colors.brand.primary}>
+              Remarcar
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {canComplete && onComplete ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Concluir atendimento"
+            onPress={() => onComplete(entry.rawBooking)}
+            style={({ pressed }) => ({
+              minHeight: 36,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              borderRadius: radius.md,
+              backgroundColor: pressed ? colors.feedback.successAlt : colors.feedback.success,
+              justifyContent: 'center',
+              alignItems: 'center',
+            })}
+          >
+            <Text variant="caption" weight="bold" color="#FFFFFF">
+              Concluir
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {canNoShow && onNoShow ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Registrar não comparecimento"
+            onPress={() => onNoShow(entry.rawBooking)}
+            style={({ pressed }) => ({
+              minHeight: 36,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              borderRadius: radius.md,
+              backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+              justifyContent: 'center',
+              alignItems: 'center',
+            })}
+          >
+            <Text variant="caption" weight="bold" color={colors.feedback.warning}>
+              Não compareceu
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {canCancel && onCancel ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancelar agendamento"
             disabled={isCancelling}
-            onPress={() => {
-              void handleCancel();
-            }}
-          />
-        </View>
-      ) : null}
+            onPress={() => onCancel(entry.id)}
+            style={({ pressed }) => ({
+              minHeight: 36,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              borderRadius: radius.md,
+              backgroundColor: pressed ? colors.surface.selected : 'transparent',
+              justifyContent: 'center',
+              alignItems: 'center',
+              opacity: isCancelling ? 0.5 : 1,
+            })}
+          >
+            <Text variant="caption" weight="bold" color={colors.feedback.error}>
+              {isCancelling ? 'Cancelando…' : 'Cancelar'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </LiquidGlassView>
   );
 }

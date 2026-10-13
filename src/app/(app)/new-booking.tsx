@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { View, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSession } from '@/features/auth';
+import { useSession, getOperationalContext } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { Text, Button, EmptyState, ErrorState } from '@/shared/ui';
+import { Text, Button, ErrorState } from '@/shared/ui';
 import { CustomerLookup } from '@/features/bookings/ui/CustomerLookup';
 import { BookingFlowView } from '@/features/bookings/ui/BookingFlowView';
 import type { BookingCustomer } from '@/features/bookings/model/booking-flow.types';
@@ -14,19 +14,19 @@ export default function NewOperationalBookingPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, spacing, radius } = useTheme();
-  const { identity, memberships, selectedShopId, barbershop } = useSession();
+  const session = useSession();
+  const { selectedShopId, barbershop } = session;
+  const { date: paramDate, barbermanId: paramBarbermanId } = useLocalSearchParams<{
+    date?: string;
+    barbermanId?: string;
+  }>();
 
-  // Verifica vínculo ativo na unidade
-  const activeMembership = useMemo(() => {
-    if (!selectedShopId || !memberships) return null;
-    return memberships.find(
-      (m) => m.id === selectedShopId && m.status === 'ACTIVE'
-    );
-  }, [memberships, selectedShopId]);
+  // Autoridade pelo vínculo ACTIVE validado via context
+  const operationalContext = getOperationalContext(session);
 
   const [customer, setCustomer] = useState<BookingCustomer | null>(null);
 
-  if (!selectedShopId || !activeMembership) {
+  if (!selectedShopId || !operationalContext || operationalContext.shopId !== selectedShopId) {
     return (
       <View
         style={{
@@ -40,8 +40,30 @@ export default function NewOperationalBookingPage() {
       >
         <ErrorState
           title="Acesso Não Permitido"
-          description="Você precisa possuir um vínculo ativo (BARBER ou OWNER) nesta unidade para agendar clientes operacionalmente."
-          onRetry={() => router.back()}
+          description="Você precisa possuir um vínculo ativo (BARBERMAN ou OWNER) nesta unidade para agendar clientes operacionalmente."
+          onRetry={() => router.replace('/(app)/agenda' as any)}
+        />
+      </View>
+    );
+  }
+
+  // Unidade inativa bloqueia nova criação de agendamento (falha fechado)
+  if (operationalContext.unitStatus === 'INACTIVE') {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background.primary,
+          paddingTop: insets.top,
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: spacing[4],
+        }}
+      >
+        <ErrorState
+          title="Unidade Inativa"
+          description="Esta barbearia encontra-se inativa no momento. Novos agendamentos não são permitidos nesta unidade."
+          onRetry={() => router.replace('/(app)/agenda' as any)}
         />
       </View>
     );
@@ -91,7 +113,15 @@ export default function NewOperationalBookingPage() {
             <Button
               title="Cancelar"
               variant="ghost"
-              onPress={() => router.back()}
+              onPress={() =>
+                router.replace({
+                  pathname: '/(app)/agenda' as any,
+                  params: {
+                    ...(paramDate ? { date: paramDate } : {}),
+                    ...(paramBarbermanId ? { barbermanId: paramBarbermanId } : {}),
+                  },
+                })
+              }
               style={{ minHeight: 36, paddingHorizontal: spacing[2] }}
             />
           </View>
@@ -127,14 +157,19 @@ export default function NewOperationalBookingPage() {
   }
 
   // Quando o cliente está definido, entra no fluxo de agendamento compartilhado com mode: 'UNIT'
+  const initialProfId =
+    operationalContext.role === 'BARBERMAN'
+      ? operationalContext.userId
+      : paramBarbermanId || undefined;
+
   return (
     <BookingFlowView
       options={{
         mode: 'UNIT',
         shopId: selectedShopId,
         initialCustomer: customer,
-        initialProfessionalId:
-          identity?.accountType === 'BARBER' ? identity.id : undefined,
+        initialDate: paramDate || undefined,
+        initialProfessionalId: initialProfId,
       }}
       onExit={() => setCustomer(null)}
     />

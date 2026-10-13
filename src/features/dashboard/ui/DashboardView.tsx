@@ -30,6 +30,7 @@ export function DashboardView() {
     previewAppointments,
     nextAppointment,
     isLoading,
+    isIndeterminate,
     isError,
     isUpdatingStatus,
     handleUpdateStatus,
@@ -79,6 +80,7 @@ export function DashboardView() {
               {/* 1. Atenção Imediata: Próximo Atendimento na Cadeira (Hero Card) */}
               <NextAppointmentCard
                 appointment={nextAppointment}
+                isIndeterminate={isIndeterminate}
                 isLoading={isLoading}
                 isUpdating={isUpdatingStatus}
                 onUpdateStatus={handleUpdateStatus}

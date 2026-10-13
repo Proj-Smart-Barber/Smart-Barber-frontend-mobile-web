@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { usePathname } from 'expo-router';
 import { useAdaptiveLayout, useReducedMotion, useTheme } from '@/shared/theme';
 import { BottomCapsuleBar } from './BottomCapsuleBar';
 import { DesktopSidebar } from './DesktopSidebar';
@@ -24,6 +25,7 @@ function NavigationShellContent({ children }: NavigationShellProps) {
   const { isExpanded } = useAdaptiveLayout();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const isBookingCreation = usePathname() === '/new-booking';
   const reducedMotion = useReducedMotion();
   const { isDrawerOpen, openDrawer, closeDrawer, activeDestination, drawerProgress } = useNavigation();
 
@@ -84,7 +86,7 @@ function NavigationShellContent({ children }: NavigationShellProps) {
       });
 
   // Exibe disparador flutuante de menu nas outras telas que não têm hamburger nativo no header
-  const showFloatingMenuTrigger = activeDestination !== 'home' && !isDrawerOpen;
+  const showFloatingMenuTrigger = activeDestination !== 'home' && !isDrawerOpen && !isBookingCreation;
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#080808' : colors.background.secondary }]}>
@@ -110,7 +112,9 @@ function NavigationShellContent({ children }: NavigationShellProps) {
           },
         ]}
       >
-        <View style={styles.pageInner}>{children}</View>
+        <View style={[styles.pageInner, isBookingCreation && {
+          paddingBottom: Math.max(insets.bottom, 12) + 88,
+        }]}>{children}</View>
 
         {/* Camada que intercepta toque para fechar o drawer quando a página estiver deslocada */}
         {isDrawerOpen ? (

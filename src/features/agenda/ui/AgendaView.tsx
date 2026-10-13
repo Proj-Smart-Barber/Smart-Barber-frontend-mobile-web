@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Platform, RefreshControl, ScrollView, View } from 'react-native';
+import { Modal, Platform, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { ErrorState } from '@/shared/ui';
+import { BookingDetailView, BookingActionConfirm } from '@/features/bookings';
 import { useAgendaViewModel } from '../model/use-agenda-view-model';
 import { AgendaDatePicker } from './AgendaDatePicker';
 import { AgendaHeader } from './AgendaHeader';
@@ -20,6 +21,16 @@ export function AgendaView() {
   const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
 
   const {
+    // Contexto e Papéis
+    isOwner,
+    isBarberman,
+    isUnitActive,
+    barbershopName,
+    professionals,
+    selectedProfessionalId,
+    onSelectProfessional,
+
+    // Data e Navegação
     dateLabel,
     dateLabelShort,
     isToday,
@@ -33,9 +44,17 @@ export function AgendaView() {
     goToNextDay,
     goToToday,
     goToDate,
+
+    // Dados e Resumo
     entries,
     summary,
     isClosed,
+    hasNext,
+    loadMore,
+    loadMoreError,
+    isLoadingMore,
+
+    // Estados
     isInitialLoading,
     isUpdatingDate,
     isRefreshing,
@@ -47,6 +66,15 @@ export function AgendaView() {
     isDataStale,
     isSlowSync,
     handleRefresh,
+
+    // Detalhe e Ações
+    selectedBookingId,
+    openDetail,
+    closeDetail,
+    actionConfirm,
+    handleOpenActionConfirm,
+    closeActionConfirm,
+    handleActionSuccess,
     handleCancelBooking,
     cancellingId,
   } = useAgendaViewModel();
@@ -66,6 +94,8 @@ export function AgendaView() {
     goToDate(iso);
     setIsDatePickerOpen(false);
   };
+
+  const roleLabel = isOwner ? 'Proprietário' : isBarberman ? 'Barbeiro' : 'Equipe';
 
   const webBackgroundStyle =
     Platform.OS === 'web'
@@ -90,11 +120,28 @@ export function AgendaView() {
         canGoToNextDay={canGoToNextDay}
         isUpdatingDate={isUpdatingDate}
         lastUpdatedAtLabel={lastUpdatedAtLabel}
+        unitName={barbershopName}
+        roleLabel={roleLabel}
         onGoToPreviousDay={goToPreviousDay}
         onGoToNextDay={goToNextDay}
         onGoToToday={goToToday}
         onOpenDatePicker={() => setIsDatePickerOpen(true)}
         onBack={handleBack}
+        onNewBooking={() => {
+          if (!isUnitActive) return;
+          router.push({
+            pathname: '/(app)/new-booking' as any,
+            params: {
+              date: selectedDate,
+              ...(selectedProfessionalId ? { barbermanId: selectedProfessionalId } : {}),
+            },
+          });
+        }}
+        isUnitActive={isUnitActive}
+        isOwner={isOwner}
+        professionals={professionals}
+        selectedProfessionalId={selectedProfessionalId}
+        onSelectProfessional={onSelectProfessional}
       />
 
       <AgendaDatePicker
@@ -156,8 +203,21 @@ export function AgendaView() {
                       isLoading={isInitialLoading}
                       isUpdatingDate={isUpdatingDate}
                       onGoToToday={goToToday}
+                      onSelect={openDetail}
                       onCancel={handleCancelBooking}
+                      onReschedule={(booking) => {
+                        router.push({
+                          pathname: `/(account)/bookings/${booking.id}/reschedule` as any,
+                          params: { scope: 'UNIT' },
+                        });
+                      }}
+                      onComplete={(booking) => handleOpenActionConfirm('COMPLETE', booking)}
+                      onNoShow={(booking) => handleOpenActionConfirm('NO_SHOW', booking)}
                       cancellingId={cancellingId}
+                      hasNext={hasNext}
+                      loadMore={loadMore}
+                      loadMoreError={loadMoreError}
+                      isLoadingMore={isLoadingMore}
                     />
                   </View>
                 </View>
@@ -170,8 +230,21 @@ export function AgendaView() {
                     isLoading={isInitialLoading}
                     isUpdatingDate={isUpdatingDate}
                     onGoToToday={goToToday}
+                    onSelect={openDetail}
                     onCancel={handleCancelBooking}
+                    onReschedule={(booking) => {
+                      router.push({
+                        pathname: `/(account)/bookings/${booking.id}/reschedule` as any,
+                        params: { scope: 'UNIT' },
+                      });
+                    }}
+                    onComplete={(booking) => handleOpenActionConfirm('COMPLETE', booking)}
+                    onNoShow={(booking) => handleOpenActionConfirm('NO_SHOW', booking)}
                     cancellingId={cancellingId}
+                    hasNext={hasNext}
+                    loadMore={loadMore}
+                    loadMoreError={loadMoreError}
+                    isLoadingMore={isLoadingMore}
                   />
                 </>
               )}
@@ -179,6 +252,38 @@ export function AgendaView() {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de Detalhes UNIT da Reserva */}
+      <Modal
+        visible={Boolean(selectedBookingId)}
+        animationType="slide"
+        onRequestClose={closeDetail}
+      >
+        {selectedBookingId ? (
+          <SafeAreaView
+            edges={['top', 'bottom', 'left', 'right']}
+            style={{ flex: 1, backgroundColor: colors.background.primary }}
+          >
+            <BookingDetailView
+              bookingId={selectedBookingId}
+              scope="UNIT"
+              onBack={closeDetail}
+            />
+          </SafeAreaView>
+        ) : null}
+      </Modal>
+
+      {/* Modal de Confirmação de Ações UNIT */}
+      {actionConfirm && actionConfirm.isOpen ? (
+        <BookingActionConfirm
+          booking={actionConfirm.booking}
+          actionType={actionConfirm.actionType}
+          isOpen={actionConfirm.isOpen}
+          scope="UNIT"
+          onClose={closeActionConfirm}
+          onSuccess={handleActionSuccess}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -30,6 +30,7 @@ export interface OperationAttemptResource<T = any> {
 }
 
 export interface OperationAttemptResult<T = any> {
+  originScope?: 'PERSONAL' | 'UNIT';
   state: OperationAttemptState;
   operation?: string;
   resource?: OperationAttemptResource<T>;
@@ -44,6 +45,7 @@ export interface OperationAttemptRecord<TPayload = any, TData = any> {
   resourceKind: OperationResourceKind;
   status: SubmissionStatus;
   createdAt: number;
+  originScope?: 'PERSONAL' | 'UNIT';
   payload?: TPayload;
   result?: OperationAttemptResult<TData>;
   errorMessage?: string | null;
@@ -56,6 +58,7 @@ export interface OperationReference {
   resourceKind: OperationResourceKind;
   status: SubmissionStatus;
   createdAt: number;
+  originScope?: 'PERSONAL' | 'UNIT';
 }
 
 export interface OperationAttemptStore {

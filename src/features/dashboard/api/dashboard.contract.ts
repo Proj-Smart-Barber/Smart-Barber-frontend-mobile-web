@@ -9,33 +9,37 @@ export type AppointmentStatus =
   | 'IN_SERVICE'
   | 'COMPLETED'
   | 'CANCELLED'
-  | 'NO_SHOW';
+  | 'NO_SHOW'
+  | 'UNKNOWN';
 
 export interface DashboardAppointment {
   id: string;
+  date?: string;
   customerName: string;
   customerPhone: string;
   customerAvatarUrl?: string | null;
   serviceTitle: string;
-  servicePriceInCents: number;
-  durationMinutes: number;
+  servicePriceInCents: number | null;
+  durationMinutes: number | null;
   barbermanId: string;
   barbermanName: string;
   scheduledTime: string; // ex: "09:00", "10:30"
   status: AppointmentStatus;
+  hasIncompleteData?: boolean;
 }
 
 export interface DashboardMetrics {
-  totalRevenueInCents: number;
-  targetRevenueInCents: number;
-  estimatedCommissionInCents: number;
+  totalRevenueInCents: number | null;
+  targetRevenueInCents: number | null;
+  estimatedCommissionInCents: number | null;
   totalAppointments: number;
   completedAppointments: number;
-  occupancyRatePercent: number;
+  occupancyRatePercent: number | null;
+  hasIncompleteData?: boolean;
 }
 
 export interface IDashboardRepository {
-  getMetrics(params: { role: 'OWNER' | 'BARBER'; staffId: string }): Promise<DashboardMetrics>;
-  getTodayAppointments(params: { role: 'OWNER' | 'BARBER'; staffId: string }): Promise<DashboardAppointment[]>;
+  getMetrics(params: { role: 'OWNER' | 'BARBER'; staffId: string; shopId?: string | null; timezone?: string }): Promise<DashboardMetrics>;
+  getTodayAppointments(params: { role: 'OWNER' | 'BARBER'; staffId: string; shopId?: string | null; timezone?: string }): Promise<DashboardAppointment[]>;
   updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<DashboardAppointment>;
 }

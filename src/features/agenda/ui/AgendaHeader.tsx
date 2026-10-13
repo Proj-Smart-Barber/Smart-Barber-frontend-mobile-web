@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Button, Spinner, Text } from '@/shared/ui';
@@ -13,11 +13,19 @@ interface AgendaHeaderProps {
   canGoToNextDay: boolean;
   isUpdatingDate: boolean;
   lastUpdatedAtLabel: string | null;
+  unitName?: string;
+  roleLabel?: string;
   onGoToPreviousDay: () => void;
   onGoToNextDay: () => void;
   onGoToToday: () => void;
   onOpenDatePicker: () => void;
   onBack: () => void;
+  onNewBooking?: () => void;
+  isUnitActive?: boolean;
+  isOwner?: boolean;
+  professionals?: Array<{ id: string; name: string }>;
+  selectedProfessionalId?: string | null;
+  onSelectProfessional?: (id: string | null) => void;
 }
 
 function DayNavButton({
@@ -127,11 +135,19 @@ export function AgendaHeader({
   canGoToNextDay,
   isUpdatingDate,
   lastUpdatedAtLabel,
+  unitName,
+  roleLabel,
   onGoToPreviousDay,
   onGoToNextDay,
   onGoToToday,
   onOpenDatePicker,
   onBack,
+  onNewBooking,
+  isUnitActive = true,
+  isOwner,
+  professionals,
+  selectedProfessionalId,
+  onSelectProfessional,
 }: AgendaHeaderProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
@@ -170,7 +186,11 @@ export function AgendaHeader({
           >
             Agenda
           </Text>
-          {lastUpdatedAtLabel ? (
+          {unitName || roleLabel ? (
+            <Text variant="caption" color={colors.text.secondary} numberOfLines={1} ellipsizeMode="tail">
+              {[unitName, roleLabel].filter(Boolean).join(' • ')}
+            </Text>
+          ) : lastUpdatedAtLabel ? (
             <Text variant="caption" color={colors.text.muted} numberOfLines={1} ellipsizeMode="tail">
               {lastUpdatedAtLabel}
             </Text>
@@ -181,7 +201,7 @@ export function AgendaHeader({
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: spacing[3],
+            gap: spacing[2],
             flexShrink: 0,
           }}
         >
@@ -199,16 +219,117 @@ export function AgendaHeader({
               ) : null}
             </View>
           ) : null}
+
+          {onNewBooking ? (
+            <Button
+              variant="primary"
+              title={isCompact ? '+ Novo' : '+ Novo agendamento'}
+              onPress={isUnitActive ? onNewBooking : undefined}
+              disabled={!isUnitActive}
+              accessibilityHint={
+                !isUnitActive
+                  ? 'Unidade inativa: novos agendamentos não são permitidos nesta barbearia'
+                  : 'Criar novo agendamento para cliente'
+              }
+              style={{
+                minHeight: 44,
+                paddingHorizontal: spacing[3],
+                paddingVertical: spacing[2],
+                opacity: isUnitActive ? 1 : 0.5,
+              }}
+            />
+          ) : null}
+
           {!isToday ? (
             <Button
               variant="outline"
               title="Hoje"
               onPress={onGoToToday}
-              style={{ minHeight: 44, paddingHorizontal: spacing[4], paddingVertical: spacing[2] }}
+              style={{ minHeight: 44, paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}
             />
           ) : null}
         </View>
       </View>
+
+      {/* Seletor de Profissionais para OWNER */}
+      {isOwner && professionals && professionals.length > 0 && onSelectProfessional ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing[2],
+            paddingVertical: spacing[1],
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ver agenda de todos os profissionais"
+            onPress={() => onSelectProfessional(null)}
+            style={({ pressed }) => ({
+              minHeight: 36,
+              paddingHorizontal: spacing[3],
+              paddingVertical: spacing[1],
+              borderRadius: radius.full,
+              borderWidth: 1,
+              borderColor:
+                selectedProfessionalId === null ? colors.brand.primary : colors.border.subtle,
+              backgroundColor:
+                selectedProfessionalId === null
+                  ? colors.brand.primary
+                  : pressed
+                  ? colors.surface.selected
+                  : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            <Text
+              variant="caption"
+              weight={selectedProfessionalId === null ? 'bold' : 'regular'}
+              color={selectedProfessionalId === null ? '#FFFFFF' : colors.text.secondary}
+            >
+              Todos os profissionais
+            </Text>
+          </Pressable>
+
+          {professionals.map((prof) => {
+            const isSelected = selectedProfessionalId === prof.id;
+            return (
+              <Pressable
+                key={prof.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Filtrar agenda para ${prof.name}`}
+                onPress={() => onSelectProfessional(prof.id)}
+                style={({ pressed }) => ({
+                  minHeight: 36,
+                  paddingHorizontal: spacing[3],
+                  paddingVertical: spacing[1],
+                  borderRadius: radius.full,
+                  borderWidth: 1,
+                  borderColor: isSelected ? colors.brand.primary : colors.border.subtle,
+                  backgroundColor: isSelected
+                    ? colors.brand.primary
+                    : pressed
+                    ? colors.surface.selected
+                    : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                })}
+              >
+                <Text
+                  variant="caption"
+                  weight={isSelected ? 'bold' : 'regular'}
+                  color={isSelected ? '#FFFFFF' : colors.text.secondary}
+                >
+                  {prof.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
 
       <View
         style={{

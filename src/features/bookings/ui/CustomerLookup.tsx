@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Pressable, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
@@ -28,6 +28,7 @@ export function CustomerLookup({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [foundCustomer, setFoundCustomer] = useState<CustomerLookupResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const requestIdRef = useRef<number>(0);
 
   const handleSearch = useCallback(async () => {
     const trimmed = searchValue.trim();
@@ -48,6 +49,7 @@ export function CustomerLookup({
       }
     }
 
+    const reqId = ++requestIdRef.current;
     setIsLoading(true);
     setErrorMessage(null);
     setFoundCustomer(null);
@@ -59,8 +61,10 @@ export function CustomerLookup({
           : { cpf: trimmed.replace(/\D/g, '') };
 
       const result = await lookupCustomer(shopId, criteria);
+      if (reqId !== requestIdRef.current) return;
       setFoundCustomer(result);
     } catch (err: any) {
+      if (reqId !== requestIdRef.current) return;
       if (err?.status === 429) {
         setErrorMessage('Muitas consultas em pouco tempo. Aguarde alguns instantes antes de tentar novamente.');
       } else if (err?.status === 503) {
@@ -71,7 +75,9 @@ export function CustomerLookup({
         setErrorMessage(err?.message || 'Falha ao buscar cliente.');
       }
     } finally {
-      setIsLoading(false);
+      if (reqId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [shopId, lookupType, searchValue]);
 
@@ -146,6 +152,8 @@ export function CustomerLookup({
       <View style={{ flexDirection: 'row', gap: spacing[2] }}>
         <Pressable
           onPress={() => {
+            requestIdRef.current++;
+            setIsLoading(false);
             setLookupType('email');
             setSearchValue('');
             setErrorMessage(null);
@@ -170,6 +178,8 @@ export function CustomerLookup({
 
         <Pressable
           onPress={() => {
+            requestIdRef.current++;
+            setIsLoading(false);
             setLookupType('cpf');
             setSearchValue('');
             setErrorMessage(null);
@@ -214,7 +224,13 @@ export function CustomerLookup({
         />
         <TextInput
           value={searchValue}
-          onChangeText={setSearchValue}
+          onChangeText={(val) => {
+            requestIdRef.current++;
+            setIsLoading(false);
+            setSearchValue(val);
+            setFoundCustomer(null);
+            setErrorMessage(null);
+          }}
           placeholder={lookupType === 'email' ? 'exemplo@email.com' : '00000000000'}
           placeholderTextColor={colors.text.muted}
           keyboardType={lookupType === 'email' ? 'email-address' : 'numeric'}
