@@ -1,5 +1,5 @@
 import { BookingsView } from '@/features/bookings';
 
-export default function BookingsScreen() {
+export default function AtendimentosScreen() {
   return <BookingsView />;
 }

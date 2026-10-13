@@ -37,10 +37,10 @@ const DESTINATIONS: DestinationConfig[] = [
     iconInactive: 'calendar-outline',
   },
   {
-    id: 'bookings',
+    id: 'atendimentos',
     label: 'Atendimentos',
     compactLabel: 'Atend.',
-    route: '/(app)/bookings',
+    route: '/(app)/atendimentos',
     iconActive: 'briefcase',
     iconInactive: 'briefcase-outline',
     visibleForRole: 'BARBER',

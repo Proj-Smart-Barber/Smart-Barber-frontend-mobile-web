@@ -125,7 +125,33 @@ Base: `origin/main` (`6a17846bb792fa5e6e039ebcbe1da41573e3fa01`)
 - **Testes implementados e validados:**
   - Suíte completa de bookings: 20 arquivos, 111 testes PASS (exit code 0).
   - Typecheck frontend: `tsc --noEmit` exit code 0.
-- **Próxima Ação:** Bloco 4 / Tarefa I6 — Rotas e navegação por perfil (criar `/atendimentos`, isolar de `/bookings` pessoal).
+---
+
+## Checkpoint I6 — Rotas e Navegação por Perfil
+
+- **Status:** CONCLUÍDO
+- **Ações executadas:**
+  - Criada tela canônica `src/app/(app)/atendimentos.tsx` para exibição de `BookingsView` na área operacional de equipe.
+  - Removido `src/app/(app)/bookings.tsx`, eliminando a rota concorrente com as reservas pessoais do cliente (`/(client)/bookings.tsx`).
+  - Atualizado `src/app/(app)/_layout.tsx` para registrar a tela `atendimentos` na stack operacional.
+  - Atualizado `src/shared/navigation/navigation.types.ts`: `AppDestination` agora inclui `'atendimentos'`.
+  - Atualizado `src/shared/navigation/navigation.helpers.ts`:
+    - `getActiveDestinationFromPathname` reconhece estritamente caminhos contendo `atendimentos`.
+    - Caminhos de reservas pessoais (`/bookings`, `/(client)/bookings`, `/bookings/:id`) não ativam a aba de atendimentos operacionais da equipe.
+  - Atualizado `BottomCapsuleBar.tsx`, `DesktopSidebar.tsx` e `LeftDrawer.tsx`:
+    - Rota canônica alterada para `/(app)/atendimentos` com ID `atendimentos`.
+    - Destino visível condicionado a perfil/vínculo operacional ativo.
+  - Atualizado `resolve-booking-context.ts`:
+    - Suporte flexível a `shopId` ou `id` e `status` ou `state` em `OperationalMembership`.
+    - Garantido que atores sem vínculo ativo ou de unidades distintas tenham acesso negado em escopo `UNIT`.
+  - Atualizados testes de navegação e criados testes de isolamento de perfil:
+    - `src/shared/navigation/tests/navigation.test.ts` (13 testes PASS).
+    - `src/features/bookings/tests/bookings-navigation.test.ts` (4 testes PASS).
+- **Testes implementados e validados:**
+  - Suíte completa de bookings e navegação: 22 arquivos, 128 testes PASS (exit code 0).
+  - Typecheck frontend: `tsc --noEmit` exit code 0.
+- **Próxima Ação:** Bloco 5 / Tarefas I7 & I8 — Homologação da Composição, Revisão Independente e Pacote de Publicação.
+
 
 
 

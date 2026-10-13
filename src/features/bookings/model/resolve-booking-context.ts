@@ -1,9 +1,11 @@
 import type { BookingDto } from '../api/bookings.dto';
 
 export interface OperationalMembership {
-  shopId: string;
+  id?: string;
+  shopId?: string;
   role: 'OWNER' | 'ADMIN' | 'BARBER' | string;
   status?: string;
+  state?: string;
 }
 
 export interface ResolveBookingContextParams {
@@ -53,7 +55,12 @@ export function resolveBookingContext(
 
   // 1. Escopo Operacional da Unidade (UNIT)
   if (targetScope === 'UNIT') {
-    if (!selectedMembership || selectedMembership.status === 'INACTIVE') {
+    const isInactive =
+      !selectedMembership ||
+      selectedMembership.status === 'INACTIVE' ||
+      selectedMembership.state === 'INACTIVE';
+
+    if (isInactive) {
       return {
         isValid: false,
         resolvedScope: 'UNIT',
@@ -67,9 +74,11 @@ export function resolveBookingContext(
       };
     }
 
+    const membershipShopId = selectedMembership.shopId || selectedMembership.id;
+
     // Se a reserva foi fornecida, valida correspondência de unidade
     if (booking) {
-      if (booking.barbershopId !== selectedMembership.shopId) {
+      if (booking.barbershopId !== membershipShopId) {
         return {
           isValid: false,
           resolvedScope: 'UNIT',

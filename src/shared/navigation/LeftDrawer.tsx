@@ -310,8 +310,8 @@ export function LeftDrawer() {
                 label="Atendimentos"
                 icon="briefcase-outline"
                 activeIcon="briefcase"
-                isActive={activeDestination === 'bookings'}
-                onPress={() => handleNavigate('/(app)/bookings')}
+                isActive={activeDestination === 'atendimentos'}
+                onPress={() => handleNavigate('/(app)/atendimentos')}
               />
             ) : null}
             <DrawerMenuItem
