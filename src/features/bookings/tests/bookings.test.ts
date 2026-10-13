@@ -110,4 +110,80 @@ describe('Task R1/R2 — Reserva Múltipla Idempotente e Recuperação de Agenda
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     expect(key).toMatch(uuidRegex);
   });
+
+  it('ausência de server clock válido impede inicialização do engine', () => {
+    expect(() => new BookingFlowEngine(fakeDraft, transport, undefined as any)).toThrow(
+      'Server clock inválido ou não sincronizado'
+    );
+    expect(() => new BookingFlowEngine(fakeDraft, transport, 0)).toThrow(
+      'Server clock inválido ou não sincronizado'
+    );
+  });
+
+  it('409 de conflito de slot (SLOT_UNAVAILABLE) não é classificado como quoteMismatch', async () => {
+    vi.mocked(transport.createBooking).mockRejectedValue({
+      statusCode: 409,
+      code: 'SLOT_UNAVAILABLE',
+      message: 'O horário selecionado não está mais disponível.',
+    });
+
+    const engine = new BookingFlowEngine(fakeDraft, transport, 1775900000000);
+
+    await expect(engine.submit()).rejects.toThrow();
+
+    expect(engine.status).toBe('error');
+    expect(engine.quoteMismatch).toBe(false);
+    expect(engine.state.errorMessage).toContain('não está mais disponível');
+  });
+
+  it('falha no storage antes do envio gera zeroPOST', async () => {
+    const mockStore: any = {
+      save: vi.fn().mockRejectedValue(new Error('QuotaExceededError')),
+    };
+
+    const engine = new BookingFlowEngine(fakeDraft, transport, {
+      serverTimestampMs: 1775900000000,
+      store: mockStore,
+      actorId: 'client-user-1',
+    });
+
+    await expect(engine.submit()).rejects.toThrow('QuotaExceededError');
+    expect(transport.createBooking).not.toHaveBeenCalled();
+    expect(mockStore.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('salva tentativa pendente e resultado confirmado no storage', async () => {
+    const mockStore: any = {
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+    vi.mocked(transport.createBooking).mockResolvedValue({
+      booking: fakeConfirmedBooking,
+    });
+
+    const engine = new BookingFlowEngine(fakeDraft, transport, {
+      serverTimestampMs: 1775900000000,
+      store: mockStore,
+      actorId: 'client-user-1',
+    });
+
+    await engine.submit();
+
+    expect(mockStore.save).toHaveBeenCalledTimes(2);
+    expect(mockStore.save).toHaveBeenNthCalledWith(
+      1,
+      'client-user-1',
+      expect.objectContaining({
+        status: 'submitting',
+        operation: 'CREATE_BOOKING',
+      })
+    );
+    expect(mockStore.save).toHaveBeenNthCalledWith(
+      2,
+      'client-user-1',
+      expect.objectContaining({
+        status: 'confirmed',
+        result: expect.objectContaining({ state: 'APPLIED' }),
+      })
+    );
+  });
 });

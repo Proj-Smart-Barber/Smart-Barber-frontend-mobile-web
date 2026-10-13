@@ -5,6 +5,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
@@ -25,6 +26,7 @@ export interface PublicCatalogViewProps {
 }
 
 export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
+  const router = useRouter();
   const { colors, spacing, radius, components, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -192,6 +194,16 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
         isModalOpen={isHandoffModalOpen}
         onOpenModal={openHandoffModal}
         onCloseModal={closeHandoffModal}
+        onProceed={() => {
+          if (selectedServices.length === 0) return;
+          router.push({
+            pathname: '/barbershops/[shopId]/book' as any,
+            params: {
+              shopId: barbershopId,
+              serviceIds: selectedServices.map((s) => s.id).join(','),
+            },
+          });
+        }}
       />
     </View>
   );

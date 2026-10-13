@@ -15,6 +15,10 @@ void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 import { resolveEntryDestination } from '@/features/auth/model/operational-context';
 import { OperationLifecycleBridge } from '@/shared/operations/OperationLifecycleBridge';
+import {
+  getBookingReturnIntent,
+  clearBookingReturnIntent,
+} from '@/features/auth/model/booking-return-intent';
 
 function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
   const { status, barbershop, identity, memberships, selectedShopId, token, restoreSession, signOut, error } = useSession();
@@ -40,6 +44,13 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     if (status === 'authenticated') {
       if (inAuth || !segments[0]) {
+        const returnIntent = getBookingReturnIntent();
+        if (returnIntent) {
+          clearBookingReturnIntent();
+          router.replace(returnIntent.returnPath as any);
+          return;
+        }
+
         const dest = resolveEntryDestination(
           {
             status: 'authenticated',

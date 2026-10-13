@@ -32,9 +32,20 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
       }
 
       const isExpired = Date.now() - (parsed.createdAt || 0) > TTL_24H_MS;
-      if (isExpired && parsed.payload !== undefined) {
-        delete parsed.payload;
-        await AsyncStorage.setItem(key, JSON.stringify(parsed));
+      if (
+        isExpired &&
+        (parsed.payload !== undefined || parsed.result !== undefined || parsed.errorMessage !== undefined)
+      ) {
+        const opaqueRef: OperationAttemptRecord = {
+          actorId: parsed.actorId,
+          requestId: parsed.requestId,
+          operation: parsed.operation,
+          resourceKind: parsed.resourceKind,
+          status: parsed.status,
+          createdAt: parsed.createdAt,
+        };
+        await AsyncStorage.setItem(key, JSON.stringify(opaqueRef));
+        return opaqueRef;
       }
 
       return parsed;
@@ -58,20 +69,65 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
       status: attempt.status,
       createdAt: attempt.createdAt || Date.now(),
       errorMessage: attempt.errorMessage ?? null,
-      result: attempt.result,
     };
 
-    const isExpired = Date.now() - sanitizedAttempt.createdAt > TTL_24H_MS;
-    if (!isExpired && attempt.payload !== undefined) {
-      const payloadCopy = JSON.parse(JSON.stringify(attempt.payload));
-      if (payloadCopy && typeof payloadCopy === 'object') {
-        delete (payloadCopy as any).password;
-        delete (payloadCopy as any).token;
-        delete (payloadCopy as any).refreshToken;
-        delete (payloadCopy as any).accessToken;
-        delete (payloadCopy as any).cpf;
+    if (attempt.result) {
+      const rawResult = attempt.result;
+      sanitizedAttempt.result = {
+        state: rawResult.state,
+        operation: rawResult.operation,
+        accessChanged: rawResult.accessChanged ?? false,
+        serverTime: rawResult.serverTime,
+      };
+      if (rawResult.resource) {
+        sanitizedAttempt.result.resource = {
+          kind: rawResult.resource.kind,
+          id: rawResult.resource.id,
+          version: rawResult.resource.version,
+        };
       }
-      sanitizedAttempt.payload = payloadCopy;
+    }
+
+    const isExpired = Date.now() - sanitizedAttempt.createdAt > TTL_24H_MS;
+    if (!isExpired && attempt.payload !== undefined && attempt.payload !== null) {
+      if (attempt.resourceKind === 'BOOKING') {
+        const p = attempt.payload;
+        const cleanPayload: Record<string, any> = {
+          schemaVersion: p.schemaVersion, action: p.action, bookingId: p.bookingId, expectedVersion: p.expectedVersion, referenceOnly: p.referenceOnly,
+          serviceIds: Array.isArray(p.serviceIds)
+            ? [...p.serviceIds]
+            : p.serviceId
+            ? [p.serviceId]
+            : [],
+        };
+        if (p.barbermanId !== undefined) cleanPayload.barbermanId = p.barbermanId;
+        if (p.date !== undefined) cleanPayload.date = p.date;
+        if (p.startTime !== undefined) cleanPayload.startTime = p.startTime;
+        if (p.endTime !== undefined) cleanPayload.endTime = p.endTime;
+        if (p.slotStartAt !== undefined) cleanPayload.slotStartAt = p.slotStartAt;
+        if (p.expectedTotalPriceInCents !== undefined) cleanPayload.expectedTotalPriceInCents = p.expectedTotalPriceInCents;
+        if (p.expectedDurationInMinutes !== undefined) cleanPayload.expectedDurationInMinutes = p.expectedDurationInMinutes;
+        if (p.scope !== undefined) cleanPayload.scope = p.scope;
+        if (p.shopId !== undefined) cleanPayload.shopId = p.shopId;
+        if (p.customerId !== undefined) cleanPayload.customerId = p.customerId;
+        sanitizedAttempt.payload = cleanPayload;
+      } else if (
+        attempt.resourceKind === 'REGISTRATION' ||
+        attempt.resourceKind === 'INVITATION'
+      ) {
+        sanitizedAttempt.payload = undefined;
+      } else {
+        const payloadCopy = JSON.parse(JSON.stringify(attempt.payload));
+        if (payloadCopy && typeof payloadCopy === 'object') {
+          delete (payloadCopy as any).password;
+          delete (payloadCopy as any).token;
+          delete (payloadCopy as any).refreshToken;
+          delete (payloadCopy as any).accessToken;
+          delete (payloadCopy as any).cpf;
+          delete (payloadCopy as any).email;
+        }
+        sanitizedAttempt.payload = payloadCopy;
+      }
     }
 
     try {
@@ -169,7 +225,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
             } else {
               keysToSanitize.push(key);
             }
-          } catch {
+          } catch (error) {
             keysToRemove.push(key);
           }
         }
@@ -184,16 +240,22 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
         if (raw) {
           try {
             const parsed: OperationAttemptRecord = JSON.parse(raw);
-            delete parsed.payload;
-            await AsyncStorage.setItem(key, JSON.stringify(parsed));
-          } catch {
-            await AsyncStorage.removeItem(key);
+            const opaqueRef: OperationAttemptRecord = {
+              actorId: parsed.actorId,
+              requestId: parsed.requestId,
+              operation: parsed.operation,
+              resourceKind: parsed.resourceKind,
+              status: parsed.status,
+              createdAt: parsed.createdAt,
+            };
+            await AsyncStorage.setItem(key, JSON.stringify(opaqueRef));
+          } catch (error) {
+            // A failed write must not erase the only reference to a possibly committed operation.
+            throw error;
           }
         }
       }
-    } catch {
-      // Falha fechado
-    }
+    } catch (error) { throw error; }
   }
 
   async clearAllForActor(actorId: string): Promise<void> {
@@ -211,3 +273,5 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
     }
   }
 }
+export const operationAttemptStore: OperationAttemptStore = new NativeOperationAttemptStore();
+export function createOperationAttemptStore(): OperationAttemptStore { return new NativeOperationAttemptStore(); }

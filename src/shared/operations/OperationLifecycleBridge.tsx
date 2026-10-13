@@ -12,6 +12,10 @@ export class OperationLifecycleBridgeController {
   private currentActorId: string | null;
   private currentSessionState: string;
   private store: OperationAttemptStore;
+  private pendingCleanup: Promise<void> | null = null;
+  private generation = 0;
+  private cleanupError: unknown = null;
+  getGeneration(): number { return this.generation; }
 
   constructor(options: {
     actorId: string | null;
@@ -21,6 +25,23 @@ export class OperationLifecycleBridgeController {
     this.currentActorId = options.actorId;
     this.currentSessionState = options.sessionState;
     this.store = options.store ?? operationAttemptStore;
+    activeBridgeController = this;
+  }
+
+  getActiveActorId(): string | null {
+    return this.currentActorId;
+  }
+
+  isActorActive(actorId: string | null): boolean {
+    if (!actorId) return false;
+    return this.currentActorId === actorId && this.currentSessionState !== 'unauthenticated';
+  }
+
+  async waitForCleanup(): Promise<void> {
+    if (this.pendingCleanup) {
+      await this.pendingCleanup;
+    }
+    if (this.cleanupError) throw new Error('Não foi possível limpar os dados da sessão anterior.');
   }
 
   handleSessionUpdate(nextActorId: string | null, nextSessionState: string): void {
@@ -48,14 +69,29 @@ export class OperationLifecycleBridgeController {
       prevActorId !== nextActorId;
 
     if ((isLogout || isActorSwitch) && prevActorId) {
+      this.generation++;
       // Limpa os payloads da tentativa, preservando apenas referências opacas incertas
-      void this.store.clearPayloadsOnLogout(prevActorId).catch(() => {});
+      this.pendingCleanup = this.store
+        .clearPayloadsOnLogout(prevActorId)
+        .catch((error) => { this.cleanupError = error; })
+        .finally(() => {
+          this.pendingCleanup = null;
+        });
     }
 
     this.currentActorId = nextActorId;
     this.currentSessionState = nextSessionState;
   }
 }
+
+let activeBridgeController: OperationLifecycleBridgeController | null = null;
+
+export function isCurrentActorActive(actorId: string | null): boolean {
+  if (!activeBridgeController) return true;
+  return activeBridgeController.isActorActive(actorId);
+}
+export function actorSessionGeneration(): number { return activeBridgeController?.getGeneration() ?? 0; }
+export async function awaitOperationCleanup(): Promise<void> { await activeBridgeController?.waitForCleanup(); }
 
 /**
  * Componente de ponte de ciclo de vida para sincronizar estado de sessão e armazenamento de tentativas.

@@ -46,71 +46,93 @@ export interface NormalizedBookingError {
 }
 
 export function normalizeBookingError(error: unknown): NormalizedBookingError {
-  if (error instanceof ApiError) {
-    const rawData = error.data as Record<string, any> | null;
-    const explicitCode =
-      (rawData?.code as string | undefined) ||
-      (rawData?.error as string | undefined) ||
-      '';
+  const isApiErr = error instanceof ApiError;
+  const status = isApiErr
+    ? error.status
+    : typeof (error as any)?.status === 'number'
+    ? (error as any).status
+    : typeof (error as any)?.statusCode === 'number'
+    ? (error as any).statusCode
+    : 0;
 
-    const message =
-      rawData?.message ||
-      rawData?.error ||
-      error.message ||
-      'Ocorreu um erro no processamento do agendamento.';
+  const rawData = (isApiErr ? error.data : ((error as any)?.data ?? (typeof error === 'object' ? error : null))) as Record<string, any> | null;
+  const explicitCode =
+    (rawData?.code as string | undefined) ||
+    (rawData?.error as string | undefined) ||
+    ((error as any)?.code as string | undefined) ||
+    '';
 
-    if (error.isNetworkError) {
-      return {
-        code: 'NETWORK_OR_TIMEOUT',
-        message: 'Falha de comunicação ou tempo limite esgotado. A operação permanece incerta até reconciliação.',
-        statusCode: 0,
-        isQuoteChanged: false,
-        isNetworkError: true,
-        rawError: error,
-      };
-    }
+  const isNetwork = Boolean(
+    (isApiErr && error.isNetworkError) ||
+    (error as any)?.isNetworkError ||
+    (error as any)?.name === 'AbortError' ||
+    (error as any)?.message?.includes('timeout') ||
+    (error as any)?.message?.includes('conexão')
+  );
 
-    if (error.status === 429) {
-      return {
-        code: 'RATE_LIMITED',
-        message: 'Muitas tentativas em pouco tempo. Aguarde antes de tentar novamente.',
-        statusCode: 429,
-        isQuoteChanged: false,
-        isNetworkError: false,
-        rawError: error,
-      };
-    }
+  const message =
+    rawData?.message ||
+    (typeof rawData?.error === 'string' ? rawData.error : '') ||
+    (error instanceof Error ? error.message : '') ||
+    (error as any)?.message ||
+    'Ocorreu um erro no processamento do agendamento.';
 
-    if (error.status === 503) {
-      return {
-        code: 'SERVICE_UNAVAILABLE',
-        message: 'Serviço temporariamente indisponível. Tente novamente em instantes.',
-        statusCode: 503,
-        isQuoteChanged: false,
-        isNetworkError: false,
-        rawError: error,
-      };
-    }
+  if (isNetwork) {
+    return {
+      code: 'NETWORK_OR_TIMEOUT',
+      message: 'Falha de comunicação ou tempo limite esgotado. A operação permanece incerta até reconciliação.',
+      statusCode: 0,
+      isQuoteChanged: false,
+      isNetworkError: true,
+      rawError: error,
+    };
+  }
 
-    if (explicitCode === 'QUOTE_CHANGED' || (error.status === 409 && rawData?.quote)) {
-      return {
-        code: 'QUOTE_CHANGED',
-        message: message || 'Os valores ou durações dos serviços mudaram. Revise o novo orçamento.',
-        statusCode: error.status,
-        isQuoteChanged: true,
-        quote: rawData?.quote ?? null,
-        operationState: rawData?.operationState ?? 'NOT_APPLIED',
-        serverTime: rawData?.serverTime ?? null,
-        isNetworkError: false,
-        rawError: error,
-      };
-    }
+  if (status === 429) {
+    return {
+      code: 'RATE_LIMITED',
+      message: 'Muitas tentativas em pouco tempo. Aguarde antes de tentar novamente.',
+      statusCode: 429,
+      isQuoteChanged: false,
+      isNetworkError: false,
+      rawError: error,
+    };
+  }
+
+  if (status === 503) {
+    return {
+      code: 'SERVICE_UNAVAILABLE',
+      message: 'Serviço temporariamente indisponível. Tente novamente em instantes.',
+      statusCode: 503,
+      isQuoteChanged: false,
+      isNetworkError: false,
+      rawError: error,
+    };
+  }
+
+  if (
+    explicitCode === 'QUOTE_CHANGED' ||
+    (status === 409 && rawData?.quote) ||
+    (status === 409 && typeof message === 'string' && message.includes('alterado') && !explicitCode.includes('CONFLICT') && !explicitCode.includes('DEADLINE'))
+  ) {
+    return {
+      code: 'QUOTE_CHANGED',
+      message: message || 'Os valores ou durações dos serviços mudaram. Revise o novo orçamento.',
+      statusCode: status || 409,
+      isQuoteChanged: true,
+      quote: rawData?.quote ?? null,
+      operationState: rawData?.operationState ?? 'NOT_APPLIED',
+      serverTime: rawData?.serverTime ?? null,
+      isNetworkError: false,
+      rawError: error,
+    };
+  }
 
     if (explicitCode === 'BOOKING_VERSION_CONFLICT') {
       return {
         code: 'BOOKING_VERSION_CONFLICT',
         message: message || 'Este agendamento foi modificado por outra operação. Atualize as informações.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         currentVersion: rawData?.currentVersion ?? null,
         isNetworkError: false,
@@ -122,7 +144,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'ACTION_DEADLINE_PASSED',
         message: message || 'O prazo limite para esta alteração já expirou.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
@@ -133,7 +155,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'MEMBERSHIP_INACTIVE',
         message: message || 'O profissional não possui vínculo ativo nesta unidade.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
@@ -144,7 +166,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'SLOT_UNAVAILABLE',
         message: message || 'O horário selecionado não está mais disponível.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
@@ -155,7 +177,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'IDEMPOTENCY_PAYLOAD_MISMATCH',
         message: 'Payload incompatível com a chave de tentativa anterior.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
@@ -166,7 +188,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'INVALID_IDEMPOTENCY_KEY',
         message: message || 'Chave de tentativa inválida.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
@@ -177,7 +199,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'TERMINAL_BOOKING_STATE',
         message: message || 'O agendamento já está em estado final e não pode ser alterado.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
@@ -188,14 +210,14 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       return {
         code: 'CUSTOMER_NOT_ELIGIBLE',
         message: message || 'Cliente não elegível para este agendamento.',
-        statusCode: error.status,
+        statusCode: status || 400,
         isQuoteChanged: false,
         isNetworkError: false,
         rawError: error,
       };
     }
 
-    if (error.status === 404) {
+    if (status === 404) {
       return {
         code: 'NOT_FOUND',
         message: message || 'Recurso não encontrado.',
@@ -206,7 +228,7 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
       };
     }
 
-    if (error.status === 403) {
+    if (status === 403) {
       return {
         code: 'FORBIDDEN',
         message: message || 'Ação não permitida para o seu usuário nesta unidade.',
@@ -220,20 +242,9 @@ export function normalizeBookingError(error: unknown): NormalizedBookingError {
     return {
       code: 'UNKNOWN_ERROR',
       message,
-      statusCode: error.status,
+      statusCode: status || 500,
       isQuoteChanged: false,
       isNetworkError: false,
       rawError: error,
     };
-  }
-
-  const message = error instanceof Error ? error.message : 'Erro inesperado no agendamento.';
-  return {
-    code: 'UNKNOWN_ERROR',
-    message,
-    statusCode: 500,
-    isQuoteChanged: false,
-    isNetworkError: false,
-    rawError: error,
-  };
 }

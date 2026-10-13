@@ -2,12 +2,11 @@ import React from 'react';
 import { Linking, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Text } from '@/shared/ui';
+import { Text, confirmDestructiveAction } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AgendaBookingDetails } from '../api/agenda.contract';
 import { formatCurrency, formatDurationMinutes, minutesBetween } from '../model/agenda.helpers';
 import { AgendaActionButton } from './AgendaActionButton';
-import { confirmDestructiveAction } from './confirm-destructive-action';
 
 /** Coluna de horário com largura fixa; valores nunca quebram em linha. */
 function TimeBlock({ startTime, endTime }: { startTime: string; endTime: string }) {

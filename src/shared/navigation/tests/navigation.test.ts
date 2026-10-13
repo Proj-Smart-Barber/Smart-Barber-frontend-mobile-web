@@ -22,6 +22,17 @@ describe('Navigation Helpers', () => {
       expect(getActiveDestinationFromPathname('/(app)/agenda')).toBe('agenda');
     });
 
+    it('deve identificar rota de atendimentos do barbeiro', () => {
+      expect(getActiveDestinationFromPathname('/atendimentos')).toBe('atendimentos');
+      expect(getActiveDestinationFromPathname('/(app)/atendimentos')).toBe('atendimentos');
+    });
+
+    it('não deve interpretar rotas de reservas pessoais como atendimentos da unidade', () => {
+      expect(getActiveDestinationFromPathname('/bookings')).toBe('home');
+      expect(getActiveDestinationFromPathname('/(client)/bookings')).toBe('home');
+      expect(getActiveDestinationFromPathname('/bookings/123')).toBe('home');
+    });
+
     it('deve identificar rota de horários / disponibilidade', () => {
       expect(getActiveDestinationFromPathname('/availability')).toBe('availability');
       expect(getActiveDestinationFromPathname('/(app)/availability')).toBe('availability');

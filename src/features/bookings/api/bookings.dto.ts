@@ -35,9 +35,11 @@ export interface CreateBookingRequestDto {
   scope?: 'PERSONAL' | 'UNIT';
   shopId?: string;
   customerId?: string;
+  slotStartAt?: string;
 }
 
 export interface CreateOperationalBookingRequestDto {
+  slotStartAt?: string;
   customerId: string;
   serviceIds: string[];
   barbermanId: string;
@@ -92,6 +94,7 @@ export interface RescheduleBookingRequestDto {
   expectedDurationInMinutes?: number;
   scope?: 'PERSONAL' | 'UNIT';
   reason?: string;
+  slotStartAt?: string;
 }
 
 export interface TransitionBookingStatusRequestDto {

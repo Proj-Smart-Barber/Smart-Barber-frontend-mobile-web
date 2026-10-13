@@ -7,6 +7,9 @@ export function getActiveDestinationFromPathname(
 
   const clean = pathname.toLowerCase();
   if (clean.includes('agenda')) return 'agenda';
+  if (clean.includes('atendimentos')) {
+    return 'atendimentos';
+  }
   if (
     clean.includes('availability') ||
     clean.includes('horarios') ||

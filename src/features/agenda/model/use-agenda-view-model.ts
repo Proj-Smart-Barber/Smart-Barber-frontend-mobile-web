@@ -17,15 +17,16 @@ import {
 import { buildAgendaSummaryView } from './agenda.types';
 
 export function useAgendaViewModel() {
-  const { staff } = useSession();
+  const { staff, selectedShopId } = useSession();
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
 
   const scope = useMemo<AgendaScope>(
     () => ({
       role: staff?.role === 'OWNER' ? 'OWNER' : 'BARBER',
       staffId: staff?.id ?? 'default-staff-id',
+      shopId: selectedShopId ?? undefined,
     }),
-    [staff?.role, staff?.id],
+    [staff?.role, staff?.id, selectedShopId],
   );
 
   const dayQuery = useAgendaDayQuery(scope, selectedDate);
@@ -108,7 +109,7 @@ export function useAgendaViewModel() {
     return () => clearTimeout(timer);
   }, [isFetching, showsDataForSelectedDate]);
 
-  const cancelMutation = useCancelBookingMutation();
+  const cancelMutation = useCancelBookingMutation(scope);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const handleCancelBooking = useCallback(

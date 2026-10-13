@@ -67,8 +67,11 @@ export const fetchUnitBookingsResponseSchema = z.object({
   summary: z
     .object({
       totalBookings: z.number(),
-      totalRevenueInCents: z.number(),
-    })
+      totalAmountInCents: z.number().nullable().optional(),
+      totalRevenueInCents: z.number().nullable().optional(),
+      hasIncompleteData: z.boolean().optional(),
+      statusCounts: z.record(z.number()).optional(),
+    }).refine(s => s.totalAmountInCents !== undefined || s.totalRevenueInCents !== undefined, 'Resumo sem valor conhecido').transform(s => ({ ...s, totalRevenueInCents: s.totalAmountInCents !== undefined ? s.totalAmountInCents : s.totalRevenueInCents ?? null }))
     .optional(),
 });
 

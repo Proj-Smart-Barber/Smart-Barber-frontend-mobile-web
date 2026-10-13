@@ -21,6 +21,9 @@ import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
 import { useNavigation } from './navigation-context';
 
 export function LeftDrawer() {
+  const unitSession = useSession();
+  const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+    m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
   const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -305,6 +308,15 @@ export function LeftDrawer() {
               isActive={activeDestination === 'agenda'}
               onPress={() => handleNavigate('/(app)/agenda')}
             />
+            {canManageBookings ? (
+              <DrawerMenuItem
+                label="Atendimentos"
+                icon="briefcase-outline"
+                activeIcon="briefcase"
+                isActive={activeDestination === 'atendimentos'}
+                onPress={() => handleNavigate('/(app)/atendimentos')}
+              />
+            ) : null}
             <DrawerMenuItem
               label="Horários"
               icon="time-outline"

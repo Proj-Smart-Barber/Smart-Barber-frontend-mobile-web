@@ -3,9 +3,8 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Button, Skeleton, Text } from '@/shared/ui';
+import { Badge, Button, Skeleton, Text, confirmDestructiveAction } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation';
-import { confirmDestructiveAction } from '@/features/agenda/ui/confirm-destructive-action';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/dashboard.helpers';
 

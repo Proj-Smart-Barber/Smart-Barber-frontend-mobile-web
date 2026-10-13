@@ -75,6 +75,10 @@ Se houver paralelismo, usar checkouts/worktrees separados e bases que incluam os
 
 ### Grupo 4 — Carrinho, agendamento e agenda
 
+**Regularização da entrega e integração PR28/29:** após o relatório de conclusão, a auditoria reproduziu conflitos, hooks ausentes e pendências de contrato/recuperação/cache. O [plano de integração](D:/smart_barber/Smart-Barber-frontend-mobile-web/docs/planos/2026-10-12-integracao-prs-28-29.md) detalha quatro blocos/I1–I8 para corrigir a composição, preservar a UI do PR28 e validar os critérios. O relatório anterior não equivale a aprovação da composição nem homologação em produção; os gates de dependência permanecem por evidência.
+
+**Prompt após a entrega relatada do Grupo3:** [executar Grupo4](D:/smart_barber/Smart-Barber-frontend-mobile-web/docs/PROMPT_EXECUCAO_GRUPO_4_AGENDAMENTO_2026-10-12.md). Base frontend encontrada em `1d94c28`; resultados248testes/typecheck/build/revisão são do relatório recebido, não reexecutados nesta preparação. Checkpoint inicial corrige fallback NOT_APPLIED de close inválido, key ausente nas alterações, engine legado/clock e limpeza de resultado sensível antes de integrar as telas. Contratos reais prevalecem sobre exemplos divergentes; lacunas de API são registradas e não encobertas por dados inventados.
+
 **Por que juntos:** R2/R3/R4 usam a mesma jornada, estado de tentativa, BookingDto, revisão/actions e invalidações. A reserva só fica completa quando aparece corretamente em agenda/detalhe/notificação.
 
 **Ordem interna:** catálogo/carrinho/slots/revisão → retorno de login/verify → criação pessoal e operacional → resultado incerto/close → consultas/paginação/detalhe → remarcação/cancelamento/status/cache.
