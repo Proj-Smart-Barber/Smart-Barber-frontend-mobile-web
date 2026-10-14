@@ -68,9 +68,9 @@ export function resolveEntryDestination(
     return '/(platform)';
   }
 
-  // Se tem intenção de criação de barbearia pendente
+  // Se tem intenção de criação de barbearia pendente (canônica OWNER ou legada SETUP_BARBERSHOP)
   const effectiveIntent = onboardingIntent || identity.onboardingIntent;
-  if (effectiveIntent === 'SETUP_BARBERSHOP' && memberships.length === 0) {
+  if ((effectiveIntent === 'OWNER' || effectiveIntent === 'SETUP_BARBERSHOP') && memberships.length === 0) {
     return '/(app)/barbershop-setup';
   }
 

@@ -112,4 +112,50 @@ describe('AuthApi', () => {
     expect(profile.staff.id).toBe('user-uuid-2');
     expect(profile.staff.name).toBe('Wellington Porto');
   });
+
+  it('deve enviar e-mail de verificação chamando POST /api/users/verification-email', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ sentTo: 'cliente@exemplo.com' }),
+    } as Response);
+
+    await authApi.sendEmailVerification('cliente@exemplo.com');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/users/verification-email'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'cliente@exemplo.com' }),
+      })
+    );
+  });
+
+  it('deve confirmar verificação chamando POST /api/users/verification-email/confirm', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        verified: true,
+        alreadyVerified: false,
+        userId: 'user-123',
+        email: 'cliente@exemplo.com',
+        emailVerifiedAt: '2026-10-13T12:00:00.000Z',
+      }),
+    } as Response);
+
+    const result = await authApi.confirmEmailVerification('valid-token-123');
+
+    expect(result.verified).toBe(true);
+    expect(result.userId).toBe('user-123');
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/users/verification-email/confirm'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ token: 'valid-token-123' }),
+      })
+    );
+  });
 });

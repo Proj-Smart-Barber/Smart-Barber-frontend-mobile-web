@@ -20,14 +20,36 @@ describe('Operational Context & Gates', () => {
     },
   );
 
-  it('owner_intent_survives_verification', () => {
+  it('owner_canonical_intent_routes_to_barbershop_setup', () => {
     const snapshot: SessionSnapshot = {
       status: 'authenticated',
       identity: {
-        id: 'u-owner',
+        id: 'u-owner-canonical',
         name: 'Carlos Owner',
         email: 'carlos@example.com',
-        accountType: 'CLIENT', // Cadastrou com intenção mas ainda não criou barbearia
+        accountType: 'CLIENT', // Cadastrou como OWNER, mas servidor mantém CLIENT até criar a barbearia
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+        onboardingIntent: 'OWNER',
+      },
+      memberships: [],
+      selectedShopId: null,
+      revocationPending: false,
+      accessToken: 'token',
+    };
+
+    const destination = resolveEntryDestination(snapshot);
+    expect(destination).toBe('/(app)/barbershop-setup');
+    expect(snapshot.identity?.accountType).toBe('CLIENT'); // Nenhuma permissão outorgada automaticamente
+  });
+
+  it('owner_legacy_intent_SETUP_BARBERSHOP_survives_verification', () => {
+    const snapshot: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-owner-legacy',
+        name: 'Carlos Legacy',
+        email: 'carlos@example.com',
+        accountType: 'CLIENT',
         emailVerifiedAt: '2026-10-11T12:00:00.000Z',
         onboardingIntent: 'SETUP_BARBERSHOP',
       },

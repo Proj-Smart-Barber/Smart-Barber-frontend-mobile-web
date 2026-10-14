@@ -15,7 +15,7 @@ import { createSessionEngine, SessionEngine, SessionSnapshot } from './session-e
 
 interface SessionContextData extends SessionState {
   signIn: (credentials: LoginRequestDto) => Promise<void>;
-  signUp: (values: RegisterFormValues) => Promise<void>;
+  signUp: (values: RegisterFormValues, intent?: 'OWNER' | 'CLIENT') => Promise<{ emailSent: boolean }>;
   signOut: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
@@ -94,21 +94,34 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signUp = useCallback(
-    async (values: RegisterFormValues) => {
+    async (values: RegisterFormValues, intent?: 'OWNER' | 'CLIENT'): Promise<{ emailSent: boolean }> => {
+      const cleanEmail = values.email.trim().toLowerCase();
+      const formattedCpf = formatCpf(values.cpf);
+
       try {
-        const formattedCpf = formatCpf(values.cpf);
         await authApi.register({
           name: values.name.trim(),
-          email: values.email.trim().toLowerCase(),
+          email: cleanEmail,
           password: values.password,
           cpf: formattedCpf,
+          onboardingIntent: intent,
         });
-        // Não faz auto-login porque email não foi verificado
       } catch (err) {
         const norm = normalizeAuthError(err);
         setNormalizedError(norm);
         throw norm;
       }
+
+      // Conta criada com sucesso (201). Envia verificação de e-mail de forma desacoplada:
+      let emailSent = false;
+      try {
+        await authApi.sendEmailVerification(cleanEmail);
+        emailSent = true;
+      } catch {
+        emailSent = false;
+      }
+
+      return { emailSent };
     },
     []
   );
