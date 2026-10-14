@@ -1,6 +1,6 @@
 import { Animated } from 'react-native';
 
-export type AppDestination = 'home' | 'agenda' | 'atendimentos' | 'availability' | 'services';
+export type AppDestination = 'home' | 'agenda' | 'atendimentos' | 'my-schedule' | 'availability' | 'services';
 
 export interface NavigationItem {
   id: AppDestination;

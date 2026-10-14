@@ -14,6 +14,7 @@ export default function AppLayoutGroup() {
         <Stack.Screen name="agenda" />
         <Stack.Screen name="atendimentos" />
         <Stack.Screen name="availability" />
+        <Stack.Screen name="my-schedule" />
         <Stack.Screen name="services" />
         <Stack.Screen name="barbershop-setup" />
       </Stack>
