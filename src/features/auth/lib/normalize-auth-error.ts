@@ -3,6 +3,7 @@ import { ApiError } from '@/shared/api';
 export type AuthErrorCode =
   | 'VALIDATION_ERROR'
   | 'INVALID_CREDENTIALS'
+  | 'EMAIL_NOT_VERIFIED'
   | 'ACCOUNT_CONFLICT'
   | 'SESSION_EXPIRED'
   | 'SESSION_INVALID'
@@ -76,7 +77,37 @@ export function normalizeAuthError(err: unknown): NormalizedAuthError {
       };
     }
 
-    // 3. Conflito de conta (409) - e-mail ou CPF duplicado
+    // 3. E-mail não verificado (estritamente 403 com código exato email_not_verified)
+    const isExactEmailNotVerified =
+      err.status === 403 &&
+      (errorBody?.error === 'email_not_verified' ||
+        errorBody?.code === 'email_not_verified' ||
+        errorBody?.message === 'email_not_verified');
+
+    if (isExactEmailNotVerified) {
+      return {
+        code: 'EMAIL_NOT_VERIFIED',
+        message: 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada ou solicite um novo link.',
+        originalError: err,
+        shouldClearSession: false,
+      };
+    }
+
+    if (err.status === 403) {
+      const customMsg =
+        typeof errorBody?.error === 'string'
+          ? errorBody.error
+          : errorBody?.message || 'Acesso não permitido.';
+
+      return {
+        code: 'SERVER_ERROR',
+        message: customMsg,
+        originalError: err,
+        shouldClearSession: false,
+      };
+    }
+
+    // 4. Conflito de conta (409) - e-mail ou CPF duplicado
     if (err.status === 409 || errorStr.includes('já está em uso') || errorStr.includes('already in use')) {
       return {
         code: 'ACCOUNT_CONFLICT',

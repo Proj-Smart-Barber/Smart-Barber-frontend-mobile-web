@@ -8,6 +8,7 @@ import { NormalizedAuthError } from '../lib/normalize-auth-error';
 export function useLoginViewModel() {
   const { signIn, status, clearError } = useSession();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isEmailNotVerified, setIsEmailNotVerified] = useState<boolean>(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -24,6 +25,7 @@ export function useLoginViewModel() {
     if (isSubmitting) return; // Previne double submit
 
     setSubmitError(null);
+    setIsEmailNotVerified(false);
     clearError();
 
     try {
@@ -33,6 +35,9 @@ export function useLoginViewModel() {
       });
     } catch (err: any) {
       const normalized: NormalizedAuthError = err;
+      if (normalized.code === 'EMAIL_NOT_VERIFIED') {
+        setIsEmailNotVerified(true);
+      }
       setSubmitError(normalized.message || 'Falha ao realizar login. Tente novamente.');
     }
   });
@@ -44,6 +49,8 @@ export function useLoginViewModel() {
     isSubmitting,
     submitError,
     setSubmitError,
+    isEmailNotVerified,
+    getEnteredEmail: () => form.getValues('email'),
     onSubmit,
   };
 }

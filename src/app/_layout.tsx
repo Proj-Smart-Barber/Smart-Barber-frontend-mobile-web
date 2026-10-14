@@ -38,7 +38,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     const inClient = (segments[0] as string) === '(client)';
     const inBarber = (segments[0] as string) === '(barber)';
     const inPlatform = (segments[0] as string) === '(platform)';
-    const currentAppRoute = segments[1] as string | undefined;
+    const currentAppRoute: string | undefined = (segments as readonly string[])[1];
 
     if (inPublic) {
       return;
@@ -67,7 +67,11 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
         router.replace(dest as any);
       } else if (inApp) {
         if (!barbershop && currentAppRoute !== 'barbershop-setup') {
-          if (identity?.accountType === 'OWNER' || identity?.onboardingIntent === 'SETUP_BARBERSHOP') {
+          if (
+            identity?.accountType === 'OWNER' ||
+            identity?.onboardingIntent === 'OWNER' ||
+            identity?.onboardingIntent === 'SETUP_BARBERSHOP'
+          ) {
             router.replace('/(app)/barbershop-setup' as any);
           } else if (identity?.accountType === 'BARBER') {
             router.replace('/(account)/invitations' as any);

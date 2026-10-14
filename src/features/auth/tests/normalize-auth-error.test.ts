@@ -67,4 +67,40 @@ describe('normalizeAuthError', () => {
     expect(result.message).toContain('Não foi possível conectar ao Smart Barber');
     expect(result.shouldClearSession).toBe(false);
   });
+
+  it('deve classificar especificamente erro 403 email_not_verified como EMAIL_NOT_VERIFIED sem limpar sessão', () => {
+    const apiError = new ApiError('Forbidden', 403, {
+      error: 'email_not_verified',
+      message: 'E-mail não verificado. Por favor, confirme seu e-mail antes de acessar.',
+    });
+    const result = normalizeAuthError(apiError);
+
+    expect(result.code).toBe('EMAIL_NOT_VERIFIED');
+    expect(result.message).toContain('Seu e-mail ainda não foi confirmado');
+    expect(result.shouldClearSession).toBe(false);
+  });
+
+  it('NÃO deve classificar outros erros 403 genéricos como EMAIL_NOT_VERIFIED', () => {
+    const apiError = new ApiError('Forbidden', 403, {
+      error: 'permissao_negada',
+      message: 'Você não tem permissão para acessar esta funcionalidade.',
+    });
+    const result = normalizeAuthError(apiError);
+
+    expect(result.code).not.toBe('EMAIL_NOT_VERIFIED');
+    expect(result.message).toBe('permissao_negada');
+    expect(result.shouldClearSession).toBe(false);
+  });
+
+  it('NÃO deve classificar 403 com substring contendo "não verificado" se o código exato não for email_not_verified', () => {
+    const apiError = new ApiError('Forbidden', 403, {
+      error: 'permissao_negada',
+      message: 'Documento não verificado ou cadastro suspenso.',
+    });
+    const result = normalizeAuthError(apiError);
+
+    expect(result.code).not.toBe('EMAIL_NOT_VERIFIED');
+    expect(result.code).toBe('SERVER_ERROR');
+    expect(result.message).toBe('permissao_negada');
+  });
 });

@@ -37,6 +37,27 @@ describe('G1 — Governança de Sessão, Guards e Recursos de Conta', () => {
     );
   });
 
+  it('cliente com intenção OWNER e sem unidade é roteado para /(app)/barbershop-setup sem loop', () => {
+    const ownerIntentSnapshot: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'user-owner-intent-1',
+        name: 'Proprietário Pendente',
+        email: 'proprietario@example.com',
+        accountType: 'CLIENT',
+        onboardingIntent: 'OWNER',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+      },
+      memberships: [],
+      selectedShopId: null,
+      revocationPending: false,
+      accessToken: 'token',
+    };
+
+    expect(getOperationalContext(ownerIntentSnapshot)).toBeNull();
+    expect(resolveEntryDestination(ownerIntentSnapshot)).toBe('/(app)/barbershop-setup');
+  });
+
   it('barber sem unidade é roteado para (account)/invitations sem entrar em loop', () => {
     const barberSnapshot: SessionSnapshot = {
       status: 'authenticated',
