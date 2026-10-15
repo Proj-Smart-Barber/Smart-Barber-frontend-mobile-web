@@ -87,6 +87,23 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     }
   }, [fontsLoaded, status, barbershop, identity, memberships, selectedShopId, token, segments, router]);
 
+  const inPublic = (segments[0] as string) === '(public)';
+
+  useEffect(() => {
+    if (inPublic) {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [inPublic]);
+
+  if (inPublic) {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <Slot />
+      </>
+    );
+  }
+
   if (!fontsLoaded || status === 'bootstrapping') {
     return (
       <BootstrapScreen
