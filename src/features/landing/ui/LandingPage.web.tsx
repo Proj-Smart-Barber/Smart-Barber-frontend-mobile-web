@@ -35,6 +35,34 @@ export function LandingPage(): React.ReactElement {
   const [expandedBentoId, setExpandedBentoId] = useState<string | null>(null);
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
 
+  // Desbloqueio explícito de rolagem da janela para o navegador web
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const originalHtmlOverflowY = document.documentElement.style.overflowY;
+      const originalHtmlOverflowX = document.documentElement.style.overflowX;
+      const originalBodyOverflowY = document.body.style.overflowY;
+      const originalBodyOverflowX = document.body.style.overflowX;
+      const originalHtmlHeight = document.documentElement.style.height;
+      const originalBodyHeight = document.body.style.height;
+
+      document.documentElement.style.overflowY = 'auto';
+      document.documentElement.style.overflowX = 'hidden';
+      document.documentElement.style.height = 'auto';
+      document.body.style.overflowY = 'auto';
+      document.body.style.overflowX = 'hidden';
+      document.body.style.height = 'auto';
+
+      return () => {
+        document.documentElement.style.overflowY = originalHtmlOverflowY;
+        document.documentElement.style.overflowX = originalHtmlOverflowX;
+        document.body.style.overflowY = originalBodyOverflowY;
+        document.body.style.overflowX = originalBodyOverflowX;
+        document.documentElement.style.height = originalHtmlHeight;
+        document.body.style.height = originalBodyHeight;
+      };
+    }
+  }, []);
+
   // Refs para acessibilidade e foco
   const formTitleRef = useRef<HTMLHeadingElement | null>(null);
   const nomeInputRef = useRef<HTMLInputElement | null>(null);
