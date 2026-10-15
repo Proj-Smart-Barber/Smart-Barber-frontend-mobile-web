@@ -7,6 +7,7 @@ import {
   TextInput,
   StyleSheet,
   Linking,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSession } from '@/features/auth';
@@ -42,6 +43,7 @@ export function LandingPage(): React.ReactElement {
 
   const handleSelectPlan = useCallback((planName: string) => {
     setFormData((prev) => ({ ...prev, configuracao: planName }));
+    setPreparedUrl(null);
     trackLandingEvent({
       name: 'landing_cta_click',
       properties: { audience: 'barber', position: 'pricing', target: planName },
@@ -56,8 +58,23 @@ export function LandingPage(): React.ReactElement {
       trackLandingEvent({ name: 'demo_form_start', properties: { origin: 'direct' } });
     }
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setPreparedUrl(null);
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const handleClientCtaPress = (position: 'hero' | 'footer') => {
+    trackLandingEvent({
+      name: 'landing_cta_click',
+      properties: { audience: 'client', position, target: landingContent.hero.clientCta.action },
+    });
+
+    if (!landingConfig.enableDiscovery) {
+      Alert.alert(
+        'Busca em expansão',
+        'A busca aberta de barbearias está em fase de implantação técnica. Em breve você poderá explorar e agendar diretamente por aqui.'
+      );
     }
   };
 
@@ -78,6 +95,15 @@ export function LandingPage(): React.ReactElement {
         hasNeed: Boolean(validation.data.necessidade && validation.data.necessidade.length > 0),
       },
     });
+
+    if (!landingConfig.isWhatsAppConfigured) {
+      setPreparedUrl('pending_configuration');
+      Alert.alert(
+        'Canal em homologação',
+        'O número comercial de WhatsApp ainda está sendo configurado neste ambiente. Seus dados foram validados e estão preservados para cópia.'
+      );
+      return;
+    }
 
     const url = buildWhatsAppUrl(landingConfig.whatsAppNumber, validation.data);
     setPreparedUrl(url);
@@ -159,12 +185,7 @@ export function LandingPage(): React.ReactElement {
             </Text>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => {
-                trackLandingEvent({
-                  name: 'landing_cta_click',
-                  properties: { audience: 'client', position: 'hero', target: landingContent.hero.clientCta.action },
-                });
-              }}
+              onPress={() => handleClientCtaPress('hero')}
             >
               <Text style={styles.primaryButtonText}>{landingContent.hero.clientCta.action}</Text>
             </TouchableOpacity>

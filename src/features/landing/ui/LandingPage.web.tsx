@@ -1,16 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { useSession } from '@/features/auth';
-import { BrandMark } from '@/shared/brand';
 import { landingContent, BentoItem } from '../content/landing-content';
 import { landingConfig } from '../lib/config';
 import { trackLandingEvent } from '../lib/analytics';
 import { validateDemoForm, DemoFormData, DemoFormErrors, ProfessionalsRange } from '../model/demo-form';
 import { buildWhatsAppUrl, buildWhatsAppMessage, copyMessageToClipboard } from '../lib/whatsapp';
 import { landingStylesCss } from './styles';
+import { LandingGlass } from './LandingGlass.web';
+import { AnimatedBrand } from './AnimatedBrand.web';
+import { ProductStory } from './ProductStory.web';
+import { DiscoveryNoticeModal } from './DiscoveryNoticeModal.web';
+import { LegalNoticeModal } from './LegalNoticeModal.web';
+import { landingMotionTokens } from '../lib/landing-motion-tokens';
 
 export function LandingPage(): React.ReactElement {
-  const { status, identity } = useSession();
+  const { status } = useSession();
   const shouldReduceMotion = useReducedMotion();
 
   // Estado do formulário comercial
@@ -27,11 +32,13 @@ export function LandingPage(): React.ReactElement {
   const [hasStartedForm, setHasStartedForm] = useState(false);
   const [preparedUrl, setPreparedUrl] = useState<string | null>(null);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
+  const [manualCopyFallback, setManualCopyFallback] = useState(false);
 
-  // Estados de UI interativa
+  // Estados de modais e UI interativa
+  const [isDiscoveryModalOpen, setIsDiscoveryModalOpen] = useState(false);
+  const [legalModalType, setLegalModalType] = useState<'terms' | 'privacy' | null>(null);
   const [activeFaqId, setActiveFaqId] = useState<string | null>(null);
   const [expandedBentoId, setExpandedBentoId] = useState<string | null>(null);
-  const [activeSceneIndex, setActiveSceneIndex] = useState(0);
 
   // Desbloqueio explícito de rolagem da janela para o navegador web
   useEffect(() => {
@@ -71,6 +78,7 @@ export function LandingPage(): React.ReactElement {
   // Seleção de plano vindo dos cards de Pricing
   const handleSelectPlan = useCallback((planName: string) => {
     setFormData((prev) => ({ ...prev, configuracao: planName }));
+    setPreparedUrl(null); // Invalida URL antiga quando altera plano
     trackLandingEvent({
       name: 'landing_cta_click',
       properties: { audience: 'barber', position: 'pricing', target: planName },
@@ -86,15 +94,29 @@ export function LandingPage(): React.ReactElement {
     }
   }, [shouldReduceMotion]);
 
-  // Manipulação de campos do formulário
+  // Manipulação de campos do formulário (invalida preparedUrl ao editar)
   const handleInputChange = (field: keyof DemoFormData, value: string) => {
     if (!hasStartedForm) {
       setHasStartedForm(true);
       trackLandingEvent({ name: 'demo_form_start', properties: { origin: 'direct' } });
     }
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setPreparedUrl(null); // Invalidação imediata para evitar reaproveitamento de dados desatualizados
     if (formErrors[field]) {
       setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  // Clique no CTA de Cliente
+  const handleClientCtaClick = (e: React.MouseEvent, position: 'hero' | 'footer') => {
+    trackLandingEvent({
+      name: 'landing_cta_click',
+      properties: { audience: 'client', position, target: landingContent.hero.clientCta.action },
+    });
+
+    if (!landingConfig.enableDiscovery) {
+      e.preventDefault();
+      setIsDiscoveryModalOpen(true);
     }
   };
 
@@ -105,7 +127,6 @@ export function LandingPage(): React.ReactElement {
     const validation = validateDemoForm(formData);
     if (!validation.success || !validation.data) {
       setFormErrors(validation.errors ?? {});
-      // Foca automaticamente no primeiro campo com erro
       if (validation.firstErrorField === 'nome') nomeInputRef.current?.focus();
       else if (validation.firstErrorField === 'barbearia') barbeariaInputRef.current?.focus();
       else if (validation.firstErrorField === 'cidadeUf') cidadeUfInputRef.current?.focus();
@@ -115,7 +136,7 @@ export function LandingPage(): React.ReactElement {
 
     setFormErrors({});
 
-    // Dispara evento analítico tipado sem PII
+    // Evento analítico estritamente categórico sem PII
     trackLandingEvent({
       name: 'demo_form_valid',
       properties: {
@@ -124,6 +145,12 @@ export function LandingPage(): React.ReactElement {
         hasNeed: Boolean(validation.data.necessidade && validation.data.necessidade.length > 0),
       },
     });
+
+    if (!landingConfig.isWhatsAppConfigured) {
+      // Feedback transparente quando o canal comercial ainda não possui número configurado no ambiente
+      setPreparedUrl('pending_configuration');
+      return;
+    }
 
     const url = buildWhatsAppUrl(landingConfig.whatsAppNumber, validation.data);
     setPreparedUrl(url);
@@ -137,8 +164,8 @@ export function LandingPage(): React.ReactElement {
       },
     });
 
-    // Abertura segura sem bloqueio de pop-up
-    if (typeof window !== 'undefined') {
+    // Abertura segura no browser sem bloqueio de pop-up
+    if (typeof window !== 'undefined' && url) {
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       if (isMobile) {
         window.location.href = url;
@@ -154,13 +181,16 @@ export function LandingPage(): React.ReactElement {
     const success = await copyMessageToClipboard(message);
     if (success) {
       setCopiedSuccess(true);
+      setManualCopyFallback(false);
       setTimeout(() => setCopiedSuccess(false), 3000);
+    } else {
+      setManualCopyFallback(true);
     }
   };
 
   // Re-abertura da conversa
   const handleReopenConversation = () => {
-    if (!preparedUrl) return;
+    if (!preparedUrl || preparedUrl === 'pending_configuration') return;
     if (typeof window !== 'undefined') {
       window.open(preparedUrl, '_blank', 'noopener,noreferrer');
     }
@@ -189,12 +219,11 @@ export function LandingPage(): React.ReactElement {
         Pular para o conteúdo principal
       </a>
 
-      {/* 1. Header */}
+      {/* 1. Header com Liquid Glass e Marca Animada */}
       <header className="sb-header" role="banner">
         <div className="sb-container sb-header-inner">
           <a href="#inicio" className="sb-logo-link" aria-label="Smart Barber - Página Inicial">
-            <BrandMark variant="symbol-crimson" size={36} decorative />
-            <span className="sb-logo-text">{landingContent.header.brandName}</span>
+            <AnimatedBrand variant="header" size={34} />
           </a>
 
           <nav className="sb-nav-menu" aria-label="Navegação principal">
@@ -221,35 +250,30 @@ export function LandingPage(): React.ReactElement {
       </header>
 
       <main id="conteudo-principal">
-        {/* 2. Hero Section */}
+        {/* 2. Hero Section Cinematográfica */}
         <section id="inicio" className="sb-hero-section">
           <div className="sb-container">
             <div className="sb-hero-eyebrow">{landingContent.hero.eyebrow}</div>
             <h1 className="sb-hero-headline">{landingContent.hero.headline}</h1>
             <p className="sb-hero-support">{landingContent.hero.support}</p>
 
-            {/* Dois CTAs equivalentes */}
+            {/* Dois CTAs equivalentes acima da dobra */}
             <div className="sb-hero-ctas-grid">
-              <div className="sb-hero-card">
+              <LandingGlass variant="card" className="sb-hero-card">
                 <div>
                   <span className="sb-hero-card-tag">{landingContent.hero.clientCta.tag}</span>
                   <h2 className="sb-hero-card-title">{landingContent.hero.clientCta.title}</h2>
                 </div>
                 <a
-                  href={landingConfig.discoveryPath}
+                  href={landingConfig.discoveryPath || '#'}
                   className="sb-btn-primary"
-                  onClick={() =>
-                    trackLandingEvent({
-                      name: 'landing_cta_click',
-                      properties: { audience: 'client', position: 'hero', target: landingContent.hero.clientCta.action },
-                    })
-                  }
+                  onClick={(e) => handleClientCtaClick(e, 'hero')}
                 >
                   {landingContent.hero.clientCta.action}
                 </a>
-              </div>
+              </LandingGlass>
 
-              <div className="sb-hero-card">
+              <LandingGlass variant="card" className="sb-hero-card">
                 <div>
                   <span className="sb-hero-card-tag">{landingContent.hero.barberCta.tag}</span>
                   <h2 className="sb-hero-card-title">{landingContent.hero.barberCta.title}</h2>
@@ -266,79 +290,92 @@ export function LandingPage(): React.ReactElement {
                 >
                   {landingContent.hero.barberCta.action}
                 </a>
-              </div>
+              </LandingGlass>
             </div>
 
-            {/* Mockup do Hero conectando catálogo à agenda */}
+            {/* Mockup Cinematográfico Conectando Catálogo à Agenda */}
             <motion.div
-              className="sb-hero-mockup-wrapper"
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: landingMotionTokens.duration.slow, ease: landingMotionTokens.easing.cinematic }}
             >
-              <div className="sb-mockup-tag">{landingContent.hero.mockupNotice}</div>
-              <div className="sb-mockup-columns">
-                {/* Lado Esquerdo: Catálogo do Cliente */}
-                <div className="sb-mockup-phone">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Barbearia Navalha & Estilo</span>
-                    <span className="sb-card-badge" style={{ margin: 0 }}>Catálogo</span>
-                  </div>
-                  <div style={{ padding: 12, background: 'var(--sb-surface)', borderRadius: 8, marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Corte Tradicional Degradê</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                      <span className="tabular-nums font-semibold" style={{ color: 'var(--sb-crimson)' }}>R$ 55,00</span>
-                      <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>30 min</span>
-                    </div>
-                  </div>
-                  <div style={{ padding: 12, background: 'var(--sb-surface)', borderRadius: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Barba Terapia Completa</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                      <span className="tabular-nums font-semibold" style={{ color: 'var(--sb-crimson)' }}>R$ 35,00</span>
-                      <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>25 min</span>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 12, fontSize: '0.8125rem', color: 'var(--sb-text-secondary)' }}>
-                    Horário escolhido: <strong className="tabular-nums font-semibold">16:30</strong> com <strong className="font-semibold">Marcos Silva</strong>
+              <LandingGlass variant="card-elevated" className="sb-hero-mockup-wrapper">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <span className="sb-mockup-tag" style={{ margin: 0 }}>
+                    {landingContent.hero.mockupNotice}
+                  </span>
+                  <div style={{ opacity: 0.9 }}>
+                    <AnimatedBrand variant="hero" size={26} showText={false} />
                   </div>
                 </div>
 
-                {/* Centro: Indicador de Sincronização */}
-                <div className="sb-mockup-sync-indicator" aria-hidden="true">
-                  <span style={{ fontSize: '1.5rem' }}>➔</span>
-                  <span>Fluxo Conectado</span>
-                </div>
+                <div className="sb-mockup-columns">
+                  {/* Catálogo do Cliente */}
+                  <div className="sb-mockup-phone">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: '0.8125rem', fontFamily: 'var(--sb-font-heading-bold)', fontWeight: 700 }}>
+                        Barbearia Navalha & Estilo
+                      </span>
+                      <span className="sb-card-badge" style={{ margin: 0 }}>Catálogo</span>
+                    </div>
+                    <div style={{ padding: 12, background: 'rgba(32, 33, 38, 0.7)', borderRadius: 8, marginBottom: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Corte Tradicional Degradê</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                        <span className="tabular-nums font-semibold" style={{ color: 'var(--sb-crimson)' }}>R$ 55,00</span>
+                        <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>30 min</span>
+                      </div>
+                    </div>
+                    <div style={{ padding: 12, background: 'rgba(32, 33, 38, 0.7)', borderRadius: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Barba Terapia Completa</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                        <span className="tabular-nums font-semibold" style={{ color: 'var(--sb-crimson)' }}>R$ 35,00</span>
+                        <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>25 min</span>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 12, fontSize: '0.8125rem', color: 'var(--sb-text-secondary)' }}>
+                      Horário escolhido: <strong className="tabular-nums font-semibold" style={{ color: '#FFF' }}>16:30</strong> com <strong className="font-semibold" style={{ color: '#FFF' }}>Marcos Silva</strong>
+                    </div>
+                  </div>
 
-                {/* Lado Direito: Agenda da Barbearia */}
-                <div className="sb-mockup-tablet">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Grade Operacional do Dia</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--sb-text-muted)' }}>Sexta-feira</span>
+                  {/* Indicador de Sincronização */}
+                  <div className="sb-mockup-sync-indicator" aria-hidden="true">
+                    <span style={{ fontSize: '1.5rem' }}>➔</span>
+                    <span>Fluxo Integrado</span>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ padding: 8, background: 'var(--sb-surface)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem' }}>15:30 - 16:00</span>
-                      <span style={{ fontSize: '0.8125rem' }}>Carlos Eduardo (Corte)</span>
-                      <span style={{ fontSize: '0.75rem', color: '#34D399', fontWeight: 600 }}>Concluído</span>
+
+                  {/* Agenda da Barbearia */}
+                  <div className="sb-mockup-tablet">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <span style={{ fontSize: '0.8125rem', fontFamily: 'var(--sb-font-heading-bold)', fontWeight: 700 }}>
+                        Grade Operacional do Dia
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--sb-text-muted)' }}>Sexta-feira</span>
                     </div>
-                    <div style={{ padding: 8, background: 'rgba(189, 32, 38, 0.16)', borderLeft: '3px solid var(--sb-crimson)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--sb-crimson)' }}>16:30 - 17:15</span>
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Atendimento Confirmado</span>
-                      <span style={{ fontSize: '0.75rem', background: 'var(--sb-crimson)', color: '#fff', padding: '2px 6px', borderRadius: 4 }}>Em breve</span>
-                    </div>
-                    <div style={{ padding: 8, background: 'var(--sb-surface)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem' }}>17:30 - 18:00</span>
-                      <span style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>Horário livre para agendamento</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--sb-text-muted)' }}>Disponível</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ padding: 8, background: 'rgba(32, 33, 38, 0.7)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem' }}>15:30 - 16:00</span>
+                        <span style={{ fontSize: '0.8125rem' }}>Lucas Prado • Barba</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--sb-text-muted)' }}>Concluído</span>
+                      </div>
+                      <div style={{ padding: 8, background: 'rgba(45, 30, 32, 0.7)', border: '1px solid var(--sb-crimson)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: '#FFF' }}>16:30 - 17:25</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#FFF' }}>Corte & Barba • R$ 90,00</span>
+                        <span style={{ fontSize: '0.75rem', color: '#4ADE80', fontWeight: 600 }}>● Confirmado</span>
+                      </div>
+                      <div style={{ padding: 8, background: 'rgba(32, 33, 38, 0.7)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="tabular-nums font-semibold" style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>17:30 - 18:00</span>
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>Horário livre na grade</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--sb-text-muted)' }}>Disponível</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </LandingGlass>
             </motion.div>
           </div>
         </section>
 
-        {/* 3. Prova Social / Autoridade (Faixa de Confiança) */}
+        {/* 3. Faixa de Confiança com Viewport Animation */}
         <section className="sb-trust-section" aria-labelledby="trust-heading">
           <div className="sb-container">
             <div className="sb-section-title-wrap">
@@ -350,26 +387,38 @@ export function LandingPage(): React.ReactElement {
               {landingContent.trust.items.map((item, index) => (
                 <motion.div
                   key={item.id}
-                  className="sb-trust-card"
-                  initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: index * 0.06 }}
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{
+                    duration: landingMotionTokens.duration.normal,
+                    delay: index * landingMotionTokens.stagger.default,
+                    ease: landingMotionTokens.easing.cinematic,
+                  }}
                 >
-                  <span className="sb-card-badge">{item.badge}</span>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.0625rem', fontWeight: 600 }}>{item.title}</h3>
-                  <div className="sb-trust-card-highlight tabular-nums font-semibold">{item.highlight}</div>
-                  <div className="tabular-nums font-semibold" style={{ fontSize: '0.875rem', color: 'var(--sb-text-secondary)', marginBottom: 12 }}>
-                    {item.meta}
-                  </div>
-                  <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>{item.description}</p>
+                  <LandingGlass variant="card" className="sb-trust-card">
+                    <div>
+                      <span className="sb-card-badge">{item.badge}</span>
+                      <h3 style={{ fontFamily: 'var(--sb-font-heading-bold)', fontSize: '1.125rem', fontWeight: 700, margin: '8px 0 4px 0' }}>
+                        {item.title}
+                      </h3>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--sb-text-secondary)', margin: 0 }}>
+                        {item.description}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="sb-trust-card-highlight tabular-nums font-semibold">{item.highlight}</div>
+                      <div style={{ fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>{item.meta}</div>
+                    </div>
+                  </LandingGlass>
                 </motion.div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* 4. O Problema vs. A Nova Era */}
-        <section className="sb-problem-section" aria-labelledby="problem-heading">
+        {/* 4. Problema vs Solução Integrada */}
+        <section id="para-barbearias" className="sb-problem-section" aria-labelledby="problem-heading">
           <div className="sb-container">
             <div className="sb-section-title-wrap">
               <h2 id="problem-heading" className="sb-section-title">{landingContent.problem.headline}</h2>
@@ -377,44 +426,60 @@ export function LandingPage(): React.ReactElement {
             </div>
 
             <div className="sb-comparison-grid">
-              {/* Coluna 1: Hoje, tudo espalhado */}
-              <div className="sb-problem-card">
-                <h3 className="sb-column-heading" style={{ color: '#FF5C62' }}>{landingContent.problem.beforeTitle}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {landingContent.problem.beforePoints.map((pt, i) => (
-                    <div key={i} style={{ padding: 12, background: 'var(--sb-surface-elevated)', borderRadius: 8 }}>
-                      <strong style={{ display: 'block', fontSize: '0.8125rem', color: 'var(--sb-text-muted)', marginBottom: 4 }}>
-                        {pt.author}:
-                      </strong>
-                      <span style={{ fontStyle: 'italic', color: 'var(--sb-text-secondary)', fontSize: '0.9375rem' }}>
-                        &ldquo;{pt.quote}&rdquo;
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <motion.div
+                initial={shouldReduceMotion ? false : { opacity: 0, x: -16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ duration: landingMotionTokens.duration.slow, ease: landingMotionTokens.easing.cinematic }}
+              >
+                <LandingGlass variant="card" className="sb-problem-card">
+                  <h3 className="sb-column-heading" style={{ color: 'var(--sb-text-muted)' }}>
+                    {landingContent.problem.beforeTitle}
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {landingContent.problem.beforePoints.map((pt, idx) => (
+                      <div key={idx} style={{ padding: 14, background: 'rgba(255, 255, 255, 0.03)', borderRadius: 10, borderLeft: '3px solid #666' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--sb-text-muted)', display: 'block', marginBottom: 4 }}>
+                          {pt.author}
+                        </span>
+                        <p style={{ margin: 0, fontSize: '0.9375rem', color: 'var(--sb-text-secondary)', fontStyle: 'italic' }}>
+                          "{pt.quote}"
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </LandingGlass>
+              </motion.div>
 
-              {/* Coluna 2: Com o fluxo organizado */}
-              <div className="sb-problem-card organized">
-                <h3 className="sb-column-heading" style={{ color: 'var(--sb-crimson)' }}>{landingContent.problem.afterTitle}</h3>
-                <p style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--sb-text-primary)', marginBottom: 20 }}>
-                  {landingContent.problem.afterResolution}
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {landingContent.problem.afterSteps.map((step, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ color: 'var(--sb-crimson)', fontWeight: 800 }}>✔</span>
-                      <span style={{ fontSize: '0.9375rem', color: 'var(--sb-text-primary)' }}>{step}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <motion.div
+                initial={shouldReduceMotion ? false : { opacity: 0, x: 16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ duration: landingMotionTokens.duration.slow, ease: landingMotionTokens.easing.cinematic }}
+              >
+                <LandingGlass variant="card-elevated" className="sb-problem-card">
+                  <h3 className="sb-column-heading" style={{ color: 'var(--sb-text-primary)' }}>
+                    {landingContent.problem.afterTitle}
+                  </h3>
+                  <p style={{ fontSize: '1rem', color: 'var(--sb-text-primary)', fontWeight: 600, marginBottom: 20 }}>
+                    {landingContent.problem.afterResolution}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {landingContent.problem.afterSteps.map((step, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ color: 'var(--sb-crimson)', fontWeight: 700, fontSize: '1.125rem' }}>✓</span>
+                        <span style={{ fontSize: '0.9375rem', color: 'var(--sb-text-secondary)' }}>{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </LandingGlass>
+              </motion.div>
             </div>
           </div>
         </section>
 
-        {/* 5. Bento Grid de Funcionalidades */}
-        <section id="para-barbearias" className="sb-bento-section" aria-labelledby="bento-heading">
+        {/* 5. Bento Grid Modular */}
+        <section className="sb-bento-section" aria-labelledby="bento-heading">
           <div className="sb-container">
             <div className="sb-section-title-wrap">
               <h2 id="bento-heading" className="sb-section-title">{landingContent.bento.headline}</h2>
@@ -422,127 +487,63 @@ export function LandingPage(): React.ReactElement {
             </div>
 
             <div className="sb-bento-grid">
-              {landingContent.bento.items.map((item) => (
-                <div
-                  key={item.id}
-                  className={`sb-bento-card ${item.span === 'wide' ? 'sb-bento-item-wide' : ''}`}
-                >
-                  <div>
-                    <span className="sb-card-badge">{item.badge}</span>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0 12px 0' }}>{item.title}</h3>
-                    <p style={{ fontSize: '0.9375rem', color: 'var(--sb-text-secondary)', margin: 0 }}>
-                      {item.description}
-                    </p>
-                  </div>
-
-                  <div>
-                    <button
-                      type="button"
-                      className="sb-btn-example"
-                      onClick={() => toggleBentoExample(item.id)}
-                      aria-expanded={expandedBentoId === item.id}
-                    >
-                      {expandedBentoId === item.id ? 'Fechar exemplo' : 'Ver exemplo'}
-                    </button>
-
-                    {expandedBentoId === item.id && (
-                      <div className="sb-bento-example-box" role="region" aria-label={item.exampleTitle}>
-                        <strong style={{ display: 'block', color: 'var(--sb-text-primary)', marginBottom: 4 }}>
-                          {item.exampleTitle}
-                        </strong>
-                        {item.exampleDetail}
+              {landingContent.bento.items.map((item: BentoItem, index: number) => {
+                const isExpanded = expandedBentoId === item.id;
+                return (
+                  <motion.div
+                    key={item.id}
+                    className={item.span === 'wide' ? 'sb-bento-item-wide' : ''}
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-40px' }}
+                    transition={{
+                      duration: landingMotionTokens.duration.normal,
+                      delay: (index % 3) * landingMotionTokens.stagger.default,
+                      ease: landingMotionTokens.easing.cinematic,
+                    }}
+                  >
+                    <LandingGlass variant={item.span === 'wide' ? 'card-elevated' : 'card'} className="sb-bento-card">
+                      <div>
+                        <span className="sb-card-badge">{item.badge}</span>
+                        <h3 style={{ fontFamily: 'var(--sb-font-heading-bold)', fontSize: '1.25rem', fontWeight: 700, margin: '8px 0' }}>
+                          {item.title}
+                        </h3>
+                        <p style={{ fontSize: '0.9375rem', color: 'var(--sb-text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                          {item.description}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+
+                      <div>
+                        <button
+                          type="button"
+                          className="sb-btn-example"
+                          onClick={() => toggleBentoExample(item.id)}
+                          aria-expanded={isExpanded}
+                          aria-controls={`bento-example-${item.id}`}
+                        >
+                          {isExpanded ? 'Ocultar detalhe ▲' : 'Ver demonstração ▼'}
+                        </button>
+
+                        {isExpanded && (
+                          <div id={`bento-example-${item.id}`} className="sb-bento-example-box" role="region">
+                            <strong style={{ display: 'block', color: 'var(--sb-text-primary)', marginBottom: 4 }}>
+                              {item.exampleTitle}
+                            </strong>
+                            {item.exampleDetail}
+                          </div>
+                        )}
+                      </div>
+                    </LandingGlass>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>
 
-        {/* 6. Demonstração de Fluxo — How it Works */}
+        {/* 6. Demonstração de Fluxo com Palco Cinematográfico Contínuo */}
         <section id="como-funciona" className="sb-how-section" aria-labelledby="how-heading">
-          <div className="sb-container">
-            <div className="sb-section-title-wrap">
-              <h2 id="how-heading" className="sb-section-title">{landingContent.howItWorks.headline}</h2>
-              <p className="sb-section-subtitle">{landingContent.howItWorks.subtitle}</p>
-            </div>
-
-            {/* Duas trilhas complementares */}
-            <div className="sb-tracks-container">
-              {/* Trilha do Cliente */}
-              <div id="para-clientes" className="sb-track-card">
-                <span className="sb-card-badge">{landingContent.howItWorks.clientTrack.badge}</span>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0 24px 0' }}>
-                  {landingContent.howItWorks.clientTrack.title}
-                </h3>
-                {landingContent.howItWorks.clientTrack.steps.map((st) => (
-                  <div key={st.number} className="sb-step-item">
-                    <span className="sb-step-number tabular-nums font-semibold">{st.number}</span>
-                    <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 600 }}>{st.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--sb-text-secondary)' }}>{st.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Trilha da Barbearia */}
-              <div className="sb-track-card">
-                <span className="sb-card-badge">{landingContent.howItWorks.barberTrack.badge}</span>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0 24px 0' }}>
-                  {landingContent.howItWorks.barberTrack.title}
-                </h3>
-                {landingContent.howItWorks.barberTrack.steps.map((st) => (
-                  <div key={st.number} className="sb-step-item">
-                    <span className="sb-step-number tabular-nums font-semibold">{st.number}</span>
-                    <div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 600 }}>{st.title}</h4>
-                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--sb-text-secondary)' }}>{st.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Painel Interativo de Cenas (Scrollytelling Desktop / Acessível) */}
-            <div className="sb-scrolly-container">
-              <div className="sb-scrolly-sticky-panel">
-                <div>
-                  <div className="sb-scrolly-nav-btns" role="tablist" aria-label="Cenas do fluxo operacional">
-                    {landingContent.howItWorks.scenes.map((scene, idx) => (
-                      <button
-                        key={scene.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeSceneIndex === idx}
-                        className={`sb-scrolly-btn ${activeSceneIndex === idx ? 'active' : ''}`}
-                        onClick={() => setActiveSceneIndex(idx)}
-                      >
-                        {scene.title}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div style={{ padding: 24, background: 'var(--sb-surface-elevated)', borderRadius: 12 }}>
-                    <span className="sb-card-badge" style={{ marginBottom: 12 }}>
-                      {landingContent.howItWorks.scenes[activeSceneIndex].tag}
-                    </span>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0 12px 0' }}>
-                      {landingContent.howItWorks.scenes[activeSceneIndex].preview}
-                    </h3>
-                    <p style={{ fontSize: '0.9375rem', color: 'var(--sb-text-secondary)', margin: 0 }}>
-                      {landingContent.howItWorks.scenes[activeSceneIndex].detail}
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 24, fontSize: '0.8125rem', color: 'var(--sb-text-muted)' }}>
-                  Interação ilustrativa: A escolha feita pelo cliente reflete diretamente na agenda operacional da barbearia.
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProductStory />
         </section>
 
         {/* 7. Planos e Preços (Três níveis sob consulta) */}
@@ -554,38 +555,52 @@ export function LandingPage(): React.ReactElement {
             </div>
 
             <div className="sb-pricing-grid">
-              {landingContent.pricing.plans.map((plan) => (
-                <div
+              {landingContent.pricing.plans.map((plan, index) => (
+                <motion.div
                   key={plan.id}
-                  className={`sb-pricing-card ${plan.isFeatured ? 'featured' : ''}`}
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{
+                    duration: landingMotionTokens.duration.normal,
+                    delay: index * landingMotionTokens.stagger.default,
+                    ease: landingMotionTokens.easing.cinematic,
+                  }}
                 >
-                  <div>
-                    {plan.badge && <span className="sb-card-badge">{plan.badge}</span>}
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '8px 0 6px 0' }}>{plan.name}</h3>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--sb-text-secondary)', margin: '0 0 16px 0' }}>
-                      {plan.target}
-                    </p>
-
-                    <div className="sb-pricing-price tabular-nums font-semibold">{plan.price}</div>
-
-                    <ul className="sb-pricing-features">
-                      {plan.features.map((feat, fi) => (
-                        <li key={fi} className="sb-pricing-feature-item">
-                          {feat}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="sb-btn-primary"
-                    style={{ width: '100%' }}
-                    onClick={() => handleSelectPlan(plan.name)}
+                  <LandingGlass
+                    variant={plan.isFeatured ? 'card-elevated' : 'card'}
+                    className="sb-pricing-card"
                   >
-                    {plan.ctaLabel}
-                  </button>
-                </div>
+                    <div>
+                      {plan.badge && <span className="sb-card-badge">{plan.badge}</span>}
+                      <h3 style={{ fontFamily: 'var(--sb-font-heading-bold)', fontSize: '1.5rem', fontWeight: 700, margin: '8px 0 6px 0' }}>
+                        {plan.name}
+                      </h3>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--sb-text-secondary)', margin: '0 0 16px 0' }}>
+                        {plan.target}
+                      </p>
+
+                      <div className="sb-pricing-price tabular-nums font-semibold">{plan.price}</div>
+
+                      <ul className="sb-pricing-features">
+                        {plan.features.map((feat, fi) => (
+                          <li key={fi} className="sb-pricing-feature-item">
+                            {feat}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="sb-btn-primary"
+                      style={{ width: '100%', marginTop: 16 }}
+                      onClick={() => handleSelectPlan(plan.name)}
+                    >
+                      {plan.ctaLabel}
+                    </button>
+                  </LandingGlass>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -603,7 +618,7 @@ export function LandingPage(): React.ReactElement {
               {landingContent.faq.items.map((item) => {
                 const isOpen = activeFaqId === item.id;
                 return (
-                  <div key={item.id} className="sb-faq-card">
+                  <LandingGlass key={item.id} variant="card" className="sb-faq-card">
                     <button
                       type="button"
                       className="sb-faq-trigger"
@@ -633,7 +648,7 @@ export function LandingPage(): React.ReactElement {
                         {item.answer}
                       </div>
                     )}
-                  </div>
+                  </LandingGlass>
                 );
               })}
             </div>
@@ -650,10 +665,10 @@ export function LandingPage(): React.ReactElement {
 
             {/* Dois painéis finais equivalentes */}
             <div className="sb-footer-panels-grid">
-              <div className="sb-footer-panel">
+              <LandingGlass variant="card" className="sb-footer-panel">
                 <div>
                   <span className="sb-card-badge">{landingContent.footer.clientPanel.tag}</span>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0' }}>
+                  <h3 style={{ fontFamily: 'var(--sb-font-heading-bold)', fontSize: '1.25rem', fontWeight: 700, margin: '8px 0' }}>
                     {landingContent.footer.clientPanel.title}
                   </h3>
                   <p style={{ fontSize: '0.9375rem', color: 'var(--sb-text-secondary)', margin: 0 }}>
@@ -661,23 +676,18 @@ export function LandingPage(): React.ReactElement {
                   </p>
                 </div>
                 <a
-                  href={landingConfig.discoveryPath}
+                  href={landingConfig.discoveryPath || '#'}
                   className="sb-btn-primary"
-                  onClick={() =>
-                    trackLandingEvent({
-                      name: 'landing_cta_click',
-                      properties: { audience: 'client', position: 'footer', target: landingContent.footer.clientPanel.action },
-                    })
-                  }
+                  onClick={(e) => handleClientCtaClick(e, 'footer')}
                 >
                   {landingContent.footer.clientPanel.action}
                 </a>
-              </div>
+              </LandingGlass>
 
-              <div className="sb-footer-panel">
+              <LandingGlass variant="card" className="sb-footer-panel">
                 <div>
                   <span className="sb-card-badge">{landingContent.footer.barberPanel.tag}</span>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0' }}>
+                  <h3 style={{ fontFamily: 'var(--sb-font-heading-bold)', fontSize: '1.25rem', fontWeight: 700, margin: '8px 0' }}>
                     {landingContent.footer.barberPanel.title}
                   </h3>
                   <p style={{ fontSize: '0.9375rem', color: 'var(--sb-text-secondary)', margin: 0 }}>
@@ -696,15 +706,15 @@ export function LandingPage(): React.ReactElement {
                 >
                   {landingContent.footer.barberPanel.action}
                 </a>
-              </div>
+              </LandingGlass>
             </div>
 
-            {/* Formulário Comercial Inline #demonstracao */}
-            <div id="demonstracao" className="sb-demo-form-card" tabIndex={-1}>
+            {/* Formulário Comercial Inline #demonstracao com Liquid Glass Form */}
+            <LandingGlass variant="form" className="sb-demo-form-card" id="demonstracao" tabIndex={-1}>
               <h3
                 ref={formTitleRef}
                 tabIndex={-1}
-                style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0', outline: 'none' }}
+                style={{ fontFamily: 'var(--sb-font-heading)', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px 0', outline: 'none' }}
               >
                 {landingContent.footer.formTitle}
               </h3>
@@ -719,7 +729,10 @@ export function LandingPage(): React.ReactElement {
                   <button
                     type="button"
                     className="sb-plan-clear-btn"
-                    onClick={() => setFormData((prev) => ({ ...prev, configuracao: '' }))}
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, configuracao: '' }));
+                      setPreparedUrl(null);
+                    }}
                     aria-label="Remover configuração selecionada"
                   >
                     ✕
@@ -825,7 +838,7 @@ export function LandingPage(): React.ReactElement {
                     value={formData.necessidade}
                     onChange={(e) => handleInputChange('necessidade', e.target.value)}
                     className="sb-form-textarea"
-                    placeholder="Ex: Reduzir tempo no WhatsApp e organizar os horários dos 3 barbeiros..."
+                    placeholder="Ex: Reduzir tempo no WhatsApp e organizar os horários da equipe..."
                   />
                   <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--sb-text-muted)', marginTop: 4 }}>
                     <span className="tabular-nums font-semibold">{formData.necessidade?.length ?? 0}</span> / 240
@@ -843,8 +856,37 @@ export function LandingPage(): React.ReactElement {
                 </p>
               </form>
 
-              {/* Caixa de fallback caso o usuário volte ou o pop-up bloqueie */}
-              {preparedUrl && (
+              {/* Bloco de feedback caso o canal comercial não esteja configurado */}
+              {preparedUrl === 'pending_configuration' && (
+                <div className="sb-commercial-unconfigured-notice" role="status">
+                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#F59E0B' }}>
+                    Canal direto em homologação técnica
+                  </div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--sb-text-secondary)', lineHeight: 1.5 }}>
+                    O número comercial de WhatsApp ainda não foi configurado neste ambiente.
+                    Seus dados foram validados e estão preservados abaixo. Você pode copiar a mensagem para enviá-la diretamente:
+                  </div>
+                  <div className="sb-fallback-actions">
+                    <button type="button" className="sb-btn-secondary" onClick={handleCopyMessage}>
+                      {copiedSuccess ? '✓ Mensagem copiada!' : 'Copiar mensagem estruturada'}
+                    </button>
+                  </div>
+                  {manualCopyFallback && (
+                    <div style={{ marginTop: 12 }}>
+                      <textarea
+                        readOnly
+                        value={buildWhatsAppMessage(formData)}
+                        className="sb-form-textarea"
+                        style={{ fontSize: '0.8125rem' }}
+                        onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Caixa de fallback caso a URL esteja preparada */}
+              {preparedUrl && preparedUrl !== 'pending_configuration' && (
                 <div className="sb-handoff-fallback-box" role="status">
                   <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--sb-text-primary)' }}>
                     Mensagem estruturada e pronta para envio no WhatsApp.
@@ -861,30 +903,50 @@ export function LandingPage(): React.ReactElement {
                       {copiedSuccess ? '✓ Mensagem copiada!' : 'Copiar mensagem'}
                     </button>
                   </div>
+
+                  {manualCopyFallback && (
+                    <div style={{ marginTop: 12 }}>
+                      <textarea
+                        readOnly
+                        value={buildWhatsAppMessage(formData)}
+                        className="sb-form-textarea"
+                        style={{ fontSize: '0.8125rem' }}
+                        onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </LandingGlass>
           </div>
         </section>
       </main>
 
-      {/* 10. Footer Institucional */}
+      {/* 10. Footer Institucional com Marca Animada */}
       <footer className="sb-footer" role="contentinfo">
         <div className="sb-container sb-footer-inner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <BrandMark variant="symbol-crimson" size={28} decorative />
+            <AnimatedBrand variant="footer" size={28} showText={false} />
             <span style={{ fontSize: '0.875rem', color: 'var(--sb-text-muted)' }}>
               {landingContent.footer.copyright}
             </span>
           </div>
 
           <div className="sb-footer-links">
-            <a href={landingConfig.legal.termsUrl} className="sb-footer-link">
+            <button
+              type="button"
+              className="sb-footer-link"
+              onClick={() => setLegalModalType('terms')}
+            >
               {landingContent.footer.termsLabel}
-            </a>
-            <a href={landingConfig.legal.privacyUrl} className="sb-footer-link">
+            </button>
+            <button
+              type="button"
+              className="sb-footer-link"
+              onClick={() => setLegalModalType('privacy')}
+            >
               {landingContent.footer.privacyLabel}
-            </a>
+            </button>
             <a href={`mailto:${landingConfig.legal.contactEmail}`} className="sb-footer-link">
               {landingContent.footer.contactLabel}
             </a>
@@ -894,6 +956,16 @@ export function LandingPage(): React.ReactElement {
           </div>
         </div>
       </footer>
+
+      {/* Modais Informativos Acessíveis */}
+      <DiscoveryNoticeModal
+        isOpen={isDiscoveryModalOpen}
+        onClose={() => setIsDiscoveryModalOpen(false)}
+      />
+      <LegalNoticeModal
+        type={legalModalType}
+        onClose={() => setLegalModalType(null)}
+      />
     </div>
   );
 }

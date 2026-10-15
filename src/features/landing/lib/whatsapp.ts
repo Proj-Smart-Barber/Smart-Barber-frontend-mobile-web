@@ -29,16 +29,29 @@ export function buildWhatsAppMessage(data: DemoFormData): string {
  * Sanitiza o número de telefone removendo caracteres não-numéricos.
  */
 export function sanitizeWhatsAppNumber(phoneNumber: string): string {
-  return phoneNumber.replace(/\D/g, '');
+  return phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
+}
+
+/**
+ * Verifica se um número de WhatsApp é válido para handoff (mínimo 10 dígitos).
+ */
+export function isWhatsAppNumberValid(phoneNumber: string | undefined): boolean {
+  if (!phoneNumber) return false;
+  const sanitized = sanitizeWhatsAppNumber(phoneNumber);
+  return sanitized.length >= 10;
 }
 
 /**
  * Constrói a URL direta de conversa do WhatsApp seguindo a especificação oficial:
  * https://wa.me/{numero}?text={mensagemCodificada}
  * Aplica encodeURIComponent estritamente uma única vez sobre o texto completo.
+ * Retorna string vazia caso o número seja inválido ou não configurado.
  */
 export function buildWhatsAppUrl(phoneNumber: string, data: DemoFormData): string {
   const sanitizedNumber = sanitizeWhatsAppNumber(phoneNumber);
+  if (!sanitizedNumber || sanitizedNumber.length < 10) {
+    return '';
+  }
   const rawMessage = buildWhatsAppMessage(data);
   const encodedMessage = encodeURIComponent(rawMessage);
   return `https://wa.me/${sanitizedNumber}?text=${encodedMessage}`;
