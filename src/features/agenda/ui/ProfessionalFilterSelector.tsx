@@ -18,6 +18,7 @@ export function ProfessionalFilterSelector({
 }: ProfessionalFilterSelectorProps) {
   const { colors, spacing, radius } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [query, setQuery] = useState('');
 
   const selectedProfessional = professionals.find((item) => item.id === selectedProfessionalId);
@@ -35,31 +36,42 @@ export function ProfessionalFilterSelector({
 
   return (
     <View style={{ width: '100%', zIndex: isOpen ? 5 : 0, elevation: isOpen ? 5 : 0 }}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Filtrar agenda por profissional. Selecionado: ${selectedProfessional?.name ?? 'Todos os profissionais'}`}
-        accessibilityHint={isOpen ? 'Fecha a lista de profissionais' : 'Abre as opções para selecionar um profissional'}
-        accessibilityState={{ expanded: isOpen }}
-        onPress={() => setIsOpen((current) => !current)}
-        style={({ pressed }) => ({
-          minHeight: 44,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing[2],
-          paddingHorizontal: spacing[3],
-          borderRadius: radius.md,
-          borderWidth: 1,
-          borderColor: isOpen ? colors.border.focus : colors.border.subtle,
-          backgroundColor: pressed ? colors.surface.selected : colors.surface.elevated,
-        })}
+      <LiquidGlassView
+        variant="navigation"
+        borderRadius={radius.md}
+        borderColor={isOpen || isFocused ? colors.border.focus : undefined}
+        borderWidth={isOpen || isFocused ? 2 : 1}
+        elevated={false}
+        style={{ width: '100%' }}
+        contentStyle={{ width: '100%', padding: 0 }}
       >
-        <Ionicons name="person-outline" size={18} color={colors.text.secondary} />
-        <Text variant="caption" color={colors.text.secondary}>Profissional</Text>
-        <Text variant="subhead" weight="semibold" color={colors.text.primary} numberOfLines={1} style={{ flex: 1 }}>
-          {selectedProfessional?.name ?? 'Todos'}
-        </Text>
-        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.text.secondary} />
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Filtrar agenda por profissional. Selecionado: ${selectedProfessional?.name ?? 'Todos os profissionais'}`}
+          accessibilityHint={isOpen ? 'Fecha a lista de profissionais' : 'Abre as opções para selecionar um profissional'}
+          accessibilityState={{ expanded: isOpen }}
+          onPress={() => setIsOpen((current) => !current)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          style={({ pressed }) => ({
+            minHeight: 44,
+            width: '100%',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing[2],
+            paddingHorizontal: spacing[3],
+            borderRadius: radius.md,
+            backgroundColor: pressed ? colors.surface.selected : 'transparent',
+          })}
+        >
+          <Ionicons name="person-outline" size={18} color={colors.text.secondary} />
+          <Text variant="caption" color={colors.text.secondary}>Profissional</Text>
+          <Text variant="subhead" weight="semibold" color={colors.text.primary} numberOfLines={1} style={{ flex: 1 }}>
+            {selectedProfessional?.name ?? 'Todos'}
+          </Text>
+          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.text.secondary} />
+        </Pressable>
+      </LiquidGlassView>
 
       {isOpen ? (
         <LiquidGlassView
