@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/features/auth';
+import { bookingQueryKeys } from '@/features/bookings/model/booking-query-keys';
 import { teamApi } from '../api/team.api';
 import type {
   CreateBarberRegistrationPayload,
@@ -127,7 +128,7 @@ export function useDeactivateMemberMutation() {
           queryKey: ['team-member', actorId, targetShopId, variables.membershipId],
         });
         queryClient.invalidateQueries({
-          queryKey: ['barbershop-professionals', targetShopId],
+          queryKey: bookingQueryKeys.professionals(targetShopId),
         });
       }
     },

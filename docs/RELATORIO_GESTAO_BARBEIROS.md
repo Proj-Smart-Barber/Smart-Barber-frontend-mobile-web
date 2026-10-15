@@ -51,11 +51,11 @@ Foi entregue integralmente a solução para gestão de barbeiros e equipe da uni
 
 | Grupo | Descrição | Status | Detalhes |
 |---|---|---|---|
-| **Grupo 1** | Contratos e Backend | **PASS** | Novos casos de uso, repositórios, rotas, idempotência e testes unitários concluídos. |
+| **Grupo 1** | Contratos e Backend | **PASS** | Novos casos de uso, repositórios, rotas, idempotência, sincronização de tokens e testes unitários concluídos. |
 | **Grupo 2** | Equipe e Navegação | **PASS** | `DesktopSidebar`, `LeftDrawer`, `TeamView`, guards e paginação implementados. |
-| **Grupo 3** | Cadastro e Convites | **PASS** | Modal com revisão, máscara de CPF, matriz de identidade e fluxo de convites. |
-| **Grupo 4** | Horários e Desligamento | **PASS** | Desligamento com `expectedVersion`, bloqueio por reservas e integração de horários. |
-| **Grupo 5** | Validação Integrada | **PASS / NOT TESTED\*** | Testes unitários do backend (291/291) e frontend (448/448) aprovados. *Testes E2E com Postgres real marcados como NOT TESTED devido a ausência de daemon Docker local no momento. |
+| **Grupo 3** | Cadastro e Convites | **PASS** | Modal com revisão, máscara de CPF, validação canônica de CPF, sincronização de token e revalidação concorrente. |
+| **Grupo 4** | Horários e Desligamento | **PASS** | Isolamento estrito de jornadas individuais (`barbermanId`), desativação com `expectedVersion` e bloqueio por reservas. |
+| **Grupo 5** | Validação Integrada | **PASS / NOT TESTED\*** | Testes unitários do backend (300/300 passaram; 45/45 específicos de gestão de equipe e horários) e frontend (450/450 aprovados em 74 arquivos). *Testes E2E com Postgres real marcados como NOT TESTED devido à indisponibilidade de daemon Docker local no host. |
 
 ---
 
@@ -150,12 +150,14 @@ Foi entregue integralmente a solução para gestão de barbeiros e equipe da uni
 - **Frontend Typecheck (`npx tsc --noEmit`):**
   - Resultado: **PASS** (código 0, zero erros de tipo).
 - **Frontend Vitest (`npm test`):**
-  - Resultado: **PASS** (73 arquivos, 448 testes aprovados).
-  - Inclui testes de contratos Zod, chamadas da API HTTP, guards de autorização e navegação de equipe.
+  - Resultado: **PASS** (74 arquivos, 450 testes aprovados, incluindo isolamento de escopo `availability.scope-isolation.test.ts`).
+  - Inclui testes de contratos Zod, chamadas da API HTTP, guards de autorização, isolamento de escopo e navegação de equipe.
 - **Backend Typecheck (`npx tsc --noEmit`):**
   - Resultado: **PASS** (código 0, zero erros de tipo).
-- **Backend Testes Unitários de Casos de Uso:**
-  - Resultado: **PASS** (291 testes passaram com mocks em memória cobrindo todos os fluxos de negócio da equipe).
+- **Backend Testes de Gestão de Equipe e Horários:**
+  - Resultado: **PASS** (10 arquivos de teste, 45 testes aprovados cobrindo cadastro, ativação sem dados fictícios, validação de CPF, sincronização de token no reenvio, aceite atômico concorrente, desativação de membros com bloqueio por agendamento e isolamento de jornadas de horários).
+- **Backend Testes Unitários de Casos de Uso Totais:**
+  - Resultado: **PASS** (300 testes unitários aprovados em memória).
 
 ### 5.2 Limitações e Itens NOT TESTED
 - **Testes de Integração com Banco Postgres Real (`ECONNREFUSED 127.0.0.1:5433`):**

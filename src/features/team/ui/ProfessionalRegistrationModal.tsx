@@ -12,6 +12,7 @@ import { generateUuidV7 } from '@/shared/lib/uuidv7';
 import { useTheme } from '@/shared/theme';
 import { Alert, Button, FormField, Text, TextInput } from '@/shared/ui';
 import type { CreateBarberRegistrationResponse } from '../api/team.contract';
+import { normalizeTeamError } from '../lib/normalize-team-error';
 import { useCreateBarberRegistrationMutation } from '../model/use-team';
 
 interface ProfessionalRegistrationModalProps {
@@ -106,22 +107,18 @@ export function ProfessionalRegistrationModal({
       setSuccessData(response);
       setStep('success');
       onSuccess?.();
-    } catch (err: any) {
-      const code = err?.response?.data?.code || err?.code;
-      if (code === 'IDENTITY_CONFLICT') {
+    } catch (err: unknown) {
+      const normalized = normalizeTeamError(err);
+      if (normalized.code === 'IDENTITY_CONFLICT') {
         setErrorMessage(
           'Os dados informados conflitam com um cadastro existente (CPF ou e-mail já vinculados a outra conta).',
         );
-      } else if (code === 'ALREADY_A_MEMBER') {
+      } else if (normalized.code === 'ALREADY_A_MEMBER') {
         setErrorMessage('Este profissional já é membro ativo desta barbearia.');
-      } else if (code === 'PENDING_INVITATION_EXISTS') {
+      } else if (normalized.code === 'PENDING_INVITATION_EXISTS') {
         setErrorMessage('Já existe um convite pendente para este e-mail.');
       } else {
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          'Falha ao iniciar o cadastro profissional.';
-        setErrorMessage(msg);
+        setErrorMessage(normalized.message);
       }
       setStep('form');
     }

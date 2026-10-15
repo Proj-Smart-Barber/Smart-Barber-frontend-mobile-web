@@ -5,6 +5,7 @@ import { generateUuidV7 } from '@/shared/lib/uuidv7';
 import { useTheme } from '@/shared/theme';
 import { Badge, Button, Card, Text, useToast } from '@/shared/ui';
 import type { BarbershopInvitationDto } from '../api/team.contract';
+import { normalizeTeamError } from '../lib/normalize-team-error';
 import { useResendInvitationMutation, useRevokeInvitationMutation } from '../model/use-team';
 
 interface SentInvitationCardProps {
@@ -68,14 +69,14 @@ export function SentInvitationCard({ invitation, shopId }: SentInvitationCardPro
       });
       setCooldownSeconds(60);
       showToast('Convite reenviado com sucesso!', 'success');
-    } catch (err: any) {
-      if (err?.code === 'RESEND_COOLDOWN' || err?.response?.data?.code === 'RESEND_COOLDOWN') {
-        const retryAfter = err?.response?.data?.retryAfterSeconds || 60;
+    } catch (err: unknown) {
+      const normalized = normalizeTeamError(err);
+      if (normalized.code === 'RESEND_COOLDOWN') {
+        const retryAfter = normalized.retryAfterSeconds ?? 60;
         setCooldownSeconds(retryAfter);
-        showToast('Aguarde o tempo de espera antes de reenviar.', 'info');
+        showToast(`Aguarde ${retryAfter} segundos antes de reenviar este convite.`, 'info');
       } else {
-        const msg = err?.response?.data?.message || err?.message || 'Falha ao reenviar convite.';
-        showToast(msg, 'error');
+        showToast(normalized.message, 'error');
       }
     }
   };
@@ -90,9 +91,9 @@ export function SentInvitationCard({ invitation, shopId }: SentInvitationCardPro
           idempotencyKey,
         });
         showToast('Convite revogado com sucesso.', 'success');
-      } catch (err: any) {
-        const msg = err?.response?.data?.message || err?.message || 'Falha ao revogar convite.';
-        showToast(msg, 'error');
+      } catch (err: unknown) {
+        const normalized = normalizeTeamError(err);
+        showToast(normalized.message, 'error');
       }
     };
 

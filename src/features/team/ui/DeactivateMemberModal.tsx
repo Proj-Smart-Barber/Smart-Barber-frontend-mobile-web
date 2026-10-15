@@ -12,6 +12,7 @@ import { generateUuidV7 } from '@/shared/lib/uuidv7';
 import { useTheme } from '@/shared/theme';
 import { Alert, Button, Text } from '@/shared/ui';
 import type { TeamMemberDto } from '../api/team.contract';
+import { normalizeTeamError } from '../lib/normalize-team-error';
 import { useDeactivateMemberMutation } from '../model/use-team';
 
 interface DeactivateMemberModalProps {
@@ -20,6 +21,7 @@ interface DeactivateMemberModalProps {
   shopId: string;
   onClose: () => void;
   onSuccess?: () => void;
+  onReload?: () => void;
 }
 
 export function DeactivateMemberModal({
@@ -28,12 +30,14 @@ export function DeactivateMemberModal({
   shopId,
   onClose,
   onSuccess,
+  onReload,
 }: DeactivateMemberModalProps) {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasBlockingBookings, setHasBlockingBookings] = useState(false);
+  const [blockingCount, setBlockingCount] = useState(0);
   const [versionConflict, setVersionConflict] = useState(false);
 
   const deactivateMutation = useDeactivateMemberMutation();
@@ -41,8 +45,18 @@ export function DeactivateMemberModal({
   const handleClose = () => {
     setErrorMessage(null);
     setHasBlockingBookings(false);
+    setBlockingCount(0);
     setVersionConflict(false);
     onClose();
+  };
+
+  const handleReload = () => {
+    handleClose();
+    if (onReload) {
+      onReload();
+    } else {
+      onSuccess?.();
+    }
   };
 
   const handleGoToAgenda = () => {
@@ -53,6 +67,7 @@ export function DeactivateMemberModal({
   const handleConfirm = async () => {
     setErrorMessage(null);
     setHasBlockingBookings(false);
+    setBlockingCount(0);
     setVersionConflict(false);
 
     const idempotencyKey = generateUuidV7();
@@ -67,27 +82,28 @@ export function DeactivateMemberModal({
 
       handleClose();
       onSuccess?.();
-    } catch (err: any) {
-      const code = err?.response?.data?.code || err?.code;
+    } catch (err: unknown) {
+      const normalized = normalizeTeamError(err);
 
-      if (code === 'MEMBERSHIP_HAS_BOOKINGS') {
+      if (normalized.code === 'MEMBERSHIP_HAS_BOOKINGS') {
         setHasBlockingBookings(true);
+        setBlockingCount(normalized.blockingCount);
+        const countText =
+          normalized.blockingCount > 0
+            ? ` (${normalized.blockingCount} agendamento${normalized.blockingCount > 1 ? 's' : ''})`
+            : '';
         setErrorMessage(
-          'Não é possível desligar o profissional no momento: existem agendamentos futuros ou em andamento vinculados a ele nesta unidade.',
+          `Não é possível desligar o profissional no momento: existem agendamentos futuros ou em andamento vinculados a ele nesta unidade${countText}.`,
         );
-      } else if (code === 'MEMBERSHIP_VERSION_CONFLICT') {
+      } else if (normalized.code === 'MEMBERSHIP_VERSION_CONFLICT') {
         setVersionConflict(true);
         setErrorMessage(
           'Conflito de concorrência: o vínculo deste profissional foi alterado recentemente. Por favor, recarregue os dados antes de prosseguir.',
         );
-      } else if (code === 'CANNOT_DEACTIVATE_OWNER') {
+      } else if (normalized.code === 'CANNOT_DEACTIVATE_OWNER') {
         setErrorMessage('Não é permitido desligar o proprietário da unidade.');
       } else {
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          'Falha ao registrar o desligamento do profissional.';
-        setErrorMessage(msg);
+        setErrorMessage(normalized.message);
       }
     }
   };
@@ -162,7 +178,7 @@ export function DeactivateMemberModal({
                 <Button
                   title="Fechar e Recarregar"
                   variant="primary"
-                  onPress={handleClose}
+                  onPress={handleReload}
                   style={{ marginTop: spacing[2] }}
                 />
               </View>
