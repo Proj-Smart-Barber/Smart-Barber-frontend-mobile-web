@@ -4,22 +4,31 @@
  */
 
 function sanitizePhoneNumber(raw: string | undefined): string {
-  if (!raw) return '5511999999999';
+  if (!raw) return '';
   const digitsOnly = raw.replace(/\D/g, '');
-  return digitsOnly.length >= 10 ? digitsOnly : '5511999999999';
+  return digitsOnly.length >= 10 ? digitsOnly : '';
 }
 
 function sanitizeCanonicalUrl(raw: string | undefined): string {
-  if (!raw) return 'https://smartbarber.com.br';
-  return raw.replace(/\/+$/, '');
+  if (raw && raw.trim().length > 0) {
+    return raw.replace(/\/+$/, '');
+  }
+  return 'https://smartbarber.wellingtonsp.uk';
 }
+
+const sanitizedWhatsAppNumber = sanitizePhoneNumber(process.env.EXPO_PUBLIC_WHATSAPP_NUMBER);
 
 export const landingConfig = {
   /**
    * Número de WhatsApp oficial para o handoff da demonstração comercial.
-   * Formato internacional composto estritamente por dígitos (ex: 5511999999999).
+   * Formato internacional composto estritamente por dígitos. Vazio se não configurado.
    */
-  whatsAppNumber: sanitizePhoneNumber(process.env.EXPO_PUBLIC_WHATSAPP_NUMBER),
+  whatsAppNumber: sanitizedWhatsAppNumber,
+
+  /**
+   * Indica se o canal comercial de WhatsApp possui configuração válida.
+   */
+  isWhatsAppConfigured: sanitizedWhatsAppNumber.length >= 10,
 
   /**
    * Domínio canonical base para metadados de SEO e indexação.
@@ -33,16 +42,17 @@ export const landingConfig = {
   enableDiscovery: process.env.EXPO_PUBLIC_ENABLE_DISCOVERY === 'true',
 
   /**
-   * Rota de fallback para descoberta quando desativada ou ativa.
+   * Rota para descoberta ativa ou vazia quando desativada.
+   * Nunca aponta para o formulário de donos (#demonstracao).
    */
-  discoveryPath: process.env.EXPO_PUBLIC_ENABLE_DISCOVERY === 'true' ? '/explorar' : '#demonstracao',
+  discoveryPath: process.env.EXPO_PUBLIC_ENABLE_DISCOVERY === 'true' ? '/explorar' : '',
 
   /**
    * URLs institucionais e jurídicas.
    */
   legal: {
-    termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? '/termos',
-    privacyUrl: process.env.EXPO_PUBLIC_PRIVACY_URL ?? '/privacidade',
+    termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? '',
+    privacyUrl: process.env.EXPO_PUBLIC_PRIVACY_URL ?? '',
     contactEmail: process.env.EXPO_PUBLIC_CONTACT_EMAIL ?? 'contato@smartbarber.com.br',
   },
 } as const;

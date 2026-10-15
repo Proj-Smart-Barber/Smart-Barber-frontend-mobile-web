@@ -263,7 +263,7 @@ export const landingContent = {
         id: 'agenda',
         title: '3. Atendimento na agenda',
         tag: 'Barbearia',
-        preview: 'Grade do profissional atualizada instantaneamente',
+        preview: 'Grade do profissional atualizada no fluxo da equipe',
         detail: 'O barbeiro visualiza o compromisso e o histórico do cliente em sua tela.',
       },
     ],
@@ -283,7 +283,7 @@ export const landingContent = {
         isFeatured: false,
         features: [
           'Catálogo digital de serviços',
-          'Agenda para 1 profissional',
+          'Organização digital da agenda',
           'Definição de disponibilidade semanal',
           'Link direto para agendamento',
           'Revisão clara de horários',
@@ -314,7 +314,7 @@ export const landingContent = {
         badge: 'Personalizado',
         isFeatured: false,
         features: [
-          'Múltiplas cadeiras ou unidades',
+          'Estrutura operacional expandida',
           'Fluxos operacionais adaptados',
           'Orientação na implantação',
           'Atendimento direto para a equipe',

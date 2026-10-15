@@ -82,8 +82,12 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
       }
     }
 
-    if (status === 'unauthenticated' && (inApp || inAccount || inClient || inBarber || inPlatform || !segments[0])) {
-      router.replace('/(auth)/login');
+    if (status === 'unauthenticated') {
+      if (!segments[0]) {
+        router.replace('/(public)/inicio' as any);
+      } else if (inApp || inAccount || inClient || inBarber || inPlatform) {
+        router.replace('/(auth)/login');
+      }
     }
   }, [fontsLoaded, status, barbershop, identity, memberships, selectedShopId, token, segments, router]);
 

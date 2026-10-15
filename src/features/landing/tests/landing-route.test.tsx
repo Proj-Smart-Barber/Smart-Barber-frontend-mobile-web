@@ -150,4 +150,54 @@ describe('Landing Page Component & Public Access Guarantee', () => {
     const fontSemiboldElements = container.querySelectorAll('.font-semibold');
     expect(fontSemiboldElements.length).toBeGreaterThan(0);
   });
+
+  it('clicar em Encontrar barbearias abre o modal de aviso honesto de expansão sem levar ao formulário de donos', () => {
+    renderLanding();
+
+    const clientCta = screen.getAllByText('Encontrar barbearias')[0];
+    fireEvent.click(clientCta);
+
+    expect(screen.getByText('Busca de barbearias em expansão')).toBeDefined();
+    expect(screen.getByText(/A descoberta aberta por localização geográfica está em fase de implantação técnica/i)).toBeDefined();
+
+    // Fecha o modal
+    const closeBtn = screen.getByText('Compreendi');
+    fireEvent.click(closeBtn);
+    expect(screen.queryByText('Busca de barbearias em expansão')).toBeNull();
+  });
+
+  it('clicar em Termos ou Privacidade no footer abre o modal de aviso institucional correspondente', () => {
+    renderLanding();
+
+    const termsBtn = screen.getByText('Termos de Uso');
+    fireEvent.click(termsBtn);
+
+    expect(screen.getByText('Termos de Serviço')).toBeDefined();
+    expect(screen.getByText(/consolidação jurídica/i)).toBeDefined();
+
+    const closeBtn = screen.getByText('Fechar');
+    fireEvent.click(closeBtn);
+    expect(screen.queryByText('Termos de Serviço')).toBeNull();
+  });
+
+  it('submeter formulário sem número oficial de WhatsApp exibe estado honesto de canal em homologação preservando os dados', () => {
+    renderLanding();
+
+    fireEvent.change(screen.getByLabelText(/Seu nome completo/i), { target: { value: 'Carlos Silva' } });
+    fireEvent.change(screen.getByLabelText(/Nome da sua barbearia/i), { target: { value: 'Barbearia Vintage' } });
+    fireEvent.change(screen.getByLabelText(/Cidade e Estado/i), { target: { value: 'Curitiba / PR' } });
+
+    const submitBtn = screen.getByRole('button', { name: /Continuar no WhatsApp/i });
+    fireEvent.click(submitBtn);
+
+    // Como EXPO_PUBLIC_WHATSAPP_NUMBER não está definido no ambiente de teste, deve exibir o aviso honesto
+    expect(screen.getByText('Canal direto em homologação técnica')).toBeDefined();
+    expect(screen.getByText(/O número comercial de WhatsApp ainda não foi configurado/i)).toBeDefined();
+    expect(screen.getByText(/Copiar mensagem estruturada/i)).toBeDefined();
+
+    // Digitar novamente em qualquer campo deve invalidar o preparedUrl / aviso de fallback
+    fireEvent.change(screen.getByLabelText(/Seu nome completo/i), { target: { value: 'Carlos Silva Atualizado' } });
+    expect(screen.queryByText('Canal direto em homologação técnica')).toBeNull();
+  });
 });
+
