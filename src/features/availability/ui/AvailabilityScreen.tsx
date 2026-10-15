@@ -39,7 +39,15 @@ const formSchema = z.object({
 
 type AvailabilityFormValues = z.infer<typeof formSchema>;
 
-export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | null }) {
+export function AvailabilityScreen({
+  barbershopId,
+  barbermanId,
+  professionalName,
+}: {
+  barbershopId?: string | null;
+  barbermanId?: string | null;
+  professionalName?: string | null;
+}) {
   const vm = useAvailabilityViewModel(barbershopId);
   const { colors, spacing, radius, isDark } = useTheme();
   const { openDrawer, onContentScroll, scrollCollapseProgress } = useNavigation();
@@ -326,10 +334,12 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                   ]}
                 />
                 <Text variant="display" color={colors.text.primary}>
-                  Configure os horários{isExpanded ? ' de atendimento.' : '\nde atendimento.'}
+                  {professionalName ? `Horários de ${professionalName}` : `Configure os horários${isExpanded ? ' de atendimento.' : '\nde atendimento.'}`}
                 </Text>
                 <Text variant="body" color={colors.text.secondary} style={styles.heroDescription}>
-                  Defina a jornada recorrente da unidade e registre exceções para datas específicas.
+                  {professionalName
+                    ? 'Jornada individual do profissional. As exceções cadastradas aqui aplicam-se a este barbeiro sem modificar a regra geral da barbearia.'
+                    : 'Defina a jornada recorrente da unidade e registre exceções para datas específicas.'}
                 </Text>
               </View>
 
@@ -474,7 +484,21 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                         disabled={vm.isSaving}
                       />
                     ) : (
-                      <ExceptionForm onSubmit={onSubmitException} disabled={vm.isSaving} />
+                      <ExceptionForm
+                        onSubmit={onSubmitException}
+                        disabled={vm.isSaving}
+                        initialValues={
+                          barbermanId
+                            ? {
+                                date: '',
+                                barbermanId,
+                                openTime: null,
+                                closeTime: null,
+                                reason: null,
+                              }
+                            : undefined
+                        }
+                      />
                     )}
                   </View>
 

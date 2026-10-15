@@ -22,5 +22,8 @@ export function getActiveDestinationFromPathname(
   ) {
     return 'services';
   }
+  if (clean.includes('team') || clean.includes('equipe')) {
+    return 'team';
+  }
   return 'home';
 }

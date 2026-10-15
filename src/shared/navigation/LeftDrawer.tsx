@@ -24,6 +24,8 @@ export function LeftDrawer() {
   const unitSession = useSession();
   const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
     m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
+  const isOwnerActive = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+    m.state === 'ACTIVE' && m.role === 'OWNER');
   const { colors, spacing, radius, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -302,6 +304,15 @@ export function LeftDrawer() {
               isActive={activeDestination === 'services'}
               onPress={() => handleNavigate('/(app)/services')}
             />
+            {isOwnerActive && (
+              <DrawerMenuItem
+                label="Equipe"
+                icon="people-outline"
+                activeIcon="people"
+                isActive={activeDestination === 'team'}
+                onPress={() => handleNavigate('/(app)/team')}
+              />
+            )}
           </View>
 
           {/* Grupo 2: Catálogo Público */}
