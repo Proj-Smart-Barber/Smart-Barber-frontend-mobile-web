@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '@/features/auth';
-import { useTheme } from '@/shared/theme';
-import { Badge, Button, Card, EmptyState, ErrorState, Text } from '@/shared/ui';
+import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { Button, EmptyState, ErrorState, SegmentedFilter, Text } from '@/shared/ui';
 import {
   useTeamInvitationsQuery,
   useTeamMembersQuery,
@@ -22,9 +24,20 @@ import { TeamMemberCard } from './TeamMemberCard';
 type TeamTab = 'ACTIVE' | 'INACTIVE' | 'INVITATIONS';
 
 export function TeamView() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
+  const { isCompact, isExpanded, contentMaxWidth } = useAdaptiveLayout();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { selectedShopId, memberships } = useSession();
+
+  const webBackgroundStyle: any =
+    Platform.OS === 'web'
+      ? {
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+            : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+      : {};
 
   const isOwnerActive = memberships.some(
     (m) =>
@@ -57,7 +70,7 @@ export function TeamView() {
 
   if (!isOwnerActive) {
     return (
-      <View style={[styles.container, { padding: spacing[6] }]}>
+      <View style={[styles.container, { padding: spacing[6] }, webBackgroundStyle]}>
         <EmptyState
           title="Acesso Restrito"
           description="Apenas o proprietário ativo desta unidade tem permissão para gerenciar a equipe."
@@ -106,12 +119,32 @@ export function TeamView() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background.primary,
+          paddingTop: insets.top,
+        },
+        webBackgroundStyle,
+      ]}
+    >
       {/* Top Header */}
-      <View style={[styles.header, { paddingHorizontal: spacing[4], paddingTop: spacing[4] }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            maxWidth: 800,
+            width: '100%',
+            alignSelf: 'center',
+            paddingHorizontal: spacing[4],
+            paddingTop: spacing[4],
+          },
+        ]}
+      >
         <View style={styles.headerTitleRow}>
-          <View>
-            <Text variant="h2" weight="bold" color={colors.text.primary}>
+          <View style={{ flex: 1, paddingRight: isExpanded ? spacing[4] : 0 }}>
+            <Text variant="h2" weight="bold" color={colors.text.primary} numberOfLines={1}>
               Equipe
             </Text>
             <Text variant="caption" color={colors.text.secondary}>
@@ -119,104 +152,41 @@ export function TeamView() {
             </Text>
           </View>
 
-          <Button
-            title="Novo Barbeiro"
-            variant="primary"
-            onPress={() => setIsRegistrationModalOpen(true)}
-          />
+          {isExpanded ? (
+            <Button
+              title="Novo Barbeiro"
+              variant="primary"
+              leftIcon={<Ionicons name="person-add" size={18} color="#FFFFFF" />}
+              onPress={() => setIsRegistrationModalOpen(true)}
+              style={{ minHeight: 44, paddingHorizontal: spacing[4] }}
+            />
+          ) : null}
         </View>
 
-        {/* Tab Selector */}
-        <View
-          style={[
-            styles.tabBar,
-            {
-              backgroundColor: colors.background.card,
-              borderColor: colors.border.subtle,
-              borderRadius: radius.md,
-              marginTop: spacing[3],
-            },
+        {/* Tab Selector usando SegmentedFilter canônico C3 */}
+        <SegmentedFilter<TeamTab>
+          options={[
+            { value: 'ACTIVE', label: 'Ativos', count: activeTotal },
+            { value: 'INACTIVE', label: 'Desligados', count: inactiveTotal },
+            { value: 'INVITATIONS', label: 'Convites', count: invitationsTotal },
           ]}
-        >
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'ACTIVE' }}
-            onPress={() => handleTabChange('ACTIVE')}
-            style={[
-              styles.tabItem,
-              activeTab === 'ACTIVE' && {
-                backgroundColor: colors.surface.elevated,
-                borderRadius: radius.sm,
-              },
-            ]}
-          >
-            <Text
-              variant="bodySm"
-              weight={activeTab === 'ACTIVE' ? 'bold' : 'regular'}
-              color={
-                activeTab === 'ACTIVE'
-                  ? colors.text.primary
-                  : colors.text.secondary
-              }
-            >
-              Ativos ({activeTotal})
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'INACTIVE' }}
-            onPress={() => handleTabChange('INACTIVE')}
-            style={[
-              styles.tabItem,
-              activeTab === 'INACTIVE' && {
-                backgroundColor: colors.surface.elevated,
-                borderRadius: radius.sm,
-              },
-            ]}
-          >
-            <Text
-              variant="bodySm"
-              weight={activeTab === 'INACTIVE' ? 'bold' : 'regular'}
-              color={
-                activeTab === 'INACTIVE'
-                  ? colors.text.primary
-                  : colors.text.secondary
-              }
-            >
-              Desligados ({inactiveTotal})
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'INVITATIONS' }}
-            onPress={() => handleTabChange('INVITATIONS')}
-            style={[
-              styles.tabItem,
-              activeTab === 'INVITATIONS' && {
-                backgroundColor: colors.surface.elevated,
-                borderRadius: radius.sm,
-              },
-            ]}
-          >
-            <Text
-              variant="bodySm"
-              weight={activeTab === 'INVITATIONS' ? 'bold' : 'regular'}
-              color={
-                activeTab === 'INVITATIONS'
-                  ? colors.text.primary
-                  : colors.text.secondary
-              }
-            >
-              Convites ({invitationsTotal})
-            </Text>
-          </Pressable>
-        </View>
+          value={activeTab}
+          onChange={handleTabChange}
+          style={{ marginTop: spacing[3] }}
+        />
       </View>
 
       {/* Main Content Area */}
-      <View style={{ flex: 1, paddingHorizontal: spacing[4], paddingTop: spacing[3] }}>
+      <View
+        style={{
+          flex: 1,
+          maxWidth: 800,
+          width: '100%',
+          alignSelf: 'center',
+          paddingHorizontal: spacing[4],
+          paddingTop: spacing[3],
+        }}
+      >
         {currentTabQuery.isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.brand.primary} />
@@ -252,7 +222,10 @@ export function TeamView() {
                   onPress={() => router.push(`/(app)/team/${item.membershipId}` as any)}
                 />
               )}
-              contentContainerStyle={{ paddingBottom: spacing[6] }}
+              contentContainerStyle={{
+                paddingBottom: Math.max(insets.bottom, 16) + 120,
+                gap: spacing[2],
+              }}
             />
           )
         ) : activeTab === 'INACTIVE' ? (
@@ -271,7 +244,10 @@ export function TeamView() {
                   onPress={() => router.push(`/(app)/team/${item.membershipId}` as any)}
                 />
               )}
-              contentContainerStyle={{ paddingBottom: spacing[6] }}
+              contentContainerStyle={{
+                paddingBottom: Math.max(insets.bottom, 16) + 120,
+                gap: spacing[2],
+              }}
             />
           )
         ) : (
@@ -292,11 +268,51 @@ export function TeamView() {
                   shopId={selectedShopId!}
                 />
               )}
-              contentContainerStyle={{ paddingBottom: spacing[6] }}
+              contentContainerStyle={{
+                paddingBottom: Math.max(insets.bottom, 16) + 120,
+                gap: spacing[2],
+              }}
             />
           )
         )}
       </View>
+
+      {/* Floating Action Button (FAB) circular para telas compactas / mobile */}
+      {!isExpanded && (
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            right: 24,
+            bottom: Math.max(insets.bottom, 12) + (isCompact ? 86 : 24),
+            zIndex: 95,
+            elevation: 12,
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Novo Barbeiro"
+            accessibilityHint="Abre o cadastro de um novo profissional para a equipe."
+            onPress={() => setIsRegistrationModalOpen(true)}
+            style={({ pressed }) => ({
+              width: 56,
+              height: 56,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 28,
+              backgroundColor: colors.brand.primary,
+              opacity: pressed ? 0.85 : 1,
+              shadowColor: colors.brand.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.38,
+              shadowRadius: 10,
+              elevation: 8,
+            })}
+          >
+            <Ionicons name="person-add" size={26} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      )}
 
       {/* Pagination Bar */}
       {totalPages > 1 && (
@@ -304,8 +320,11 @@ export function TeamView() {
           style={[
             styles.paginationBar,
             {
+              maxWidth: 800,
+              width: '100%',
+              alignSelf: 'center',
               borderTopColor: colors.border.subtle,
-              backgroundColor: colors.background.card,
+              backgroundColor: 'transparent',
               paddingHorizontal: spacing[4],
               paddingVertical: spacing[3],
             },
@@ -353,17 +372,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  tabBar: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    padding: 3,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
@@ -375,5 +383,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
+    width: '100%',
   },
 });

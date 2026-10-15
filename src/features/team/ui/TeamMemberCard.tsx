@@ -1,8 +1,9 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LiquidGlassView } from '@/shared/navigation';
 import { useTheme } from '@/shared/theme';
-import { Badge, Card, Text } from '@/shared/ui';
+import { Badge, Text } from '@/shared/ui';
 import type { TeamMemberDto } from '../api/team.contract';
 
 interface TeamMemberCardProps {
@@ -40,22 +41,27 @@ export function TeamMemberCard({ member, onPress }: TeamMemberCardProps) {
   })();
 
   return (
-    <Card
-      style={[
-        styles.card,
-        {
-          borderColor: colors.border.subtle,
-          backgroundColor: colors.background.card,
-          borderRadius: radius.lg,
-          padding: spacing[4],
-        },
-      ]}
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{
+        width: '100%',
+        marginVertical: spacing[1],
+      }}
+      contentStyle={{
+        padding: spacing[4],
+      }}
     >
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`Gerenciar membro ${member.name}`}
-        style={styles.innerContainer}
+        style={({ pressed }) => [
+          styles.innerContainer,
+          {
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
       >
         <View style={styles.contentRow}>
           <View
@@ -111,7 +117,7 @@ export function TeamMemberCard({ member, onPress }: TeamMemberCardProps) {
           />
         </View>
       </Pressable>
-    </Card>
+    </LiquidGlassView>
   );
 }
 

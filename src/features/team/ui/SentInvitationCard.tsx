@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { generateUuidV7 } from '@/shared/lib/uuidv7';
+import { LiquidGlassView } from '@/shared/navigation';
 import { useTheme } from '@/shared/theme';
-import { Badge, Button, Card, Text, useToast } from '@/shared/ui';
+import { Badge, Button, Text, useToast } from '@/shared/ui';
 import type { BarbershopInvitationDto } from '../api/team.contract';
 import { normalizeTeamError } from '../lib/normalize-team-error';
 import { useResendInvitationMutation, useRevokeInvitationMutation } from '../model/use-team';
@@ -114,18 +115,31 @@ export function SentInvitationCard({ invitation, shopId }: SentInvitationCardPro
   };
 
   return (
-    <Card
-      style={[
-        styles.card,
-        {
-          borderColor: colors.border.subtle,
-          backgroundColor: colors.background.card,
-          borderRadius: radius.lg,
-          padding: spacing[4],
-        },
-      ]}
+    <LiquidGlassView
+      variant="card"
+      elevated
+      style={{
+        width: '100%',
+        marginVertical: spacing[1],
+      }}
+      contentStyle={{
+        padding: spacing[4],
+      }}
     >
       <View style={styles.contentRow}>
+        <View
+          style={[
+            styles.avatar,
+            {
+              borderRadius: radius.full,
+              backgroundColor: colors.surface.elevated,
+              borderColor: colors.border.default,
+            },
+          ]}
+        >
+          <Ionicons name="mail-outline" size={20} color={colors.text.secondary} />
+        </View>
+
         <View style={styles.infoCol}>
           <View style={styles.headerRow}>
             <Text
@@ -154,6 +168,7 @@ export function SentInvitationCard({ invitation, shopId }: SentInvitationCardPro
                 disabled={cooldownSeconds > 0 || resendMutation.isPending}
                 loading={resendMutation.isPending}
                 onPress={handleResend}
+                style={{ minHeight: 36, paddingHorizontal: spacing[3] }}
               />
               <Button
                 title="Revogar"
@@ -161,13 +176,13 @@ export function SentInvitationCard({ invitation, shopId }: SentInvitationCardPro
                 disabled={revokeMutation.isPending}
                 loading={revokeMutation.isPending}
                 onPress={handleRevokeConfirm}
-                style={{ marginLeft: 8 }}
+                style={{ minHeight: 36, paddingHorizontal: spacing[3], marginLeft: 8 }}
               />
             </View>
           )}
         </View>
       </View>
-    </Card>
+    </LiquidGlassView>
   );
 }
 
@@ -179,6 +194,14 @@ const styles = StyleSheet.create({
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   infoCol: {
     flex: 1,
