@@ -5,6 +5,30 @@
  */
 
 export const landingStylesCss = `
+  /* Desbloqueio global de rolagem da janela e anulação de travas de altura */
+  html,
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100% !important;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #root,
+  #root > div,
+  .css-g5y9jx.r-13awgt0,
+  .css-g5y9jx.r-1p0dtai {
+    height: auto !important;
+    min-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 0 auto !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
   /* Reset e variáveis raiz */
   .sb-landing-root {
     --sb-font-heading: 'Epilogue', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -15,6 +39,8 @@ export const landingStylesCss = `
     --sb-motion-slow: 300ms;
 
     min-height: 100vh;
+    width: 100%;
+    overflow: visible;
     font-family: var(--sb-font-body);
     font-size: 16px;
     line-height: 1.6;
