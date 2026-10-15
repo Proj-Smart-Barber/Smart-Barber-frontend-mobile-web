@@ -58,6 +58,28 @@ export default function Root({ children }: PropsWithChildren) {
                   color: #171313;
                 }
               }
+
+              /* Anula o fundo branco/azul forçado pelo autofill do navegador */
+              input:-webkit-autofill,
+              input:-webkit-autofill:hover,
+              input:-webkit-autofill:focus,
+              input:-webkit-autofill:active {
+                -webkit-box-shadow: 0 0 0 1000px #1a1a1e inset !important;
+                -webkit-text-fill-color: #FFFFFF !important;
+                caret-color: #FFFFFF !important;
+                transition: background-color 5000s ease-in-out 0s;
+              }
+
+              @media (prefers-color-scheme: light) {
+                input:-webkit-autofill,
+                input:-webkit-autofill:hover,
+                input:-webkit-autofill:focus,
+                input:-webkit-autofill:active {
+                  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+                  -webkit-text-fill-color: #171313 !important;
+                  caret-color: #171313 !important;
+                }
+              }
             `,
           }}
         />

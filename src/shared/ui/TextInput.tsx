@@ -116,6 +116,7 @@ export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextIn
             minHeight: isMultiline ? 76 : 50,
             paddingVertical: spacing[2],
             color: colors.text.primary,
+            backgroundColor: 'transparent',
             ...(isMultiline ? { textAlignVertical: 'top' as const } : {}),
             ...typography.styles.body,
           },
