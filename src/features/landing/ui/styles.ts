@@ -5,7 +5,7 @@
  */
 
 export const landingStylesCss = `
-  /* Desbloqueio global de rolagem da janela e anulação de travas de altura */
+  /* Desbloqueio global de rolagem da janela e fixação no tema escuro Obsidian */
   html,
   body {
     overflow-y: auto !important;
@@ -14,6 +14,9 @@ export const landingStylesCss = `
     min-height: 100% !important;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    background-color: #0B0B0B !important;
+    color: #FFFFFF !important;
+    color-scheme: dark;
   }
 
   #root,
@@ -29,8 +32,9 @@ export const landingStylesCss = `
     position: static !important;
   }
 
-  /* Reset e variáveis raiz */
-  .sb-landing-root {
+  /* Reset e variáveis raiz: Tema Obsidian Atelier Fixo */
+  .sb-landing-root,
+  .sb-landing-root.theme-obsidian {
     --sb-font-heading: 'Epilogue', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --sb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --sb-max-width: 1040px;
@@ -38,20 +42,6 @@ export const landingStylesCss = `
     --sb-motion-normal: 220ms;
     --sb-motion-slow: 300ms;
 
-    min-height: 100vh;
-    width: 100%;
-    overflow: visible;
-    font-family: var(--sb-font-body);
-    font-size: 16px;
-    line-height: 1.6;
-    letter-spacing: -0.01em;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    transition: background-color var(--sb-motion-normal) ease, color var(--sb-motion-normal) ease;
-  }
-
-  /* Tema Obsidian Atelier (Dark) */
-  .sb-landing-root.theme-obsidian {
     --sb-bg: #0B0B0B;
     --sb-surface: #131313;
     --sb-surface-elevated: #1F1F1F;
@@ -71,29 +61,15 @@ export const landingStylesCss = `
 
     background-color: var(--sb-bg);
     color: var(--sb-text-primary);
-  }
-
-  /* Tema Ivory (Light) */
-  .sb-landing-root.theme-ivory {
-    --sb-bg: #F7F5F3;
-    --sb-surface: #FFFFFF;
-    --sb-surface-elevated: #EFECE8;
-    --sb-surface-hover: #F0EDE9;
-    --sb-crimson: #BD2026;
-    --sb-crimson-hover: #A31B20;
-    --sb-crimson-glow: rgba(189, 32, 38, 0.16);
-    --sb-text-primary: #171313;
-    --sb-text-secondary: #57534E;
-    --sb-text-muted: #78716C;
-    --sb-border: #D5CECA;
-    --sb-border-subtle: #E7E0DD;
-    --sb-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-    --sb-input-bg: #FFFFFF;
-    --sb-input-border: #C8BFBA;
-    --sb-input-focus: #BD2026;
-
-    background-color: var(--sb-bg);
-    color: var(--sb-text-primary);
+    min-height: 100vh;
+    width: 100%;
+    overflow: visible;
+    font-family: var(--sb-font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Regras Tipográficas Hard Constraints */
@@ -152,9 +128,6 @@ export const landingStylesCss = `
     background-color: rgba(11, 11, 11, 0.85);
     border-bottom: 1px solid var(--sb-border-subtle);
     transition: background-color var(--sb-motion-normal);
-  }
-  .theme-ivory .sb-header {
-    background-color: rgba(247, 245, 243, 0.88);
   }
   .sb-header-inner {
     display: flex;
