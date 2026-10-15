@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Modal, Platform, RefreshControl, ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useNavigation } from '@/shared/navigation/navigation-context';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { FloatingBookingAction } from '@/shared/navigation';
 import { ErrorState } from '@/shared/ui';
 import { BookingDetailView, BookingActionConfirm } from '@/features/bookings';
 import { useAgendaViewModel } from '../model/use-agenda-view-model';
@@ -19,6 +21,8 @@ import { AgendaTimeline } from './AgendaTimeline';
 export function AgendaView() {
   const { colors, spacing, isDark } = useTheme();
   const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
+  const insets = useSafeAreaInsets();
+  const { onContentScroll } = useNavigation();
 
   const {
     // Contexto e Papéis
@@ -82,20 +86,23 @@ export function AgendaView() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const router = useRouter();
 
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(app)');
-    }
-  };
-
   const handleSelectDate = (iso: string) => {
     goToDate(iso);
     setIsDatePickerOpen(false);
   };
 
   const roleLabel = isOwner ? 'Proprietário' : isBarberman ? 'Barbeiro' : 'Equipe';
+
+  const handleNewBooking = () => {
+    if (!isUnitActive) return;
+    router.push({
+      pathname: '/(app)/new-booking' as any,
+      params: {
+        date: selectedDate,
+        ...(selectedProfessionalId ? { barbermanId: selectedProfessionalId } : {}),
+      },
+    });
+  };
 
   const webBackgroundStyle =
     Platform.OS === 'web'
@@ -126,18 +133,6 @@ export function AgendaView() {
         onGoToNextDay={goToNextDay}
         onGoToToday={goToToday}
         onOpenDatePicker={() => setIsDatePickerOpen(true)}
-        onBack={handleBack}
-        onNewBooking={() => {
-          if (!isUnitActive) return;
-          router.push({
-            pathname: '/(app)/new-booking' as any,
-            params: {
-              date: selectedDate,
-              ...(selectedProfessionalId ? { barbermanId: selectedProfessionalId } : {}),
-            },
-          });
-        }}
-        isUnitActive={isUnitActive}
         isOwner={isOwner}
         professionals={professionals}
         selectedProfessionalId={selectedProfessionalId}
@@ -154,8 +149,16 @@ export function AgendaView() {
         onClose={() => setIsDatePickerOpen(false)}
       />
 
+      <FloatingBookingAction
+        bottom={Math.max(insets.bottom, 12) + (isCompact ? 86 : 24)}
+        enabled={isUnitActive}
+        onPress={handleNewBooking}
+      />
+
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
+        onScroll={onContentScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -169,7 +172,9 @@ export function AgendaView() {
           alignItems: 'center',
           paddingHorizontal: isCompact ? spacing[4] : spacing[6],
           paddingTop: spacing[5],
-          paddingBottom: isCompact ? 104 : spacing[6],
+          paddingBottom: isCompact
+            ? Math.max(176, Math.max(insets.bottom, 12) + 166)
+            : spacing[6],
         }}
       >
         <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[5] }}>

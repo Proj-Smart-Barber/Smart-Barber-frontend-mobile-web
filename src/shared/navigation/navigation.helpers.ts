@@ -6,6 +6,7 @@ export function getActiveDestinationFromPathname(
   if (!pathname) return 'home';
 
   const clean = pathname.toLowerCase();
+  if (clean.includes('settings')) return 'settings';
   if (clean.includes('agenda') || clean.includes('atendimentos')) return 'agenda';
   if (
     clean.includes('availability') ||

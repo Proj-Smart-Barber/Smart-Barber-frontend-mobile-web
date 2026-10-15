@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { usePathname } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useAdaptiveLayout, useReducedMotion, useTheme } from '@/shared/theme';
+import { getOperationalContext, useSession } from '@/features/auth';
 import { BottomCapsuleBar } from './BottomCapsuleBar';
+import { FloatingBookingAction } from './FloatingBookingAction';
 import { DesktopSidebar } from './DesktopSidebar';
 import { LeftDrawer } from './LeftDrawer';
 import { NavigationProvider, useNavigation } from './navigation-context';
@@ -22,10 +24,17 @@ export interface NavigationShellProps {
 
 function NavigationShellContent({ children }: NavigationShellProps) {
   const { colors, radius, isDark } = useTheme();
-  const { isExpanded } = useAdaptiveLayout();
+  const { isExpanded, isCompact } = useAdaptiveLayout();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const isBookingCreation = usePathname() === '/new-booking';
+  const pathname = usePathname();
+  const isBookingCreation = pathname === '/new-booking';
+  const router = useRouter();
+  const session = useSession();
+  const operationalContext = getOperationalContext(session);
+  const canCreateBooking = Boolean(
+    operationalContext && operationalContext.unitStatus !== 'INACTIVE',
+  );
   const reducedMotion = useReducedMotion();
   const { isDrawerOpen, openDrawer, closeDrawer, activeDestination, drawerProgress } = useNavigation();
 
@@ -86,7 +95,15 @@ function NavigationShellContent({ children }: NavigationShellProps) {
       });
 
   // Exibe disparador flutuante de menu nas outras telas que não têm hamburger nativo no header
-  const showFloatingMenuTrigger = activeDestination !== 'home' && !isDrawerOpen && !isBookingCreation;
+  const showFloatingMenuTrigger =
+    activeDestination !== 'home' &&
+    activeDestination !== 'agenda' &&
+    activeDestination !== 'availability' &&
+    activeDestination !== 'settings' &&
+    !isDrawerOpen &&
+    !isBookingCreation;
+  const showFloatingBookingAction =
+    pathname === '/' && isCompact && !isDrawerOpen && !isBookingCreation;
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#080808' : colors.background.secondary }]}>
@@ -129,6 +146,14 @@ function NavigationShellContent({ children }: NavigationShellProps) {
 
       {/* Cápsula Inferior Flutuante Mobile (renderizada sem faixa opaca de corte) */}
       <BottomCapsuleBar />
+
+      {showFloatingBookingAction ? (
+        <FloatingBookingAction
+          bottom={Math.max(insets.bottom, 12) + 86}
+          enabled={canCreateBooking}
+          onPress={() => router.push('/(app)/new-booking' as any)}
+        />
+      ) : null}
 
       {/* Disparador do Menu Lateral para telas secundárias */}
       {showFloatingMenuTrigger ? (
