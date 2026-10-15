@@ -107,7 +107,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           onboardingIntent: intent,
         });
       } catch (err) {
-        const norm = normalizeAuthError(err);
+        const norm = normalizeAuthError(err, 'registration');
         setNormalizedError(norm);
         throw norm;
       }

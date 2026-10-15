@@ -157,10 +157,10 @@ export function resolveAccountDestination(
 export function validateNewPassword(password: string): { isValid: boolean; error?: string } {
   // Contagem por Unicode code points (Array.from conta code points reais como emojis)
   const codePointsCount = Array.from(password).length;
-  if (codePointsCount < 15) {
+  if (codePointsCount < 8) {
     return {
       isValid: false,
-      error: 'A nova senha deve ter no mínimo 15 caracteres.',
+      error: 'A nova senha deve ter no mínimo 8 caracteres.',
     };
   }
 

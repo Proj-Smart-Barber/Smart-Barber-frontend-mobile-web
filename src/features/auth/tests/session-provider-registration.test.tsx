@@ -82,6 +82,25 @@ describe('SessionProvider — Orquestração de Cadastro e Verificação com Tra
     expect(result.current.identity).toBeFalsy();
   });
 
+  it('cadastro público com 404 não apresenta sessão inválida', async () => {
+    vi.spyOn(authApi, 'register').mockRejectedValue(new ApiError('Not found', 404, { error: 'not_found' }));
+    const sendEmail = vi.spyOn(authApi, 'sendEmailVerification');
+    const { result } = renderHook(() => useSession(), { wrapper });
+    let failure: any;
+    await act(async () => {
+      try {
+        await result.current.signUp({
+          name: 'Cliente Teste', email: 'client@example.com', cpf: '11144477735',
+          password: 'senha123', passwordConfirmation: 'senha123',
+        }, 'CLIENT');
+      } catch (error) { failure = error; }
+    });
+    expect(failure).toMatchObject({ code: 'SERVER_ERROR', shouldClearSession: false });
+    expect(failure.message).not.toMatch(/sessão|entre novamente/i);
+    expect(result.current.status).not.toBe('authenticated');
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
   it('2. Cadastro OWNER -> intenção canônica -> onboarding de barbearia correto, sem concessão automática de papel', async () => {
     const registerSpy = vi.spyOn(authApi, 'register').mockResolvedValue({
       user: {

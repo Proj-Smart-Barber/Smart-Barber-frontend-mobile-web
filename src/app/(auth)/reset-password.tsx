@@ -104,7 +104,7 @@ export default function ResetPasswordScreen() {
               />
             </FormField>
 
-            <FormField label="Nova senha (mínimo 15 caracteres)" required>
+            <FormField label="Nova senha (mínimo 8 caracteres)" required>
               <PasswordInput
                 value={newPassword}
                 onChangeText={setNewPassword}
