@@ -39,8 +39,16 @@ const formSchema = z.object({
 
 type AvailabilityFormValues = z.infer<typeof formSchema>;
 
-export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | null }) {
-  const vm = useAvailabilityViewModel(barbershopId);
+export function AvailabilityScreen({
+  barbershopId,
+  barbermanId,
+  professionalName,
+}: {
+  barbershopId?: string | null;
+  barbermanId?: string | null;
+  professionalName?: string | null;
+}) {
+  const vm = useAvailabilityViewModel(barbershopId, barbermanId);
   const { colors, spacing, radius, isDark } = useTheme();
   const { openDrawer, onContentScroll, scrollCollapseProgress } = useNavigation();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
@@ -91,6 +99,17 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
         }
       : undefined,
   });
+
+  useEffect(() => {
+    if (vm.scheduleDays) {
+      methods.reset({
+        days: vm.scheduleDays.map((d) => ({
+          weekday: d.weekday,
+          entries: d.entries,
+        })),
+      });
+    }
+  }, [barbermanId, vm.scheduleDays, methods]);
 
   if (vm.isLoadingInitial) {
     return (
@@ -211,7 +230,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
     const entries: Omit<WeeklyScheduleEntry, 'id'>[] = values.days.flatMap((day) =>
       day.entries.map((entry) => ({
         weekday: entry.weekday,
-        barbermanId: entry.barbermanId,
+        barbermanId: barbermanId ?? entry.barbermanId ?? null,
         range: entry.range,
       })),
     );
@@ -246,7 +265,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
   function toExceptionPayload(values: AvailabilityExceptionFormValues) {
     return {
       date: values.date,
-      barbermanId: values.barbermanId ?? null,
+      barbermanId: barbermanId ?? values.barbermanId ?? null,
       openTime: values.openTime ?? null,
       closeTime: values.closeTime ?? null,
       reason: values.reason ?? null,
@@ -326,15 +345,47 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                   ]}
                 />
                 <Text variant="display" color={colors.text.primary}>
-                  Configure os horários{isExpanded ? ' de atendimento.' : '\nde atendimento.'}
+                  {professionalName ? `Horários de ${professionalName}` : `Configure os horários${isExpanded ? ' de atendimento.' : '\nde atendimento.'}`}
                 </Text>
                 <Text variant="body" color={colors.text.secondary} style={styles.heroDescription}>
-                  Defina a jornada recorrente da unidade e registre exceções para datas específicas.
+                  {professionalName
+                    ? 'Jornada individual do profissional. As exceções cadastradas aqui aplicam-se a este barbeiro sem modificar a regra geral da barbearia.'
+                    : 'Defina a jornada recorrente da unidade e registre exceções para datas específicas.'}
                 </Text>
               </View>
 
               {/* Área de alerta global — Critério de Aceite 4 */}
               {vm.formError && !saveFeedback && <AvailabilityError error={vm.formError} />}
+
+              {/* Banner de escala herdada da barbearia */}
+              {vm.isInherited && (
+                <View
+                  style={[
+                    styles.inheritanceBanner,
+                    {
+                      backgroundColor: isDark ? 'rgba(197, 160, 89, 0.12)' : 'rgba(197, 160, 89, 0.16)',
+                      borderColor: colors.brand.primary,
+                      borderRadius: radius.md,
+                      padding: spacing[4],
+                      marginBottom: spacing[4],
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing[3],
+                      borderWidth: 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="information-circle-outline" size={24} color={colors.brand.primary} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="caption" weight="bold" color={colors.brand.primary}>
+                      ESCALA HERDADA DA BARBEARIA
+                    </Text>
+                    <Text variant="caption" color={colors.text.secondary}>
+                      Este profissional não possui jornada própria e opera com a escala geral da unidade. Salvar alterações aqui definirá horários específicos para ele sem alterar a barbearia.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               <View style={[styles.mainGrid, isExpanded && styles.mainGridExpanded]}>
                 {/* ── Jornada recorrente ── */}
@@ -474,7 +525,21 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                         disabled={vm.isSaving}
                       />
                     ) : (
-                      <ExceptionForm onSubmit={onSubmitException} disabled={vm.isSaving} />
+                      <ExceptionForm
+                        onSubmit={onSubmitException}
+                        disabled={vm.isSaving}
+                        initialValues={
+                          barbermanId
+                            ? {
+                                date: '',
+                                barbermanId,
+                                openTime: null,
+                                closeTime: null,
+                                reason: null,
+                              }
+                            : undefined
+                        }
+                      />
                     )}
                   </View>
 
@@ -792,6 +857,7 @@ const styles = StyleSheet.create({
   },
   timezoneIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   timezoneCopy: { flex: 1, gap: 2 },
+  inheritanceBanner: { width: '100%' },
 });
 
 function AvailabilityMenuButton({ onPress }: { onPress: () => void }) {
