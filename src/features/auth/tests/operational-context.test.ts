@@ -138,13 +138,13 @@ describe('Operational Context & Gates', () => {
   });
 
   it('new_password_unicode_limits', () => {
-    // 14 emojis = 14 code points -> inválido (< 15)
-    const pass14 = '😀'.repeat(14);
-    expect(validateNewPassword(pass14).isValid).toBe(false);
+    // 7 emojis = 7 code points -> inválido (< 8)
+    const pass7 = '😀'.repeat(7);
+    expect(validateNewPassword(pass7).isValid).toBe(false);
 
-    // 15 emojis = 15 code points (60 bytes UTF-8) -> válido (>= 15 code points e <= 72 bytes)
-    const pass15 = '😀'.repeat(15);
-    expect(validateNewPassword(pass15).isValid).toBe(true);
+    // 8 emojis = 8 code points (32 bytes UTF-8) -> válido (>= 8 code points e <= 72 bytes)
+    const pass8 = '😀'.repeat(8);
+    expect(validateNewPassword(pass8).isValid).toBe(true);
 
     // 72 caracteres ASCII (72 bytes) -> válido
     const pass72 = 'a'.repeat(72);

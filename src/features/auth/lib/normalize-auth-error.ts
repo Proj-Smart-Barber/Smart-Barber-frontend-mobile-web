@@ -17,7 +17,7 @@ export interface NormalizedAuthError {
   shouldClearSession: boolean;
 }
 
-export function normalizeAuthError(err: unknown): NormalizedAuthError {
+export function normalizeAuthError(err: unknown, context: 'session' | 'registration' = 'session'): NormalizedAuthError {
   if (err instanceof ApiError) {
     if (err.isNetworkError) {
       return {
@@ -31,10 +31,28 @@ export function normalizeAuthError(err: unknown): NormalizedAuthError {
     const errorBody = err.data;
     const errorStr = JSON.stringify(errorBody || '').toLowerCase();
 
+    // Public signup has no session to expire. Preserve the original error for diagnostics.
+    if (context === 'registration' && ([401, 403, 404].includes(err.status) || err.status >= 500)) {
+      return {
+        code: 'SERVER_ERROR',
+        message: 'O serviço de cadastro está indisponível no momento. Tente novamente em instantes.',
+        originalError: err,
+        shouldClearSession: false,
+      };
+    }
+
+    if (err.status === 404) {
+      return {
+        code: 'SERVER_ERROR',
+        message: 'O serviço solicitado não está disponível. Tente novamente em instantes.',
+        originalError: err,
+        shouldClearSession: false,
+      };
+    }
+
     // 1. Detecção de Token malformado ou inválido (pode vir em 401 ou 500 com JsonWebTokenError)
     if (
       err.status === 401 ||
-      err.status === 404 ||
       errorStr.includes('jsonwebtokenerror') ||
       errorStr.includes('jwt malformed') ||
       errorStr.includes('invalid signature') ||

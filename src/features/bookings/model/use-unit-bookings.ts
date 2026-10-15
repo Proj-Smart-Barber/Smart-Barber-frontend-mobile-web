@@ -398,7 +398,7 @@ export function useUnitBookings(
 
   // Monitora lentidão de resposta (> 5s)
   useEffect(() => {
-    let slowTimer: NodeJS.Timeout | null = null;
+    let slowTimer: ReturnType<typeof setTimeout> | null = null;
     if (page1Query.isFetching || bootstrapQuery.isFetching) {
       slowTimer = setTimeout(() => {
         setIsSlowSync(true);

@@ -35,13 +35,13 @@ describe('registerSchema & validações de CPF e senha', () => {
     expect(isValidCpf('123')).toBe(false);
   });
 
-  it('validatePasswordPolicy deve validar tamanho mínimo de 15 caracteres e limite de 72 bytes UTF-8', () => {
-    // Menos de 15 caracteres
-    expect(validatePasswordPolicy('senha-curta').valid).toBe(false);
-    expect(validatePasswordPolicy('12345678901234').valid).toBe(false);
+  it('validatePasswordPolicy deve validar tamanho mínimo de 8 caracteres e limite de 72 bytes UTF-8', () => {
+    // Menos de 8 caracteres
+    expect(validatePasswordPolicy('curta').valid).toBe(false);
+    expect(validatePasswordPolicy('1234567').valid).toBe(false);
 
-    // Exatamente 15 caracteres válidos
-    expect(validatePasswordPolicy('123456789012345').valid).toBe(true);
+    // Exatamente 8 caracteres válidos
+    expect(validatePasswordPolicy('12345678').valid).toBe(true);
     expect(validatePasswordPolicy('senha-forte-12345').valid).toBe(true);
 
     // Excedendo 72 bytes em UTF-8
@@ -114,19 +114,19 @@ describe('registerSchema & validações de CPF e senha', () => {
     }
   });
 
-  it('deve rejeitar senha menor que 15 caracteres', () => {
+  it('deve rejeitar senha menor que 8 caracteres', () => {
     const invalidData = {
       name: 'Carlos Silva',
       cpf: '111.444.777-35',
       email: 'carlos@smartbarber.com',
-      password: 'senha-curta-12',
-      passwordConfirmation: 'senha-curta-12',
+      password: 'curta12',
+      passwordConfirmation: 'curta12',
     };
 
     const result = registerSchema.safeParse(invalidData);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toContain('no mínimo 15 caracteres');
+      expect(result.error.issues[0].message).toContain('no mínimo 8 caracteres');
     }
   });
 

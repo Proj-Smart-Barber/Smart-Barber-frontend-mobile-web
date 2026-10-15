@@ -132,7 +132,7 @@ export class HttpClient {
       }
 
       if (!response.ok) {
-        if (response.status === 401 && !path.includes('/sessions/')) {
+        if (response.status === 401 && authToken && !path.includes('/sessions/')) {
           void this.sessionHooks?.onAccessExpired?.().catch(() => {});
         }
 

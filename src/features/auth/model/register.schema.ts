@@ -47,8 +47,8 @@ export function getUtf8ByteLength(str: string): number {
 
 export function validatePasswordPolicy(password: string): { valid: boolean; error?: string } {
   const codePoints = [...password].length;
-  if (codePoints < 15) {
-    return { valid: false, error: 'A senha deve conter no mínimo 15 caracteres' };
+  if (codePoints < 8) {
+    return { valid: false, error: 'A senha deve conter no mínimo 8 caracteres' };
   }
   const bytes = getUtf8ByteLength(password);
   if (bytes > 72) {
@@ -84,8 +84,8 @@ export const registerSchema = z
       .string()
       .min(1, 'Informe sua senha')
       .refine(
-        (val) => [...val].length >= 15,
-        { message: 'A senha deve conter no mínimo 15 caracteres' }
+        (val) => [...val].length >= 8,
+        { message: 'A senha deve conter no mínimo 8 caracteres' }
       )
       .refine(
         (val) => getUtf8ByteLength(val) <= 72,

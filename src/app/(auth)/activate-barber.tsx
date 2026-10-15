@@ -37,8 +37,8 @@ export default function ActivateBarberScreen() {
 
   const validatePassword = (pwd: string): string | null => {
     const codePointLength = Array.from(pwd).length;
-    if (codePointLength < 15) {
-      return 'A senha deve ter pelo menos 15 caracteres. Uma frase fácil de lembrar funciona.';
+    if (codePointLength < 8) {
+      return 'A senha deve ter pelo menos 8 caracteres. Uma frase fácil de lembrar funciona.';
     }
     const byteLength = new TextEncoder().encode(pwd).length;
     if (byteLength > 72) {
@@ -143,7 +143,7 @@ export default function ActivateBarberScreen() {
                 <PasswordInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Mínimo 15 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                 />
               </FormField>
 
@@ -156,7 +156,7 @@ export default function ActivateBarberScreen() {
               </FormField>
 
               <Text variant="caption" style={{ color: colors.text.muted, marginBottom: 20 }}>
-                Dica: Use pelo menos 15 caracteres. Uma frase com várias palavras funciona perfeitamente.
+                Dica: Use pelo menos 8 caracteres. Uma frase com várias palavras funciona perfeitamente.
               </Text>
 
               <Button
