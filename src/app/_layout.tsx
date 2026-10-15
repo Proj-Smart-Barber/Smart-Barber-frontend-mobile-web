@@ -98,7 +98,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
   if (inPublic) {
     return (
       <>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar style="light" />
         <Slot />
       </>
     );

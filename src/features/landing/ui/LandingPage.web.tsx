@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { useTheme } from '@/shared/theme';
 import { useSession } from '@/features/auth';
 import { BrandMark } from '@/shared/brand';
 import { landingContent, BentoItem } from '../content/landing-content';
@@ -11,7 +10,6 @@ import { buildWhatsAppUrl, buildWhatsAppMessage, copyMessageToClipboard } from '
 import { landingStylesCss } from './styles';
 
 export function LandingPage(): React.ReactElement {
-  const { isDark } = useTheme();
   const { status, identity } = useSession();
   const shouldReduceMotion = useReducedMotion();
 
@@ -183,7 +181,7 @@ export function LandingPage(): React.ReactElement {
   const authLabel = isAuthenticated ? landingContent.header.authenticatedAction : landingContent.header.loginAction;
 
   return (
-    <div className={`sb-landing-root ${isDark ? 'theme-obsidian' : 'theme-ivory'}`}>
+    <div className="sb-landing-root theme-obsidian">
       <style dangerouslySetInnerHTML={{ __html: landingStylesCss }} />
 
       {/* Acessibilidade: Skip link */}

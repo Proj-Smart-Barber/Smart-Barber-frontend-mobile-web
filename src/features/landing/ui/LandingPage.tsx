@@ -9,7 +9,6 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@/shared/theme';
 import { useSession } from '@/features/auth';
 import { BrandMark } from '@/shared/brand';
 import { landingContent } from '../content/landing-content';
@@ -19,7 +18,7 @@ import { validateDemoForm, DemoFormData, DemoFormErrors, ProfessionalsRange } fr
 import { buildWhatsAppUrl, buildWhatsAppMessage, copyMessageToClipboard } from '../lib/whatsapp';
 
 export function LandingPage(): React.ReactElement {
-  const { colors, isDark } = useTheme();
+  const isDark = true;
   const { status } = useSession();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView | null>(null);
