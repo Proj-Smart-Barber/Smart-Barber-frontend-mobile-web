@@ -10,15 +10,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '@/shared/brand';
 import { useSession } from '@/features/auth';
-import { useReducedMotion, useReducedTransparency, useTheme } from '@/shared/theme';
+import { useReducedMotion, useTheme } from '@/shared/theme';
 import { Badge, Text, useToast } from '@/shared/ui';
 import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
 import { useNavigation } from './navigation-context';
+import { LiquidGlassView } from './LiquidGlassView';
 
 export function LeftDrawer() {
   const unitSession = useSession();
@@ -37,7 +37,6 @@ export function LeftDrawer() {
     activeDestination,
   } = useNavigation();
   const { showToast } = useToast();
-  const reducedTransparency = useReducedTransparency();
 
   const drawerWidth = Math.min(320, Math.round(width * 0.85));
 
@@ -113,25 +112,6 @@ export function LeftDrawer() {
         .join('')
     : 'SB';
 
-  // Acabamento de vidro adaptado para mobile drawer com translucidez opaca
-  const drawerGlassBg = reducedTransparency
-    ? isDark ? '#141414' : colors.surface.elevated
-    : isDark
-      ? 'rgba(20, 21, 25, 0.88)'
-      : 'rgba(255, 255, 255, 0.90)';
-
-  const drawerBorderColor = isDark
-    ? 'rgba(255, 255, 255, 0.14)'
-    : colors.border.subtle;
-
-  const webBackdropStyle: any =
-    Platform.OS === 'web' && !reducedTransparency
-      ? {
-          backdropFilter: 'blur(22px) saturate(120%)',
-          WebkitBackdropFilter: 'blur(22px) saturate(120%)',
-        }
-      : {};
-
   return (
     <View
       pointerEvents={isDrawerOpen ? 'auto' : 'none'}
@@ -162,22 +142,22 @@ export function LeftDrawer() {
           styles.drawerPanel,
           {
             width: drawerWidth,
-            backgroundColor: drawerGlassBg,
-            borderRightColor: drawerBorderColor,
-            paddingTop: Math.max(insets.top, spacing[4]),
-            paddingBottom: Math.max(insets.bottom, spacing[4]),
             transform: [{ translateX: slideAnim }],
           },
-          webBackdropStyle,
         ]}
       >
-        {Platform.OS !== 'web' && !reducedTransparency ? (
-          <BlurView
-            intensity={55}
-            tint={isDark ? 'dark' : 'light'}
-            style={StyleSheet.absoluteFill}
-          />
-        ) : null}
+        <LiquidGlassView
+          variant="navigation"
+          borderRadius={26}
+          intensity={60}
+          elevated={false}
+          style={styles.drawerGlass}
+          contentStyle={{
+            height: '100%',
+            paddingTop: Math.max(insets.top, spacing[4]),
+            paddingBottom: Math.max(insets.bottom, spacing[4]),
+          }}
+        >
 
         {/* Cabeçalho do Drawer: Marca Oficial + Conta e Identidade */}
         <View
@@ -379,6 +359,7 @@ export function LeftDrawer() {
             />
           </View>
         </ScrollView>
+        </LiquidGlassView>
       </Animated.View>
     </View>
   );
@@ -462,15 +443,17 @@ const styles = StyleSheet.create({
   },
   drawerPanel: {
     height: '100%',
-    borderRightWidth: 1,
     borderTopRightRadius: 26,
     borderBottomRightRadius: 26,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 6, height: 0 },
     shadowOpacity: 0.35,
     shadowRadius: 24,
     elevation: 20,
+  },
+  drawerGlass: {
+    width: '100%',
+    height: '100%',
   },
   drawerHeader: {
     borderBottomWidth: 1,
