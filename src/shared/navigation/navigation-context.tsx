@@ -24,12 +24,51 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
   const drawerProgress = useRef(new Animated.Value(0)).current;
   const currentAnimation = useRef<Animated.CompositeAnimation | null>(null);
+  const scrollCollapseProgress = useRef(new Animated.Value(0)).current;
+  const previousScrollOffset = useRef(0);
+  const isNavigationCollapsed = useRef(false);
   const reducedMotion = useReducedMotion();
   const pathname = usePathname();
 
   const activeDestination = useMemo(() => {
     return getActiveDestinationFromPathname(pathname);
   }, [pathname]);
+
+  const animateNavigation = useCallback((collapsed: boolean) => {
+    if (isNavigationCollapsed.current === collapsed) return;
+    isNavigationCollapsed.current = collapsed;
+    if (reducedMotion) {
+      scrollCollapseProgress.setValue(collapsed ? 1 : 0);
+      return;
+    }
+    Animated.spring(scrollCollapseProgress, {
+      toValue: collapsed ? 1 : 0,
+      damping: 20,
+      stiffness: 220,
+      mass: 0.7,
+      useNativeDriver: true,
+    }).start();
+  }, [reducedMotion, scrollCollapseProgress]);
+
+  const onContentScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const nextOffset = Math.max(0, event.nativeEvent.contentOffset.y);
+    const delta = nextOffset - previousScrollOffset.current;
+    previousScrollOffset.current = nextOffset;
+
+    if (nextOffset <= 12) {
+      animateNavigation(false);
+    } else if (delta >= 8) {
+      animateNavigation(true);
+    } else if (delta <= -8) {
+      animateNavigation(false);
+    }
+  }, [animateNavigation]);
+
+  useEffect(() => {
+    previousScrollOffset.current = 0;
+    isNavigationCollapsed.current = false;
+    scrollCollapseProgress.setValue(0);
+  }, [pathname, scrollCollapseProgress]);
 
   const openDrawer = useCallback(() => {
     setIsDrawerOpen(true);
@@ -101,6 +140,8 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
       closeDrawer,
       toggleDrawer,
       activeDestination,
+      scrollCollapseProgress,
+      onContentScroll,
     }),
     [
       isDrawerOpen,
@@ -110,6 +151,8 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
       closeDrawer,
       toggleDrawer,
       activeDestination,
+      scrollCollapseProgress,
+      onContentScroll,
     ],
   );
 

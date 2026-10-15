@@ -56,23 +56,6 @@ export function AvailabilityDay({
       >
         <View style={styles.header}>
           <View style={styles.dayIdentity}>
-            <View
-              style={[
-                styles.dayIndex,
-                {
-                  backgroundColor: isOpen ? colors.surface.selected : colors.surface.elevated,
-                  borderRadius: radius.md,
-                },
-              ]}
-            >
-              <Text
-                variant="badge"
-                color={isOpen ? colors.brand.primary : colors.text.secondary}
-              >
-                {String(dayIndex + 1).padStart(2, '0')}
-              </Text>
-            </View>
-
             <View style={styles.dayCopy}>
               <Text variant="subhead" color={colors.text.primary}>
                 {day.label}
@@ -248,8 +231,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     gap: 16,
   },
-  dayIdentity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dayIndex: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  dayIdentity: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   dayCopy: { flex: 1, gap: 3 },
   statusLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 9999 },

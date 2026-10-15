@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { useNavigation } from '@/shared/navigation/navigation-context';
 import { Button, Spinner, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
+import { ProfessionalFilterSelector } from './ProfessionalFilterSelector';
 
 interface AgendaHeaderProps {
   dateLabel: string;
@@ -19,9 +21,6 @@ interface AgendaHeaderProps {
   onGoToNextDay: () => void;
   onGoToToday: () => void;
   onOpenDatePicker: () => void;
-  onBack: () => void;
-  onNewBooking?: () => void;
-  isUnitActive?: boolean;
   isOwner?: boolean;
   professionals?: Array<{ id: string; name: string }>;
   selectedProfessionalId?: string | null;
@@ -84,49 +83,6 @@ function DayNavButton({
   );
 }
 
-function BackButton({ onPress }: { onPress: () => void }) {
-  const { colors, radius } = useTheme();
-  const [focused, setFocused] = useState(false);
-
-  return (
-    <LiquidGlassView
-      variant="navigation"
-      borderRadius={radius.md}
-      elevated={false}
-      borderColor={focused ? colors.border.focus : undefined}
-      borderWidth={focused ? 2 : 1}
-      style={{
-        width: 44,
-        height: 44,
-      }}
-      contentStyle={{
-        width: '100%',
-        height: '100%',
-        padding: 0,
-      }}
-    >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Voltar para o início"
-        onPress={onPress}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={({ pressed }) => ({
-          flex: 1,
-          width: '100%',
-          height: '100%',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: pressed ? colors.surface.selected : 'transparent',
-          borderRadius: radius.md,
-        })}
-      >
-        <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
-      </Pressable>
-    </LiquidGlassView>
-  );
-}
-
 export function AgendaHeader({
   dateLabel,
   dateLabelShort,
@@ -141,9 +97,6 @@ export function AgendaHeader({
   onGoToNextDay,
   onGoToToday,
   onOpenDatePicker,
-  onBack,
-  onNewBooking,
-  isUnitActive = true,
   isOwner,
   professionals,
   selectedProfessionalId,
@@ -151,6 +104,7 @@ export function AgendaHeader({
 }: AgendaHeaderProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
+  const { openDrawer } = useNavigation();
   const [datePickerFocused, setDatePickerFocused] = useState(false);
   const displayedDateLabel = isCompact ? dateLabelShort : dateLabel;
 
@@ -174,7 +128,30 @@ export function AgendaHeader({
           gap: spacing[3],
         }}
       >
-        <BackButton onPress={onBack} />
+        {isCompact ? (
+          <LiquidGlassView
+            variant="navigation"
+            borderRadius={radius.md}
+            elevated={false}
+            style={{ width: 44, height: 44, flexShrink: 0 }}
+            contentStyle={{ padding: 0, width: '100%', height: '100%' }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abrir menu de navegação"
+              onPress={openDrawer}
+              style={({ pressed }) => ({
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.md,
+                backgroundColor: pressed ? colors.surface.selected : 'transparent',
+              })}
+            >
+              <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+            </Pressable>
+          </LiquidGlassView>
+        ) : null}
 
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <Text
@@ -220,26 +197,6 @@ export function AgendaHeader({
             </View>
           ) : null}
 
-          {onNewBooking ? (
-            <Button
-              variant="primary"
-              title={isCompact ? '+ Novo' : '+ Novo agendamento'}
-              onPress={isUnitActive ? onNewBooking : undefined}
-              disabled={!isUnitActive}
-              accessibilityHint={
-                !isUnitActive
-                  ? 'Unidade inativa: novos agendamentos não são permitidos nesta barbearia'
-                  : 'Criar novo agendamento para cliente'
-              }
-              style={{
-                minHeight: 44,
-                paddingHorizontal: spacing[3],
-                paddingVertical: spacing[2],
-                opacity: isUnitActive ? 1 : 0.5,
-              }}
-            />
-          ) : null}
-
           {!isToday ? (
             <Button
               variant="outline"
@@ -251,84 +208,13 @@ export function AgendaHeader({
         </View>
       </View>
 
-      {/* Seletor de Profissionais para OWNER */}
+      {/* Filtro compacto de profissional para OWNER */}
       {isOwner && professionals && professionals.length > 0 && onSelectProfessional ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing[2],
-            paddingVertical: spacing[1],
-          }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Ver agenda de todos os profissionais"
-            onPress={() => onSelectProfessional(null)}
-            style={({ pressed }) => ({
-              minHeight: 36,
-              paddingHorizontal: spacing[3],
-              paddingVertical: spacing[1],
-              borderRadius: radius.full,
-              borderWidth: 1,
-              borderColor:
-                selectedProfessionalId === null ? colors.brand.primary : colors.border.subtle,
-              backgroundColor:
-                selectedProfessionalId === null
-                  ? colors.brand.primary
-                  : pressed
-                  ? colors.surface.selected
-                  : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <Text
-              variant="caption"
-              weight={selectedProfessionalId === null ? 'bold' : 'regular'}
-              color={selectedProfessionalId === null ? '#FFFFFF' : colors.text.secondary}
-            >
-              Todos os profissionais
-            </Text>
-          </Pressable>
-
-          {professionals.map((prof) => {
-            const isSelected = selectedProfessionalId === prof.id;
-            return (
-              <Pressable
-                key={prof.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Filtrar agenda para ${prof.name}`}
-                onPress={() => onSelectProfessional(prof.id)}
-                style={({ pressed }) => ({
-                  minHeight: 36,
-                  paddingHorizontal: spacing[3],
-                  paddingVertical: spacing[1],
-                  borderRadius: radius.full,
-                  borderWidth: 1,
-                  borderColor: isSelected ? colors.brand.primary : colors.border.subtle,
-                  backgroundColor: isSelected
-                    ? colors.brand.primary
-                    : pressed
-                    ? colors.surface.selected
-                    : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                })}
-              >
-                <Text
-                  variant="caption"
-                  weight={isSelected ? 'bold' : 'regular'}
-                  color={isSelected ? '#FFFFFF' : colors.text.secondary}
-                >
-                  {prof.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <ProfessionalFilterSelector
+          professionals={professionals}
+          selectedProfessionalId={selectedProfessionalId ?? null}
+          onSelectProfessional={onSelectProfessional}
+        />
       ) : null}
 
       <View

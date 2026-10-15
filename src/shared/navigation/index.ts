@@ -4,6 +4,7 @@ export * from './navigation-context';
 export * from './catalog-share.helper';
 export * from './LiquidGlassView';
 export * from './BottomCapsuleBar';
+export * from './FloatingBookingAction';
 export * from './LeftDrawer';
 export * from './DesktopSidebar';
 export * from './NavigationShell';
