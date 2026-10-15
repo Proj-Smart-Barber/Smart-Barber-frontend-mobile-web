@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -41,9 +42,17 @@ type AvailabilityFormValues = z.infer<typeof formSchema>;
 export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | null }) {
   const vm = useAvailabilityViewModel(barbershopId);
   const { colors, spacing, radius, isDark } = useTheme();
-  const { openDrawer, onContentScroll } = useNavigation();
+  const { openDrawer, onContentScroll, scrollCollapseProgress } = useNavigation();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
+  const stickyHeaderTranslateY = scrollCollapseProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -76],
+  });
+  const stickyHeaderOpacity = scrollCollapseProgress.interpolate({
+    inputRange: [0, 0.8, 1],
+    outputRange: [1, 0.15, 0],
+  });
   const [saveFeedback, setSaveFeedback] = useState<
     | { variant: 'success' | 'error'; title: string; message: string }
     | null
@@ -298,7 +307,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
               styles.content,
               {
                 paddingHorizontal: spacing[isExpanded ? 8 : 5],
-                paddingTop: spacing[4],
+                paddingTop: spacing[isExpanded ? 4 : 10],
                 paddingBottom: Math.max(insets.bottom, 16) + (isExpanded ? 40 : 88),
               },
             ]}
@@ -309,20 +318,6 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
             scrollEventThrottle={16}
           >
             <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
-              <View style={styles.topBar}>
-                {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
-
-                <View style={styles.topBarTitle}>
-                  <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
-                    Disponibilidade
-                  </Text>
-                  <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
-                    Configuração operacional
-                  </Text>
-                </View>
-
-              </View>
-
               <View style={styles.hero}>
                 <View
                   style={[
@@ -532,7 +527,7 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
               styles.floatingSaveButton,
               {
                 right: spacing[5],
-                bottom: Math.max(insets.bottom, 12) + 64,
+                bottom: Math.max(insets.bottom, 12) + 100,
                 backgroundColor: colors.brand.primary,
                 opacity: vm.isSaving ? 0.7 : pressed ? 0.82 : 1,
               },
@@ -545,6 +540,46 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
             )}
           </Pressable>
         </KeyboardAvoidingView>
+
+        <Animated.View
+          pointerEvents="box-none"
+          style={[
+            styles.stickyHeaderOverlay,
+            {
+              paddingHorizontal: spacing[isExpanded ? 8 : 5],
+              opacity: stickyHeaderOpacity,
+              transform: [{ translateY: stickyHeaderTranslateY }],
+            },
+          ]}
+        >
+          <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
+            <LiquidGlassView
+              variant="navigation"
+              borderRadius={radius.xl}
+              intensity={60}
+              elevated
+              style={{ width: '100%' }}
+              contentStyle={{
+                minHeight: 60,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing[3],
+                paddingHorizontal: spacing[3],
+                paddingVertical: spacing[2],
+              }}
+            >
+              {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
+                  Disponibilidade
+                </Text>
+                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+                  Configuração operacional
+                </Text>
+              </View>
+            </LiquidGlassView>
+          </View>
+        </Animated.View>
 
         <Modal
           visible={Boolean(saveFeedback)}
@@ -650,6 +685,14 @@ const styles = StyleSheet.create({
   stateContent: { alignItems: 'center', justifyContent: 'center', gap: 12 },
   content: { flexGrow: 1 },
   contentInner: { width: '100%', alignSelf: 'center' },
+  stickyHeaderOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 80,
+  },
   topBar: {
     minHeight: 52,
     flexDirection: 'row',
@@ -755,27 +798,21 @@ function AvailabilityMenuButton({ onPress }: { onPress: () => void }) {
   const { colors, radius } = useTheme();
 
   return (
-    <LiquidGlassView
-      variant="navigation"
-      borderRadius={radius.md}
-      elevated={false}
-      style={styles.menuButton}
-      contentStyle={{ padding: 0, width: '100%', height: '100%' }}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Abrir menu"
+      onPress={onPress}
+      style={({ pressed }) => ({
+        ...styles.menuButton,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
+      })}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Abrir menu"
-        onPress={onPress}
-        style={({ pressed }) => ({
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: radius.md,
-          backgroundColor: pressed ? colors.surface.selected : 'transparent',
-        })}
-      >
-        <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
-      </Pressable>
-    </LiquidGlassView>
+      <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+    </Pressable>
   );
 }
