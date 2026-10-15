@@ -6,3 +6,4 @@ export type {
   AvailabilitySlot,
   IAvailabilityRepository,
 } from './api/availability.contract';
+export { BarberScheduleScreen } from './ui/BarberScheduleScreen';

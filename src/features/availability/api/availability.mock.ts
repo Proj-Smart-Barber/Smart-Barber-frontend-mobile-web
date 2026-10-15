@@ -12,6 +12,7 @@ import type {
   WeeklyScheduleEntry,
 } from './availability.contract';
 import type { Barbershop } from '@/entities/barbershop';
+import { BarberScheduleError } from './barber-schedule-error';
 import { ENV } from '@/shared/config/env';
 import {
   mapBarbershopDto,
@@ -67,11 +68,32 @@ let nextExceptionSeq = INITIAL_EXCEPTIONS_RAW.length + 1;
 
 export class AvailabilityMockAdapter implements IAvailabilityRepository {
   private readonly latencyMs: number;
-  private scheduleRaw: WeeklyScheduleEntryRawDto[] = [...INITIAL_SCHEDULE_RAW];
+  private schedules = new Map<string, WeeklyScheduleEntryRawDto[]>();
+  private failures = new Map<string, BarberScheduleError>();
   private exceptionsRaw: AvailabilityExceptionRawDto[] = [...INITIAL_EXCEPTIONS_RAW];
 
   constructor(latencyMs = 350) {
     this.latencyMs = latencyMs;
+  }
+
+  /** One-shot, scoped fixtures for tests/dev; does not simulate authentication. */
+  failNextSchedule(operation: 'read' | 'write', shopId: string, barbermanId: string,
+    error: BarberScheduleError) {
+    this.failures.set(JSON.stringify([operation, shopId, barbermanId]), error);
+  }
+
+  private takeFailure(operation: 'read' | 'write', shopId: string, barbermanId?: string) {
+    const key = JSON.stringify([operation, shopId, barbermanId]);
+    const error = this.failures.get(key);
+    this.failures.delete(key);
+    return error;
+  }
+
+  private scheduleFor(shopId: string) {
+    if (!this.schedules.has(shopId)) {
+      this.schedules.set(shopId, INITIAL_SCHEDULE_RAW.map(entry => ({ ...entry })));
+    }
+    return this.schedules.get(shopId)!;
   }
 
   private delay(): Promise<void> {
@@ -80,41 +102,47 @@ export class AvailabilityMockAdapter implements IAvailabilityRepository {
 
   async getBarbershop(barbershopId: string): Promise<Barbershop> {
     await this.delay();
-    const mapped = mapBarbershopDto(MOCK_BARBERSHOP_RAW);
+    const mapped = mapBarbershopDto({ ...MOCK_BARBERSHOP_RAW, id: barbershopId });
     if (!mapped) throw new Error(`Barbearia ${barbershopId} inválida no mock.`);
     return mapped;
   }
 
   async getWeeklySchedule(
-    _barbershopId: string,
+    barbershopId: string,
     barbermanId?: string,
   ): Promise<WeeklyScheduleEntry[]> {
     await this.delay();
-    const filtered = this.scheduleRaw.filter((entry) =>
+    const failure = this.takeFailure('read', barbershopId, barbermanId);
+    if (failure) throw failure;
+    const filtered = this.scheduleFor(barbershopId).filter((entry) =>
       barbermanId ? entry.barberman_id === barbermanId : entry.barberman_id === null,
     );
     return mapWeeklyScheduleList(filtered);
   }
 
   async saveWeeklySchedule(
-    _barbershopId: string,
+    barbershopId: string,
     entries: Omit<WeeklyScheduleEntry, 'id'>[],
     scopeBarbermanId?: string,
   ): Promise<WeeklyScheduleEntry[]> {
     await this.delay();
     const barbermanId = scopeBarbermanId ?? entries[0]?.barbermanId ?? null;
+    const failure = this.takeFailure('write', barbershopId, scopeBarbermanId);
+    if (failure && failure.writeState === 'rejected') throw failure;
 
     // Substitui só as linhas do mesmo "dono" (loja geral ou profissional específico)
-    const untouched = this.scheduleRaw.filter((e) => e.barberman_id !== barbermanId);
+    const untouched = this.scheduleFor(barbershopId).filter((e) => e.barberman_id !== barbermanId);
     const savedRaw: WeeklyScheduleEntryRawDto[] = entries.map((entry) => ({
       id: `sch-${nextScheduleSeq++}`,
       day_of_week: entry.weekday,
-      barberman_id: entry.barbermanId,
+      barberman_id: barbermanId,
       open_time: entry.range.start,
       close_time: entry.range.end,
     }));
 
-    this.scheduleRaw = [...untouched, ...savedRaw];
+    this.schedules.set(barbershopId, [...untouched, ...savedRaw]);
+    // 'unknown' models a write committed before the connection timed out.
+    if (failure) throw failure;
     return mapWeeklyScheduleList(savedRaw);
   }
 

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '@/shared/brand';
 import { useSession } from '@/features/auth';
+import { getBarberScheduleContext } from '@/features/availability/model/barber-schedule-access';
 import { useTheme } from '@/shared/theme';
 import { Badge, Text, useToast } from '@/shared/ui';
 import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
@@ -13,6 +14,7 @@ import type { AppDestination } from './navigation.types';
 
 export function DesktopSidebar() {
   const unitSession = useSession();
+  const canEditSchedule = Boolean(getBarberScheduleContext(unitSession));
   const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
     m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
   const { colors, spacing, radius, isDark } = useTheme();
@@ -159,6 +161,13 @@ export function DesktopSidebar() {
               isActive={activeDestination === 'agenda'}
               onPress={() => handleNavigate('/(app)/agenda')}
             />
+            {canEditSchedule && <SidebarItem
+              label="Minha jornada"
+              icon="person-outline"
+              activeIcon="person"
+              isActive={activeDestination === 'my-schedule'}
+              onPress={() => router.push('/(app)/my-schedule')}
+            />}
             <SidebarItem
               label="Horários"
               icon="time-outline"
