@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -183,6 +183,33 @@ function ClockLifecycleBridge({
   return null;
 }
 
+function WebAutofillReset() {
+  const { colors } = useTheme();
+  if (Platform.OS !== 'web') return null;
+
+  return (
+    <style
+      id="smart-barber-autofill-reset"
+      dangerouslySetInnerHTML={{
+        __html: `
+          input:-webkit-autofill,
+          input:-webkit-autofill:hover,
+          input:-webkit-autofill:focus,
+          input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px ${colors.surface.input} inset !important;
+            -webkit-text-fill-color: ${colors.text.primary} !important;
+            caret-color: ${colors.text.primary} !important;
+            transition: background-color 5000s ease-in-out 0s;
+          }
+          input {
+            background-color: transparent !important;
+          }
+        `,
+      }}
+    />
+  );
+}
+
 function AppReady() {
   const [fontsLoaded] = useFonts({
     ...Ionicons.font,
@@ -200,6 +227,7 @@ function AppReady() {
 
   return (
     <SessionProvider>
+      <WebAutofillReset />
       <AuthRouteGuard fontsLoaded={fontsLoaded} />
     </SessionProvider>
   );
