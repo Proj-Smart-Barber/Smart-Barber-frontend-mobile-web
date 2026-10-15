@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { httpClient } from '@/shared/api';
+
 import type { Staff } from '@/entities/staff';
 import type { Barbershop } from '@/entities/barbershop';
 import type { AuthIdentity, Membership } from '@/entities/user';
@@ -16,6 +17,10 @@ import {
   ChangePasswordRequestDto,
 } from './auth.dto';
 import { mapSessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
+
+
+// Public authentication endpoints must not inherit an existing session.
+const PUBLIC_AUTH_OPTIONS = { token: null, credentials: 'omit' } as const;
 
 export class AuthApi {
   /**
@@ -80,14 +85,14 @@ export class AuthApi {
   }
 
   /**
-   * Cria nova conta de usuário: POST /api/users/
+   * Cria conta sem sessão. A URL sem barra final é canônica no proxy web.
    */
   async register(data: RegisterRequestDto): Promise<RegisterResponseDto> {
     try {
-      return await httpClient.post<RegisterResponseDto>('/api/users/', data);
+      return await httpClient.post<RegisterResponseDto>('/api/users', data, PUBLIC_AUTH_OPTIONS);
     } catch (err: any) {
       if (err?.status === 404) {
-        return await httpClient.post<RegisterResponseDto>('/api/staffs/', data);
+        return await httpClient.post<RegisterResponseDto>('/api/staffs', data, PUBLIC_AUTH_OPTIONS);
       }
       throw err;
     }
@@ -138,7 +143,7 @@ export class AuthApi {
    * Envia link de verificação de e-mail
    */
   async sendEmailVerification(email: string): Promise<void> {
-    await httpClient.post<void>('/api/users/verification-email', { email });
+    await httpClient.post<void>('/api/users/verification-email', { email }, PUBLIC_AUTH_OPTIONS);
   }
 
   /**

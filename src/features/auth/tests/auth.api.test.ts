@@ -34,7 +34,7 @@ describe('AuthApi', () => {
     );
   });
 
-  it('deve cadastrar staff chamando POST /api/users/ e retornar staffId', async () => {
+  it('deve cadastrar em POST /api/users sem barra final e retornar staffId', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
@@ -51,7 +51,7 @@ describe('AuthApi', () => {
 
     expect(result.staffId).toBe('new-staff-uuid');
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/users/'),
+      expect.stringContaining('/api/users'),
       expect.objectContaining({
         method: 'POST',
       })

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,6 +16,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, Skeleton, Spinner, ErrorState, Button, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
+import { useNavigation } from '@/shared/navigation/navigation-context';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { useAvailabilityViewModel } from '../model/use-availability-view-model';
 import { AvailabilityError } from './AvailabilityError';
@@ -38,9 +39,9 @@ const formSchema = z.object({
 type AvailabilityFormValues = z.infer<typeof formSchema>;
 
 export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | null }) {
-  const router = useRouter();
   const vm = useAvailabilityViewModel(barbershopId);
-  const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
+  const { openDrawer, onContentScroll } = useNavigation();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const [saveFeedback, setSaveFeedback] = useState<
@@ -99,18 +100,12 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
             },
           ]}
           showsVerticalScrollIndicator={false}
+          onScroll={onContentScroll}
+          scrollEventThrottle={16}
         >
           <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
             <View style={styles.topBar}>
-              <LiquidGlassView
-                variant="navigation"
-                borderRadius={radius.md}
-                elevated={false}
-                style={styles.backButton}
-                contentStyle={{ padding: 0, width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
-              </LiquidGlassView>
+              {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
               <View style={styles.topBarTitle}>
                 <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
                   Disponibilidade
@@ -119,7 +114,6 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                   Configuração operacional
                 </Text>
               </View>
-              <Skeleton width={88} height={40} style={{ borderRadius: 20 }} />
             </View>
 
             <View style={styles.hero}>
@@ -311,36 +305,12 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
             keyboardShouldPersistTaps="handled"
             contentInsetAdjustmentBehavior="automatic"
             showsVerticalScrollIndicator={false}
+            onScroll={onContentScroll}
+            scrollEventThrottle={16}
           >
             <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
               <View style={styles.topBar}>
-                <LiquidGlassView
-                  variant="navigation"
-                  borderRadius={radius.md}
-                  elevated={false}
-                  style={styles.backButton}
-                  contentStyle={{ padding: 0, width: '100%', height: '100%' }}
-                >
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Voltar"
-                    hitSlop={8}
-                    onPress={() => {
-                      if (router.canGoBack()) router.back();
-                      else router.replace('/(app)');
-                    }}
-                    style={({ pressed }) => ({
-                      width: '100%',
-                      height: '100%',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: pressed ? colors.surface.selected : 'transparent',
-                      borderRadius: radius.md,
-                    })}
-                  >
-                    <Ionicons name="arrow-back" size={20} color={colors.text.primary} />
-                  </Pressable>
-                </LiquidGlassView>
+                {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
 
                 <View style={styles.topBarTitle}>
                   <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
@@ -351,54 +321,6 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                   </Text>
                 </View>
 
-                <View style={styles.topBarActions}>
-                  <LiquidGlassView
-                    variant="navigation"
-                    borderRadius={radius.full}
-                    elevated={false}
-                    style={styles.themeButton}
-                    contentStyle={{ padding: 0, width: '100%', height: '100%' }}
-                  >
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
-                      accessibilityHint={
-                        isDark
-                          ? 'Muda a interface para o tema claro'
-                          : 'Muda a interface para o tema escuro'
-                      }
-                      hitSlop={8}
-                      onPress={toggleTheme}
-                      style={({ pressed }) => ({
-                        width: '100%',
-                        height: '100%',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: pressed ? colors.surface.selected : 'transparent',
-                        borderRadius: radius.full,
-                      })}
-                    >
-                      <Ionicons
-                        name={isDark ? 'sunny-outline' : 'moon-outline'}
-                        size={18}
-                        color={colors.text.primary}
-                      />
-                    </Pressable>
-                  </LiquidGlassView>
-
-                  <Button
-                    title="Salvar"
-                    loadingTitle="Salvando…"
-                    leftIcon={
-                      <Ionicons name="checkmark-sharp" size={16} color="#FFFFFF" />
-                    }
-                    onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
-                    loading={vm.isSaving}
-                    disabled={vm.isSaving}
-                    style={styles.headerSaveButton}
-                    textStyle={styles.headerSaveButtonText}
-                  />
-                </View>
               </View>
 
               <View style={styles.hero}>
@@ -597,51 +519,31 @@ export function AvailabilityScreen({ barbershopId }: { barbershopId?: string | n
                 </View>
               </View>
 
-              {/* Seção terminal de confirmação e salvamento ao final do formulário */}
-              <View
-                style={[
-                  styles.saveSection,
-                  {
-                    marginTop: spacing[8],
-                    paddingTop: spacing[6],
-                    borderTopWidth: 1,
-                    borderTopColor: colors.border.subtle,
-                  },
-                ]}
-              >
-                <View
-                  style={{
-                    flexDirection: isExpanded ? 'row' : 'column',
-                    alignItems: isExpanded ? 'center' : 'stretch',
-                    justifyContent: isExpanded ? 'space-between' : 'flex-start',
-                    width: '100%',
-                    gap: spacing[4],
-                  }}
-                >
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text variant="subhead" color={colors.text.primary}>
-                      Pronto para aplicar a jornada?
-                    </Text>
-                    <Text variant="caption" color={colors.text.secondary}>
-                      As configurações de horários e datas especiais entram em vigor imediatamente na agenda.
-                    </Text>
-                  </View>
-
-                  <Button
-                    title="Salvar alterações"
-                    loadingTitle="Salvando jornada…"
-                    leftIcon={
-                      <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-                    }
-                    onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
-                    loading={vm.isSaving}
-                    disabled={vm.isSaving}
-                    style={isExpanded ? styles.saveButtonExpanded : styles.saveButtonCompact}
-                  />
-                </View>
-              </View>
             </View>
           </ScrollView>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Salvar disponibilidade"
+            accessibilityHint="Salva os horários recorrentes configurados para esta unidade"
+            accessibilityState={{ disabled: vm.isSaving }}
+            disabled={vm.isSaving}
+            onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
+            style={({ pressed }) => [
+              styles.floatingSaveButton,
+              {
+                right: spacing[5],
+                bottom: Math.max(insets.bottom, 12) + 64,
+                backgroundColor: colors.brand.primary,
+                opacity: vm.isSaving ? 0.7 : pressed ? 0.82 : 1,
+              },
+            ]}
+          >
+            {vm.isSaving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Ionicons name="checkmark-sharp" size={25} color="#FFFFFF" />
+            )}
+          </Pressable>
         </KeyboardAvoidingView>
 
         <Modal
@@ -754,30 +656,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  backButton: {
-    width: 44,
-    height: 44,
+  menuButton: { width: 44, height: 44 },
+  floatingSaveButton: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    zIndex: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
   },
   topBarTitle: { flex: 1 },
-  topBarActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  themeButton: {
-    width: 44,
-    height: 44,
-  },
-  headerSaveButton: {
-    minHeight: 40,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  headerSaveButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   feedbackBackdrop: {
     position: 'absolute',
     top: 0,
@@ -855,9 +749,33 @@ const styles = StyleSheet.create({
   },
   timezoneIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   timezoneCopy: { flex: 1, gap: 2 },
-  saveSection: {
-    width: '100%',
-  },
-  saveButtonCompact: { width: '100%' },
-  saveButtonExpanded: { width: 300 },
 });
+
+function AvailabilityMenuButton({ onPress }: { onPress: () => void }) {
+  const { colors, radius } = useTheme();
+
+  return (
+    <LiquidGlassView
+      variant="navigation"
+      borderRadius={radius.md}
+      elevated={false}
+      style={styles.menuButton}
+      contentStyle={{ padding: 0, width: '100%', height: '100%' }}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Abrir menu"
+        onPress={onPress}
+        style={({ pressed }) => ({
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: radius.md,
+          backgroundColor: pressed ? colors.surface.selected : 'transparent',
+        })}
+      >
+        <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+      </Pressable>
+    </LiquidGlassView>
+  );
+}

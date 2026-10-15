@@ -17,6 +17,7 @@ export default function AppLayoutGroup() {
         <Stack.Screen name="my-schedule" />
         <Stack.Screen name="services" />
         <Stack.Screen name="barbershop-setup" />
+        <Stack.Screen name="settings" />
       </Stack>
     </NavigationShell>
   );

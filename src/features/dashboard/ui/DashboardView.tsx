@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { useNavigation } from '@/shared/navigation/navigation-context';
 import { ErrorState } from '@/shared/ui';
 import { useDashboardViewModel } from '../model/use-dashboard-view-model';
 import { DashboardHeader } from './DashboardHeader';
@@ -12,6 +13,7 @@ import { TodayTimeline } from './TodayTimeline';
 export function DashboardView() {
   const { colors, spacing, isDark } = useTheme();
   const { contentMaxWidth, isCompact } = useAdaptiveLayout();
+  const { onContentScroll } = useNavigation();
 
   const webBackgroundStyle: any =
     Platform.OS === 'web'
@@ -51,6 +53,8 @@ export function DashboardView() {
 
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
+        onScroll={onContentScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}

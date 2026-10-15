@@ -1,7 +1,6 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
 import { LiquidGlassView } from '@/shared/navigation';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -15,7 +14,7 @@ export interface AuthLayoutProps {
 }
 
 export function AuthLayout({ children, title, subtitle, badgeText }: AuthLayoutProps) {
-  const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
+  const { colors, spacing, isDark } = useTheme();
   const { formMaxWidth, isCompact } = useAdaptiveLayout();
 
   const webBackgroundStyle: any =
@@ -34,37 +33,6 @@ export function AuthLayout({ children, title, subtitle, badgeText }: AuthLayoutP
         webBackgroundStyle,
       ]}
     >
-      <View
-        style={{
-          minHeight: 60,
-          paddingHorizontal: isCompact ? spacing[4] : spacing[6],
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-        }}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isDark ? 'Ativar modo claro' : 'Ativar modo escuro'}
-          onPress={toggleTheme}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            width: 44,
-            height: 44,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: radius.full,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            backgroundColor: pressed ? colors.surface.selected : colors.surface.default,
-          })}
-        >
-          <Ionicons
-            name={isDark ? 'sunny-outline' : 'moon-outline'}
-            size={20}
-            color={colors.text.secondary}
-          />
-        </Pressable>
-      </View>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}

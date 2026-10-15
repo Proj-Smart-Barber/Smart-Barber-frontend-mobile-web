@@ -54,7 +54,7 @@ export function BottomCapsuleBar() {
   const { isOwner } = useSession();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { activeDestination, isDrawerOpen, drawerProgress } = useNavigation();
+  const { activeDestination, isDrawerOpen, drawerProgress, scrollCollapseProgress } = useNavigation();
   const reducedMotion = useReducedMotion();
 
   const visibleDestinations = DESTINATIONS.filter(
@@ -75,6 +75,8 @@ export function BottomCapsuleBar() {
         inputRange: [0, 0.4, 1],
         outputRange: [1, 0, 0],
       });
+  const capsuleScale = scrollCollapseProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
+  const capsuleTranslateY = scrollCollapseProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 4] });
 
   return (
     <Animated.View
@@ -85,6 +87,7 @@ export function BottomCapsuleBar() {
           bottom: bottomInset,
           paddingHorizontal: spacing[4],
           opacity: capsuleOpacity,
+          transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
         },
       ]}
     >

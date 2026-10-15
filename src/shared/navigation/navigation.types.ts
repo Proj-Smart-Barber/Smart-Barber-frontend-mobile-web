@@ -1,6 +1,14 @@
+
 import { Animated } from 'react-native';
 
-export type AppDestination = 'home' | 'agenda' | 'atendimentos' | 'my-schedule' | 'availability' | 'services';
+export type AppDestination =
+  | 'home'
+  | 'agenda'
+  | 'atendimentos'
+  | 'my-schedule'
+  | 'availability'
+  | 'services'
+  | 'settings';
 
 export interface NavigationItem {
   id: AppDestination;
@@ -19,4 +27,12 @@ export interface NavigationContextValue {
   closeDrawer: () => void;
   toggleDrawer: () => void;
   activeDestination: AppDestination;
+  scrollCollapseProgress: Animated.Value;
+  onContentScroll: (event: {
+    nativeEvent: {
+      contentOffset: {
+        y: number;
+      };
+    };
+  }) => void;
 }

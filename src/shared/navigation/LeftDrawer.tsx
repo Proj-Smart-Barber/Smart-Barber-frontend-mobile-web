@@ -26,7 +26,7 @@ export function LeftDrawer() {
   const canEditSchedule = Boolean(getBarberScheduleContext(unitSession));
   const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
     m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
-  const { colors, spacing, radius, isDark, toggleTheme } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -372,11 +372,11 @@ export function LeftDrawer() {
             </Text>
 
             <DrawerMenuItem
-              label={isDark ? 'Tema Claro' : 'Tema Escuro'}
-              icon={isDark ? 'sunny-outline' : 'moon-outline'}
-              activeIcon={isDark ? 'sunny' : 'moon'}
-              isActive={false}
-              onPress={toggleTheme}
+              label="Configurações"
+              icon="settings-outline"
+              activeIcon="settings"
+              isActive={activeDestination === 'settings'}
+              onPress={() => handleNavigate('/(app)/settings')}
             />
             <DrawerMenuItem
               label="Sair da Conta"
