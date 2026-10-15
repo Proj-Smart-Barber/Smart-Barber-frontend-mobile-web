@@ -211,13 +211,13 @@ export function RegisterForm({ defaultIntent }: RegisterFormProps) {
             label="Senha de segurança"
             required
             error={errors.password?.message}
-            helperText="Mínimo de 15 caracteres (máx. 72 bytes)"
+            helperText="Mínimo de 8 caracteres (máx. 72 bytes)"
           >
             <PasswordInput
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
-              placeholder="No mínimo 15 caracteres"
+              placeholder="No mínimo 8 caracteres"
               autoComplete="new-password"
               error={Boolean(errors.password)}
               disabled={isSubmitting}

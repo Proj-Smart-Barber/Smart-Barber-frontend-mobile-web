@@ -3,6 +3,23 @@ import { normalizeAuthError } from '../lib/normalize-auth-error';
 import { ApiError } from '@/shared/api';
 
 describe('normalizeAuthError', () => {
+  it('não classifica uma rota ausente como sessão inválida', () => {
+    const result = normalizeAuthError(new ApiError('Not found', 404, { error: 'not_found' }));
+    expect(result.code).toBe('SERVER_ERROR');
+    expect(result.shouldClearSession).toBe(false);
+    expect(result.message).not.toMatch(/sessão|entre novamente/i);
+  });
+
+  it.each([401, 403, 404, 500, 502])('cadastro público com erro %s não pede login nem limpa sessão', (status) => {
+    const error = new ApiError('Unexpected registration failure', status, { error: 'invalid_token' });
+    const result = normalizeAuthError(error, 'registration');
+    expect(result.code).toBe('SERVER_ERROR');
+    expect(result.shouldClearSession).toBe(false);
+    expect(result.message).toMatch(/cadastro/i);
+    expect(result.message).not.toMatch(/sessão|entre novamente/i);
+    expect(result.originalError).toBe(error);
+  });
+
   it('deve identificar erro 401 de credenciais inválidas', () => {
     const apiError = new ApiError('Unauthorized', 401, { error: 'E-mail ou senha incorreto.' });
     const result = normalizeAuthError(apiError);
