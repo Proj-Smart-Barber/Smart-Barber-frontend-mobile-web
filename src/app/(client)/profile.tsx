@@ -4,20 +4,33 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
-import { Text } from '@/shared/ui/Text';
-import { Button } from '@/shared/ui/Button';
+import { Badge, Button, Text } from '@/shared/ui';
+import { useNavigation } from '@/shared/navigation';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useSession } from '@/features/auth';
 
 export default function ClientProfileScreen() {
   const router = useRouter();
   const { colors, spacing, radius, mode, setMode } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
+  const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const { identity, signOut } = useSession();
 
+  let openDrawer: (() => void) | undefined;
+  try {
+    openDrawer = useNavigation().openDrawer;
+  } catch {
+    openDrawer = undefined;
+  }
+
   const userName = identity?.name || 'Cliente';
   const userEmail = identity?.email || 'cliente@smartbarber.com';
+  const initials = userName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('') || 'CL';
 
   const themeOptions: Array<{ mode: 'system' | 'light' | 'dark'; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
     { mode: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
@@ -26,13 +39,13 @@ export default function ClientProfileScreen() {
   ];
 
   return (
-    <View style={[styles.screenContainer, { backgroundColor: colors.background.primary }]}>
+    <View style={[styles.screenContainer, { backgroundColor: 'transparent' }]}>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           {
             paddingTop: Math.max(insets.top, 16),
-            paddingBottom: isCompact ? insets.bottom + 80 : 32,
+            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
             paddingHorizontal: isCompact ? 16 : 32,
           },
         ]}
@@ -41,37 +54,54 @@ export default function ClientProfileScreen() {
         <View style={styles.contentConstraint}>
           {/* Header */}
           <View style={styles.headerRow}>
-            <Text variant="h2" style={styles.headerTitle}>
-              Minha Conta
-            </Text>
-            <Button
-              title="Voltar"
-              variant="ghost"
-              onPress={() => router.back()}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              {!isExpanded && openDrawer ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir menu de navegação"
+                  onPress={openDrawer}
+                  style={({ pressed }) => [
+                    styles.menuButton,
+                    {
+                      borderRadius: radius.md,
+                      backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                      borderColor: colors.border.default,
+                    },
+                  ]}
+                >
+                  <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+                </Pressable>
+              ) : null}
+
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="h2" style={styles.headerTitle}>
+                  Minha Conta
+                </Text>
+                <Text variant="caption" color={colors.text.secondary}>
+                  Gerencie seu perfil, aparência do app e histórico
+                </Text>
+              </View>
+            </View>
           </View>
 
-          {/* Card de Identificação */}
+          {/* Card de Identificação (Padrão Owner com contentStyle em linha) */}
           <LiquidGlassView
-            style={[
-              styles.profileCard,
-              {
-                borderRadius: radius.xl,
-                borderColor: colors.border.subtle,
-              },
-            ]}
+            variant="card"
+            borderRadius={radius.xl}
+            contentStyle={styles.profileCardContent}
           >
             <View
               style={[
                 styles.avatarLarge,
                 {
-                  backgroundColor: colors.surface.input,
+                  backgroundColor: colors.surface.elevated,
+                  borderColor: colors.brand.primary,
                   borderRadius: radius.full,
                 },
               ]}
             >
-              <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
-                {userName.charAt(0).toUpperCase()}
+              <Text variant="h3" style={{ color: colors.text.primary, fontWeight: '800' }}>
+                {initials}
               </Text>
             </View>
 
@@ -82,26 +112,15 @@ export default function ClientProfileScreen() {
               <Text variant="caption" color={colors.text.secondary}>
                 {userEmail}
               </Text>
-              <View
-                style={[
-                  styles.roleBadge,
-                  {
-                    backgroundColor: colors.surface.default,
-                    borderColor: colors.border.subtle,
-                    borderRadius: radius.full,
-                  },
-                ]}
-              >
-                <Text variant="caption" color={colors.brand.primary} style={{ fontWeight: '700' }}>
-                  Cliente
-                </Text>
+              <View style={{ marginTop: 4, alignSelf: 'flex-start' }}>
+                <Badge label="Cliente" tone="brand" />
               </View>
             </View>
           </LiquidGlassView>
 
           {/* Preferências de Aparência */}
           <View style={styles.section}>
-            <Text variant="caption" weight="medium" color={colors.text.secondary} style={styles.sectionTitle}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.sectionTitle}>
               APARÊNCIA DO APLICATIVO
             </Text>
 
@@ -119,7 +138,7 @@ export default function ClientProfileScreen() {
                       {
                         backgroundColor: isSelected
                           ? colors.surface.selected
-                          : colors.surface.default,
+                          : colors.surface.input,
                         borderColor: isSelected
                           ? colors.brand.primary
                           : colors.border.subtle,
@@ -134,7 +153,7 @@ export default function ClientProfileScreen() {
                     />
                     <Text
                       variant="caption"
-                      weight={isSelected ? 'bold' : 'regular'}
+                      weight={isSelected ? 'bold' : 'medium'}
                       style={{
                         color: isSelected ? colors.text.primary : colors.text.secondary,
                       }}
@@ -149,25 +168,25 @@ export default function ClientProfileScreen() {
 
           {/* Atalhos rápidos */}
           <View style={styles.section}>
-            <Text variant="caption" weight="medium" color={colors.text.secondary} style={styles.sectionTitle}>
-              MEUS DADOS
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.sectionTitle}>
+              MEUS DADOS & ATIVIDADE
             </Text>
 
             <LiquidGlassView
-              style={[
-                styles.optionsList,
-                {
-                  borderRadius: radius.xl,
-                  borderColor: colors.border.subtle,
-                },
-              ]}
+              variant="card"
+              borderRadius={radius.xl}
+              contentStyle={styles.optionsListContent}
             >
               <Pressable
                 onPress={() => router.push('/(client)/bookings')}
-                style={styles.optionRow}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  pressed && { backgroundColor: colors.surface.selected },
+                ]}
               >
-                <Ionicons name="calendar-outline" size={20} color={colors.text.primary} />
-                <Text variant="body" style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}>
+                <Ionicons name="calendar-outline" size={20} color={colors.brand.primary} />
+                <Text variant="bodySm" weight="medium" style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}>
                   Histórico de agendamentos
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
@@ -177,10 +196,14 @@ export default function ClientProfileScreen() {
 
               <Pressable
                 onPress={() => router.push('/(client)/notifications')}
-                style={styles.optionRow}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  pressed && { backgroundColor: colors.surface.selected },
+                ]}
               >
-                <Ionicons name="notifications-outline" size={20} color={colors.text.primary} />
-                <Text variant="body" style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}>
+                <Ionicons name="notifications-outline" size={20} color={colors.brand.primary} />
+                <Text variant="bodySm" weight="medium" style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}>
                   Notificações e avisos
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
@@ -193,6 +216,7 @@ export default function ClientProfileScreen() {
             <Button
               title="Sair da Conta"
               variant="destructive"
+              leftIcon={<Ionicons name="log-out-outline" size={18} color="#FFFFFF" />}
               onPress={() => signOut()}
             />
           </View>
@@ -211,7 +235,7 @@ const styles = StyleSheet.create({
   },
   contentConstraint: {
     width: '100%',
-    maxWidth: 720,
+    maxWidth: 960,
     alignSelf: 'center',
     gap: 20,
   },
@@ -219,39 +243,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   headerTitle: {
     fontWeight: '800',
   },
-  profileCard: {
+  profileCardContent: {
     padding: 20,
-    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
   avatarLarge: {
-    width: 64,
-    height: 64,
+    width: 60,
+    height: 60,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileInfo: {
     flex: 1,
-    gap: 4,
-  },
-  roleBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    marginTop: 4,
+    minWidth: 0,
+    gap: 2,
   },
   section: {
     gap: 8,
   },
   sectionTitle: {
-    letterSpacing: 0.5,
+    fontSize: 11,
+    letterSpacing: 0.8,
     paddingHorizontal: 4,
   },
   themeOptionsRow: {
@@ -260,20 +288,22 @@ const styles = StyleSheet.create({
   },
   themeOptionButton: {
     flex: 1,
+    minHeight: 68,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     gap: 8,
   },
-  optionsList: {
-    borderWidth: 1,
+  optionsListContent: {
     overflow: 'hidden',
   },
   optionRow: {
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   divider: {
     height: 1,
@@ -282,3 +312,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
+

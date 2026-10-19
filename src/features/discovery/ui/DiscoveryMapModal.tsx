@@ -52,7 +52,12 @@ export function DiscoveryMapModal({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <LiquidGlassView style={[styles.modalCard, { borderRadius: radius.xl }]}>
+        <LiquidGlassView
+          variant="card"
+          borderRadius={radius.xl}
+          style={styles.modalCard}
+          contentStyle={styles.modalCardContent}
+        >
           {/* Header do Modal */}
           <View style={styles.modalHeader}>
             <View style={styles.headerTitleCol}>
@@ -179,9 +184,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 580,
     maxHeight: '85%',
+  },
+  modalCardContent: {
     padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -197,8 +202,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   closeButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },

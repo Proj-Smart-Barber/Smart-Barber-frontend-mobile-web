@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTheme } from '../../shared/theme';
-import { Text, EmptyState, Spinner, Button, Card, Badge } from '../../shared/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme, useAdaptiveLayout } from '../../shared/theme';
+import { Text, EmptyState, Spinner, Button, Card, Badge, SegmentedFilter } from '../../shared/ui';
+import { useNavigation } from '../../shared/navigation';
 import { useSession } from '../../features/auth';
 import { useMyBookings } from '../../features/bookings/model/use-my-bookings';
 import { BookingCard } from '../../features/bookings/ui/BookingCard';
@@ -12,10 +15,19 @@ type TabFilter = 'upcoming' | 'past' | 'all';
 
 export default function ClientBookingsScreen() {
   const { colors, spacing, radius } = useTheme();
+  const { isCompact, isExpanded } = useAdaptiveLayout();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { status, identity } = useSession();
   const isAuthenticated = status === 'authenticated';
   const [activeTab, setActiveTab] = useState<TabFilter>('upcoming');
+
+  let openDrawer: (() => void) | undefined;
+  try {
+    openDrawer = useNavigation().openDrawer;
+  } catch {
+    openDrawer = undefined;
+  }
 
   const {
     bookings,
@@ -36,7 +48,7 @@ export default function ClientBookingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background.primary }]}>
+      <View style={[styles.center, { backgroundColor: 'transparent' }]}>
         <Spinner size="large" />
       </View>
     );
@@ -50,77 +62,66 @@ export default function ClientBookingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '700' }}>
-            Meus Agendamentos
-          </Text>
-          <Button
-            title="Voltar"
-            variant="ghost"
-            onPress={() => router.back()}
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, 16),
+            paddingHorizontal: isCompact ? 16 : 32,
+          },
+        ]}
+      >
+        <View style={styles.contentConstraint}>
+          <View style={styles.titleRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              {!isExpanded && openDrawer ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir menu de navegação"
+                  onPress={openDrawer}
+                  style={({ pressed }) => [
+                    styles.menuButton,
+                    {
+                      borderRadius: radius.md,
+                      backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                      borderColor: colors.border.default,
+                    },
+                  ]}
+                >
+                  <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+                </Pressable>
+              ) : null}
+
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
+                  Meus Agendamentos
+                </Text>
+                <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
+                  Acompanhe seus horários agendados e consulte seu histórico.
+                </Text>
+              </View>
+            </View>
+
+            <Button
+              title="Nova reserva"
+              variant="primary"
+              leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+              onPress={() => router.push('/(client)/explore')}
+            />
+          </View>
+
+          {/* Filtro Segmentado Canônico (Padrão Owner) */}
+          <SegmentedFilter<TabFilter>
+            options={[
+              { value: 'upcoming', label: 'Próximos', count: upcoming.length },
+              { value: 'past', label: 'Histórico', count: past.length },
+              { value: 'all', label: 'Todos', count: bookings.length },
+            ]}
+            value={activeTab}
+            onChange={setActiveTab}
+            style={{ marginTop: spacing.md }}
           />
-        </View>
-        <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 4 }}>
-          Acompanhe seus horários agendados e consulte seu histórico.
-        </Text>
-
-        {/* Tab Filters */}
-        <View style={[styles.tabBar, { backgroundColor: colors.surface.elevated, borderRadius: radius.md, marginTop: spacing.md }]}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'upcoming' && { backgroundColor: colors.surface.selected, borderRadius: radius.sm },
-            ]}
-            onPress={() => setActiveTab('upcoming')}
-          >
-            <Text
-              variant="body"
-              style={{
-                color: activeTab === 'upcoming' ? colors.brand.primary : colors.text.secondary,
-                fontWeight: activeTab === 'upcoming' ? '700' : '500',
-              }}
-            >
-              Próximos ({upcoming.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'past' && { backgroundColor: colors.surface.selected, borderRadius: radius.sm },
-            ]}
-            onPress={() => setActiveTab('past')}
-          >
-            <Text
-              variant="body"
-              style={{
-                color: activeTab === 'past' ? colors.brand.primary : colors.text.secondary,
-                fontWeight: activeTab === 'past' ? '700' : '500',
-              }}
-            >
-              Histórico ({past.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'all' && { backgroundColor: colors.surface.selected, borderRadius: radius.sm },
-            ]}
-            onPress={() => setActiveTab('all')}
-          >
-            <Text
-              variant="body"
-              style={{
-                color: activeTab === 'all' ? colors.brand.primary : colors.text.secondary,
-                fontWeight: activeTab === 'all' ? '700' : '500',
-              }}
-            >
-              Todos ({bookings.length})
-            </Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -146,42 +147,48 @@ export default function ClientBookingsScreen() {
               : 'Nenhum agendamento encontrado'
           }
           description="Você ainda não possui horários nesta categoria."
+          actionLabel="Explorar barbearias"
+          onAction={() => router.push('/(client)/explore')}
         />
       ) : (
         <FlatList
           data={displayedItems}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <BookingCard
-              booking={item}
-              onPress={() => handleOpenDetail(item)}
-            />
+            <View style={styles.contentConstraint}>
+              <BookingCard
+                booking={item}
+                onPress={() => handleOpenDetail(item)}
+              />
+            </View>
           )}
           ListHeaderComponent={
             activeTab === 'upcoming' && nextBooking ? (
-              <Card
-                style={[
-                  styles.nextBookingBanner,
-                  { borderColor: colors.brand.primary, borderWidth: 1, marginBottom: spacing.md },
-                ]}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-                  <Text variant="caption" style={{ color: colors.brand.primary, fontWeight: '700' }}>
-                    PRÓXIMO ATENDIMENTO
+              <View style={styles.contentConstraint}>
+                <Card
+                  style={[
+                    styles.nextBookingBanner,
+                    { borderColor: colors.brand.primary, borderWidth: 1, marginBottom: spacing.md },
+                  ]}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+                    <Text variant="caption" style={{ color: colors.brand.primary, fontWeight: '700' }}>
+                      PRÓXIMO ATENDIMENTO
+                    </Text>
+                    <Badge label="Destaque" tone="brand" />
+                  </View>
+                  <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
+                    {nextBooking.services.map((s) => s.title).join(', ')}
                   </Text>
-                  <Badge label="Destaque" tone="brand" />
-                </View>
-                <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
-                  {nextBooking.services.map((s) => s.title).join(', ')}
-                </Text>
-                <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
-                  Data: {String(nextBooking.date ?? nextBooking.startsAt?.split('T')[0] ?? '')} às {nextBooking.startTime ?? ''}
-                </Text>
-              </Card>
+                  <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
+                    Data: {String(nextBooking.date ?? nextBooking.startsAt?.split('T')[0] ?? '')} às {nextBooking.startTime ?? ''}
+                  </Text>
+                </Card>
+              </View>
             ) : null
           }
           ListFooterComponent={
-            <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}>
+            <View style={[styles.contentConstraint, { paddingVertical: spacing.md, alignItems: 'center' }]}>
               <Text variant="caption" style={{ color: colors.text.muted, textAlign: 'center', marginBottom: spacing.xs }}>
                 Exibindo agendamentos carregados. O histórico completo é recuperado sob demanda.
               </Text>
@@ -195,9 +202,17 @@ export default function ClientBookingsScreen() {
               ) : null}
             </View>
           }
-          contentContainerStyle={{ padding: spacing.md }}
+          contentContainerStyle={{
+            paddingHorizontal: isCompact ? 16 : 32,
+            paddingTop: 8,
+            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
+          }}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.brand.primary}
+            />
           }
         />
       )}
@@ -210,28 +225,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
     paddingBottom: 12,
+  },
+  contentConstraint: {
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
-  tabBar: {
-    flexDirection: 'row',
-    padding: 4,
-    gap: 4,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 8,
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   nextBookingBanner: {
-    padding: 12,
+    padding: 14,
   },
   center: {
     flex: 1,
@@ -240,3 +256,4 @@ const styles = StyleSheet.create({
     padding: 24,
   },
 });
+
