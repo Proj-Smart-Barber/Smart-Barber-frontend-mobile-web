@@ -107,7 +107,7 @@ export function ClientHeader({
               <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
                 Olá, {firstName}
               </Text>
-              <Badge label="Cliente" tone="brand" />
+              <Badge label="Cliente" tone="brand" size="sm" />
             </View>
 
             <Pressable
@@ -192,7 +192,10 @@ export function ClientHeader({
             <Text
               variant="caption"
               weight="bold"
-              style={[styles.avatarInitial, { color: colors.text.primary }]}
+              style={[
+                styles.avatarInitial,
+                { color: colors.text.primary, lineHeight: 14, textAlign: 'center' },
+              ]}
             >
               {initials}
             </Text>

@@ -38,6 +38,7 @@ export function ProfessionalFilterSelector({
     <View style={{ width: '100%', zIndex: isOpen ? 5 : 0, elevation: isOpen ? 5 : 0 }}>
       <LiquidGlassView
         variant="navigation"
+        autoHeight
         borderRadius={radius.md}
         borderColor={isOpen || isFocused ? colors.border.focus : undefined}
         borderWidth={isOpen || isFocused ? 2 : 1}
@@ -64,12 +65,24 @@ export function ProfessionalFilterSelector({
             backgroundColor: pressed ? colors.surface.selected : 'transparent',
           })}
         >
-          <Ionicons name="person-outline" size={18} color={colors.text.secondary} />
-          <Text variant="caption" color={colors.text.secondary}>Profissional</Text>
-          <Text variant="subhead" weight="semibold" color={colors.text.primary} numberOfLines={1} style={{ flex: 1 }}>
+          <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Ionicons name="person-outline" size={17} color={colors.text.secondary} />
+          </View>
+          <Text variant="caption" color={colors.text.secondary} style={{ lineHeight: 18 }}>
+            Profissional
+          </Text>
+          <Text
+            variant="subhead"
+            weight="semibold"
+            color={colors.text.primary}
+            numberOfLines={1}
+            style={{ flex: 1, lineHeight: 18 }}
+          >
             {selectedProfessional?.name ?? 'Todos'}
           </Text>
-          <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.text.secondary} />
+          <View style={{ width: 20, height: 20, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.text.secondary} />
+          </View>
         </Pressable>
       </LiquidGlassView>
 

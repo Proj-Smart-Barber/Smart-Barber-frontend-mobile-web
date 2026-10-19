@@ -16,6 +16,7 @@ export type BadgeTone =
 export interface BadgeProps {
   label: string;
   tone?: BadgeTone;
+  size?: 'sm' | 'md';
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
@@ -28,10 +29,12 @@ export interface BadgeProps {
 export function Badge({
   label,
   tone = 'brand',
+  size = 'md',
   icon,
   style,
 }: BadgeProps) {
   const { colors, radius, spacing } = useTheme();
+  const isSmall = size === 'sm';
 
   const palette = {
     brand: {
@@ -85,9 +88,9 @@ export function Badge({
           alignSelf: 'flex-start',
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 5,
-          paddingHorizontal: spacing[3],
-          paddingVertical: spacing[1],
+          gap: isSmall ? 4 : 5,
+          paddingHorizontal: isSmall ? spacing[2] : spacing[3],
+          paddingVertical: isSmall ? 2 : spacing[1],
           borderRadius: radius.full,
           backgroundColor: palette.bg,
           borderColor: palette.border,
@@ -97,7 +100,11 @@ export function Badge({
       ]}
     >
       {icon}
-      <Text variant="badge" color={palette.fg}>
+      <Text
+        variant="badge"
+        color={palette.fg}
+        style={isSmall ? { fontSize: 10, lineHeight: 13 } : undefined}
+      >
         {label}
       </Text>
     </View>

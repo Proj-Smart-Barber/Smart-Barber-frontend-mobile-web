@@ -241,12 +241,17 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                     },
                   ]}
                 >
-                  <Text variant="caption" color={colors.text.primary} weight="bold">
+                  <Text
+                    variant="caption"
+                    color={colors.text.primary}
+                    weight="bold"
+                    style={{ lineHeight: 14, textAlign: 'center' }}
+                  >
                     {initials}
                   </Text>
                 </View>
 
-                <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+                <View style={{ flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' }}>
                   <Text
                     variant="bodySm"
                     weight="bold"
@@ -259,7 +264,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                   <Badge
                     label="Cliente"
                     tone="brand"
-                    style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+                    size="sm"
                   />
                 </View>
               </Pressable>
@@ -522,12 +527,17 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                       },
                     ]}
                   >
-                    <Text variant="caption" color={colors.text.primary} weight="bold">
+                    <Text
+                      variant="caption"
+                      color={colors.text.primary}
+                      weight="bold"
+                      style={{ lineHeight: 14, textAlign: 'center' }}
+                    >
                       {initials}
                     </Text>
                   </View>
 
-                  <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+                  <View style={{ flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' }}>
                     <Text
                       variant="bodySm"
                       color={colors.text.primary}
@@ -540,7 +550,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                     <Badge
                       label="Cliente"
                       tone="brand"
-                      style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+                      size="sm"
                     />
                   </View>
                 </View>
@@ -833,8 +843,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   avatar: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -908,7 +918,7 @@ const styles = StyleSheet.create({
   },
   capsuleWrapper: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 380,
     height: 64,
     minHeight: 64,
   },
@@ -934,11 +944,11 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     minHeight: 48,
-    marginHorizontal: 2,
+    marginHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
   },
 });
 

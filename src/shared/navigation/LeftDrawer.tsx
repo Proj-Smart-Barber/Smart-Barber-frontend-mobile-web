@@ -233,12 +233,17 @@ export function LeftDrawer() {
                 },
               ]}
             >
-              <Text variant="caption" color={colors.text.primary} weight="bold">
+              <Text
+                variant="caption"
+                color={colors.text.primary}
+                weight="bold"
+                style={{ lineHeight: 14, textAlign: 'center' }}
+              >
                 {initials}
               </Text>
             </View>
 
-            <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+            <View style={{ flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' }}>
               <Text
                 variant="bodySm"
                 color={colors.text.primary}
@@ -251,7 +256,7 @@ export function LeftDrawer() {
               <Badge
                 label={isOwner ? 'Proprietário' : 'Barbeiro'}
                 tone={isOwner ? 'brand' : 'success'}
-                style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+                size="sm"
               />
             </View>
           </View>
