@@ -49,8 +49,46 @@ export interface AvailabilitySlot {
   end: string;
 }
 
+export type ScheduleScopeState = 'INHERIT' | 'CUSTOM' | 'CLOSED';
+
+/** Leitura autoritativa de um escopo (geral ou de um profissional) do contrato final. */
+export interface ScheduleScopeDocument {
+  /** barbermanId consultado; null = jornada geral. */
+  barbermanId: string | null;
+  /** Períodos gravados no escopo. Vazio não distingue INHERIT/CLOSED: use `state`. */
+  schedules: WeeklyScheduleEntry[];
+  /** Períodos efetivamente ofertados (herança e jornada geral fechada já aplicadas). */
+  effectiveSchedules: WeeklyScheduleEntry[];
+  state: ScheduleScopeState;
+  version: number;
+  /** Legado ambíguo: jornada fechada até revisão explícita. */
+  needsReview: boolean;
+  /** Relógio autoritativo do servidor (ISO); null se ausente na resposta. */
+  serverTime: string | null;
+}
+
+export interface SaveScheduleScopeInput {
+  /** null = jornada geral da unidade. */
+  barbermanId: string | null;
+  state: ScheduleScopeState;
+  entries: Omit<WeeklyScheduleEntry, 'id'>[];
+  expectedVersion: number;
+  /** UUIDv7 de idempotência, enviado como Idempotency-Key. */
+  requestId: string;
+}
+
 export interface IAvailabilityRepository {
   getBarbershop(barbershopId: string): Promise<Barbershop>;
+
+  getScheduleScope(
+    barbershopId: string,
+    barbermanId?: string,
+  ): Promise<ScheduleScopeDocument>;
+
+  saveScheduleScope(
+    barbershopId: string,
+    input: SaveScheduleScopeInput,
+  ): Promise<ScheduleScopeDocument>;
 
   getWeeklySchedule(
     barbershopId: string,

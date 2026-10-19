@@ -41,6 +41,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
           requestId: parsed.requestId,
           operation: parsed.operation,
           resourceKind: parsed.resourceKind,
+          resourceId: parsed.resourceId ?? parsed.result?.resource?.id ?? null,
           originScope: parsed.originScope,
           status: parsed.status,
           createdAt: parsed.createdAt,
@@ -67,6 +68,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
       requestId: attempt.requestId,
       operation: attempt.operation,
       resourceKind: attempt.resourceKind,
+      resourceId: attempt.resourceId ?? attempt.result?.resource?.id ?? null,
       originScope: attempt.originScope,
       status: attempt.status,
       createdAt: attempt.createdAt || Date.now(),
@@ -115,7 +117,9 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
         sanitizedAttempt.payload = cleanPayload;
       } else if (
         attempt.resourceKind === 'REGISTRATION' ||
-        attempt.resourceKind === 'INVITATION'
+        attempt.resourceKind === 'INVITATION' ||
+        attempt.resourceKind === 'SCHEDULE' ||
+        attempt.resourceKind === 'LOCATION'
       ) {
         sanitizedAttempt.payload = undefined;
       } else {
@@ -160,6 +164,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
                 requestId: parsed.requestId,
                 operation: parsed.operation,
                 resourceKind: parsed.resourceKind,
+                resourceId: parsed.resourceId ?? parsed.result?.resource?.id ?? null,
                 originScope: parsed.originScope,
                 status: parsed.status,
                 createdAt: parsed.createdAt,
@@ -248,6 +253,7 @@ export class NativeOperationAttemptStore implements OperationAttemptStore {
               requestId: parsed.requestId,
               operation: parsed.operation,
               resourceKind: parsed.resourceKind,
+              resourceId: parsed.resourceId ?? parsed.result?.resource?.id ?? null,
               originScope: parsed.originScope,
               status: parsed.status,
               createdAt: parsed.createdAt,

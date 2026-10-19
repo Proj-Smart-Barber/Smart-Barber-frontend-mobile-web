@@ -12,6 +12,7 @@ import { ThemeProvider, useTheme } from '@/shared/theme';
 import { SessionProvider, useSession, SessionRecoveryScreen } from '@/features/auth';
 import { BootstrapScreen, ToastProvider } from '@/shared/ui';
 import { serverClock } from '@/features/bookings';
+import { locationStore } from '@/features/discovery';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -163,12 +164,13 @@ function ClockLifecycleBridge({
   const prevActorIdRef = useRef<string | null>(actorId);
 
   useEffect(() => {
-    // Invalida o relógio no logout ou na troca de ator/conta
+    // Invalida o relógio e a localização efêmera no logout ou na troca de ator/conta
     if (
       sessionStatus === 'unauthenticated' ||
       (prevActorIdRef.current !== null && prevActorIdRef.current !== actorId)
     ) {
       serverClock.clear();
+      locationStore.clear();
     }
     prevActorIdRef.current = actorId;
   }, [actorId, sessionStatus]);

@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
   inheritanceBanner: { width: '100%' },
 });
 
-function AvailabilityMenuButton({ onPress }: { onPress: () => void }) {
+export function AvailabilityMenuButton({ onPress }: { onPress: () => void }) {
   const { colors, radius } = useTheme();
 
   return (

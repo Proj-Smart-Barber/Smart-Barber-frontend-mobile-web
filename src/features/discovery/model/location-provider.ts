@@ -210,9 +210,14 @@ class EphemeralLocationStore {
     expectedGenId: string,
   ): Promise<LocationSession> {
     try {
-      // Tentativa de carregar expo-location dinamicamente se disponível
-      // Sem falhar caso a biblioteca não esteja compilada no bundle atual
-      const expoLocation: any = await (import('expo-location' as any) as any).catch(() => null);
+      let expoLocation: any = null;
+      if (Platform.OS !== 'web') {
+        try {
+          expoLocation = require('expo-location');
+        } catch {
+          expoLocation = null;
+        }
+      }
 
       if (!expoLocation) {
         this.currentSession = {
@@ -229,6 +234,10 @@ class EphemeralLocationStore {
       const { status } =
         await expoLocation.requestForegroundPermissionsAsync();
 
+      if (this.currentSession.generationId !== expectedGenId) {
+        return this.currentSession;
+      }
+
       if (status !== 'granted') {
         this.currentSession = {
           generationId: expectedGenId,
@@ -240,9 +249,18 @@ class EphemeralLocationStore {
         return this.currentSession;
       }
 
-      const loc = await expoLocation.getCurrentPositionAsync({
+      const locationPromise = expoLocation.getCurrentPositionAsync({
         accuracy: expoLocation.Accuracy.Balanced,
       });
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('GPS_TIMEOUT')),
+          GPS_REQUEST_TIMEOUT_MS,
+        );
+      });
+
+      const loc = (await Promise.race([locationPromise, timeoutPromise])) as any;
 
       if (this.currentSession.generationId !== expectedGenId) {
         return this.currentSession;
@@ -267,12 +285,14 @@ class EphemeralLocationStore {
         return this.currentSession;
       }
 
+      const isTimeout = err?.message === 'GPS_TIMEOUT';
       this.currentSession = {
         generationId: expectedGenId,
-        state: 'unavailable',
+        state: isTimeout ? 'timeout' : 'unavailable',
         coords: null,
-        errorMessage:
-          err?.message || 'Falha ao comunicar com o hardware de localização.',
+        errorMessage: isTimeout
+          ? 'Tempo limite de busca do GPS excedido.'
+          : err?.message || 'Falha ao comunicar com o hardware de localização.',
       };
       this.notify();
       return this.currentSession;

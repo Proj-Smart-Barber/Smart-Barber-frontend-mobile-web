@@ -12,6 +12,7 @@ export interface DiscoveryFilters {
 
 export interface UseDiscoveryViewModel {
   filters: DiscoveryFilters;
+  effectiveMode: DiscoveryMode;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   setMode: (mode: DiscoveryMode) => void;

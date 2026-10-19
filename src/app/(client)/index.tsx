@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
-import { useNavigation } from '@/shared/navigation';
+import { useOptionalNavigation } from '@/shared/navigation';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import {
@@ -23,6 +23,7 @@ import {
   useDiscovery,
   useNextBooking,
   DiscoveryMapModal,
+  buildBarbershopCatalogHref,
 } from '@/features/discovery';
 
 export default function ClientHomeScreen() {
@@ -30,13 +31,8 @@ export default function ClientHomeScreen() {
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-
-  let onContentScroll: ((event: any) => void) | undefined;
-  try {
-    onContentScroll = useNavigation().onContentScroll;
-  } catch {
-    onContentScroll = undefined;
-  }
+  const navigation = useOptionalNavigation();
+  const onContentScroll = navigation?.onContentScroll;
 
   const webBackgroundStyle: any =
     Platform.OS === 'web'
@@ -58,12 +54,12 @@ export default function ClientHomeScreen() {
     refetch: refetchBooking,
   } = useNextBooking();
 
-  // Descoberta de barbearias (ALL como base, NEARBY quando localização concedida)
+  // Descoberta de barbearias (NEARBY quando localização concedida, ALL como fallback)
   const discovery = useDiscovery({
-    initialMode: 'ALL',
     initialRadius: 10,
   });
 
+  const isNearbyActive = discovery.effectiveMode === 'NEARBY';
   const isLocationGranted = discovery.locationSession.state === 'granted';
 
   const onRefresh = async () => {
@@ -125,7 +121,7 @@ export default function ClientHomeScreen() {
             onFindBarbershop={() => router.push('/(client)/explore')}
           />
 
-          {/* Banner discreto para ativar localização quando inativa */}
+          {/* Banner discreto para ativar ou atualizar localização quando inativa */}
           {!isLocationGranted && (
             <Pressable
               onPress={discovery.requestLocation}
@@ -148,10 +144,16 @@ export default function ClientHomeScreen() {
               />
               <View style={styles.bannerTextCol}>
                 <Text variant="caption" weight="bold" color={colors.text.primary}>
-                  Ver barbearias mais próximas de você
+                  {discovery.locationSession.state === 'denied'
+                    ? 'Localização desativada — exibindo todas as barbearias'
+                    : discovery.locationSession.state === 'stale'
+                    ? 'Localização desatualizada — toque para atualizar'
+                    : 'Ver barbearias mais próximas de você'}
                 </Text>
                 <Text variant="caption" color={colors.text.secondary}>
-                  Toque para ativar o GPS e calcular a distância até você.
+                  {discovery.locationSession.errorMessage
+                    ? `${discovery.locationSession.errorMessage} Toque para tentar novamente.`
+                    : 'Toque para ativar o GPS e calcular a distância até você.'}
                 </Text>
               </View>
               <Ionicons
@@ -162,15 +164,51 @@ export default function ClientHomeScreen() {
             </Pressable>
           )}
 
+          {/* Aviso de degradação 503 se a busca por proximidade estiver indisponível */}
+          {discovery.isServiceUnavailable && (
+            <View
+              style={[
+                styles.locationBanner,
+                {
+                  backgroundColor: colors.feedback.warningBackground || colors.surface.elevated,
+                  borderColor: colors.border.subtle,
+                  borderRadius: radius.md,
+                },
+              ]}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={20}
+                color={colors.feedback.warning}
+                style={styles.bannerIcon}
+              />
+              <View style={styles.bannerTextCol}>
+                <Text variant="caption" weight="bold" color={colors.text.primary}>
+                  Busca por proximidade temporariamente indisponível
+                </Text>
+                <Text variant="caption" color={colors.text.secondary}>
+                  Consulte todas as barbearias disponíveis enquanto o cálculo geográfico se restabelece.
+                </Text>
+              </View>
+              <Button
+                title="Ver todas"
+                variant="outline"
+                onPress={() => discovery.setMode('ALL')}
+              />
+            </View>
+          )}
+
           {/* 4. Barbearias em Destaque / Próximas */}
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionTitleCol}>
               <Text variant="h3" weight="bold" style={styles.sectionTitle}>
-                {isLocationGranted ? 'Perto de Você' : 'Barbearias Disponíveis'}
+                {isNearbyActive ? 'Perto de Você' : 'Barbearias Disponíveis'}
               </Text>
               <Text variant="caption" color={colors.text.secondary}>
-                {isLocationGranted
-                  ? 'Calculado com base na sua localização atual'
+                {isNearbyActive
+                  ? discovery.locationSession.coords?.isApproximate
+                    ? 'Calculado com base na sua localização aproximada'
+                    : 'Calculado com base na sua localização atual'
                   : 'Encontre estabelecimentos e veja os serviços'}
               </Text>
             </View>
@@ -199,7 +237,11 @@ export default function ClientHomeScreen() {
           {!discovery.isLoading && previewItems.length > 0 && (
             <View style={styles.cardsGrid}>
               {previewItems.map((shop) => (
-                <BarbershopCard key={shop.id} shop={shop} />
+                <BarbershopCard
+                  key={shop.id}
+                  shop={shop}
+                  onPress={() => router.push(buildBarbershopCatalogHref(shop.id) as any)}
+                />
               ))}
             </View>
           )}
@@ -225,7 +267,11 @@ export default function ClientHomeScreen() {
               </Text>
               <View style={styles.cardsGrid}>
                 {remainingItems.map((shop) => (
-                  <BarbershopCard key={shop.id} shop={shop} />
+                  <BarbershopCard
+                    key={shop.id}
+                    shop={shop}
+                    onPress={() => router.push(buildBarbershopCatalogHref(shop.id) as any)}
+                  />
                 ))}
               </View>
             </View>
@@ -239,6 +285,9 @@ export default function ClientHomeScreen() {
         onClose={() => setMapModalVisible(false)}
         items={discovery.items}
         userCoordinates={discovery.locationSession.coords}
+        hasNextPage={discovery.hasNextPage}
+        onFetchNextPage={() => void discovery.fetchNextPage()}
+        isFetchingNextPage={discovery.isFetchingNextPage}
       />
     </View>
   );

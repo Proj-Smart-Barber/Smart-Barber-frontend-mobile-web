@@ -4,6 +4,7 @@ import {
   discoveryPageSchema,
   nextBookingItemSchema,
   myBookingsUpcomingResponseSchema,
+  buildBarbershopCatalogHref,
 } from '../api/discovery.contract';
 
 describe('Discovery Contracts & Schemas', () => {
@@ -189,6 +190,48 @@ describe('Discovery Contracts & Schemas', () => {
       if (parsed.success) {
         expect(parsed.data.bookings).toHaveLength(0);
       }
+    });
+
+    it('deve aceitar snapshots históricos de serviços com priceInCents e durationInMinutes nulos', () => {
+      const legacySnapshotBooking = {
+        bookings: [
+          {
+            id: '123e4567-e89b-12d3-a456-426614174030',
+            barbershopId: '123e4567-e89b-12d3-a456-426614174031',
+            barbershopName: 'Barbearia Histórica',
+            barbermanId: '123e4567-e89b-12d3-a456-426614174032',
+            barbermanName: 'Pedro',
+            startsAt: '2026-10-18T11:00:00.000Z',
+            status: 'CONFIRMED' as const,
+            services: [
+              {
+                serviceId: null,
+                title: 'Serviço Legado',
+                priceInCents: null,
+                durationInMinutes: null,
+              },
+            ],
+            totalPriceInCents: null,
+            totalDurationInMinutes: null,
+          },
+        ],
+        serverTime: '2026-10-18T10:00:00.000Z',
+      };
+
+      const parsed = myBookingsUpcomingResponseSchema.safeParse(legacySnapshotBooking);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.bookings[0].services?.[0].priceInCents).toBeNull();
+        expect(parsed.data.bookings[0].services?.[0].durationInMinutes).toBeNull();
+      }
+    });
+  });
+
+  describe('buildBarbershopCatalogHref', () => {
+    it('deve apontar sempre para a rota oficial de catálogo /barbershops/:shopId/services', () => {
+      expect(buildBarbershopCatalogHref('123e4567-e89b-12d3-a456-426614174000')).toBe(
+        '/barbershops/123e4567-e89b-12d3-a456-426614174000/services',
+      );
     });
   });
 });

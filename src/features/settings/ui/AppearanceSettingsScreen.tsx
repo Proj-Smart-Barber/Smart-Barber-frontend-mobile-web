@@ -2,6 +2,8 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSession } from '@/features/auth';
+import { BarbershopLocationSection } from '@/features/barbershop/ui/BarbershopLocationSection';
 import { useNavigation } from '@/shared/navigation/navigation-context';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { ThemeMode, useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -17,6 +19,14 @@ export function AppearanceSettingsScreen() {
   const { colors, spacing, radius, mode, setMode } = useTheme();
   const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
   const { openDrawer } = useNavigation();
+  const { barbershop, selectedShopId, memberships, identity } = useSession();
+
+  const activeShopId = selectedShopId ?? barbershop?.id ?? null;
+  const activeMembership = memberships.find((m) => m.id === activeShopId);
+  const isOwnerOfUnit =
+    Boolean(activeShopId) &&
+    activeMembership?.role === 'OWNER' &&
+    activeMembership?.state === 'ACTIVE';
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background.primary }}>
@@ -30,12 +40,16 @@ export function AppearanceSettingsScreen() {
         ) : null}
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h2" color={colors.text.primary} accessibilityRole="header">Configurações</Text>
-          <Text variant="caption" color={colors.text.secondary}>Preferências do aplicativo</Text>
+          <Text variant="caption" color={colors.text.secondary}>Preferências do aplicativo e unidade</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: 'center', padding: spacing[isCompact ? 4 : 6], paddingBottom: spacing[10] }}>
         <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[4] }}>
+          {isOwnerOfUnit && activeShopId ? (
+            <BarbershopLocationSection shopId={activeShopId} />
+          ) : null}
+
           <LiquidGlassView variant="card" style={{ width: '100%' }} contentStyle={{ padding: spacing[5], gap: spacing[4] }}>
             <View style={{ gap: spacing[1] }}>
               <Text variant="h3" color={colors.text.primary}>Aparência</Text>

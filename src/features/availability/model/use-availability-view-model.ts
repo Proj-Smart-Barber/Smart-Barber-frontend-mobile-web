@@ -4,6 +4,7 @@ import { ENV } from '@/shared/config/env';
 import {
   useBarbershopQuery,
   useWeeklyScheduleQuery,
+  useScheduleScopeQuery,
   useExceptionsQuery,
   useSaveWeeklyScheduleMutation,
   useCreateExceptionMutation,
@@ -41,6 +42,12 @@ export function useAvailabilityViewModel(
     barbermanId ?? undefined,
   );
 
+  // Documento de escopo autoritativo para distinguir INHERIT vs CLOSED quando schedules é vazio
+  const scopedScopeQuery = useScheduleScopeQuery(
+    barbermanId ? barbershopId : '',
+    barbermanId ?? undefined,
+  );
+
   // Consulta da jornada geral como fallback de herança quando barbermanId está ativo
   const generalScheduleQuery = useWeeklyScheduleQuery(
     barbershopId,
@@ -71,23 +78,35 @@ export function useAvailabilityViewModel(
 
   const [formError, setFormError] = useState<NormalizedAvailabilityError | null>(null);
 
-  // Determinar se os dados atuais são herdados da jornada geral
+  // Determinar se os dados atuais são herdados da jornada geral (nunca confundir CLOSED com INHERIT)
+  const scopeState = scopedScopeQuery.data?.state;
   const hasIndividualEntries = Boolean(
     barbermanId &&
       scopedScheduleQuery.data &&
       scopedScheduleQuery.data.length > 0,
   );
 
+  const isClosedScope = Boolean(
+    barbermanId && scopeState === 'CLOSED',
+  );
+
   const isInherited = Boolean(
     barbermanId &&
-      scopedScheduleQuery.data &&
-      scopedScheduleQuery.data.length === 0,
+      !isClosedScope &&
+      (scopeState === 'INHERIT' ||
+        (scopeState === undefined &&
+          scopedScheduleQuery.data &&
+          scopedScheduleQuery.data.length === 0)),
   );
 
   // Montar as entradas da jornada considerando herança
   const effectiveEntries = useMemo(() => {
     if (!barbermanId) {
       return scopedScheduleQuery.data ?? [];
+    }
+
+    if (isClosedScope) {
+      return [];
     }
 
     if (hasIndividualEntries) {
@@ -105,6 +124,7 @@ export function useAvailabilityViewModel(
     return scopedScheduleQuery.data ?? [];
   }, [
     barbermanId,
+    isClosedScope,
     hasIndividualEntries,
     isInherited,
     scopedScheduleQuery.data,

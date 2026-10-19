@@ -51,8 +51,8 @@ export const nextBookingItemSchema = z.object({
       z.object({
         serviceId: z.string().nullable().optional(),
         title: z.string(),
-        priceInCents: z.number(),
-        durationInMinutes: z.number(),
+        priceInCents: z.number().nullable().optional(),
+        durationInMinutes: z.number().nullable().optional(),
       }),
     )
     .optional(),
@@ -71,3 +71,7 @@ export const myBookingsUpcomingResponseSchema = z.object({
 export type MyBookingsUpcomingResponse = z.infer<
   typeof myBookingsUpcomingResponseSchema
 >;
+
+export function buildBarbershopCatalogHref(shopId: string): string {
+  return `/barbershops/${encodeURIComponent(shopId)}/services`;
+}
