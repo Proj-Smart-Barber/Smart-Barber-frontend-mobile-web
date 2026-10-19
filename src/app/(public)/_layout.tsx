@@ -7,6 +7,7 @@ export default function PublicLayoutGroup() {
         headerShown: false,
       }}
     >
+      <Stack.Screen name="inicio" />
       <Stack.Screen name="barbershops/[shopId]/services" />
     </Stack>
   );

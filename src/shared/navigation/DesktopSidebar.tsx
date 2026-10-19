@@ -17,6 +17,8 @@ export function DesktopSidebar() {
   const canEditSchedule = Boolean(getBarberScheduleContext(unitSession));
   const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
     m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
+  const isOwnerActive = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+    m.state === 'ACTIVE' && m.role === 'OWNER');
   const { colors, spacing, radius, isDark } = useTheme();
   const router = useRouter();
   const { staff, barbershop, isOwner, signOut } = useSession();
@@ -103,12 +105,17 @@ export function DesktopSidebar() {
                 },
               ]}
             >
-              <Text variant="caption" color={colors.text.primary} weight="bold">
+              <Text
+                variant="caption"
+                color={colors.text.primary}
+                weight="bold"
+                style={{ lineHeight: 14, textAlign: 'center' }}
+              >
                 {initials}
               </Text>
             </View>
 
-            <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+            <View style={{ flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' }}>
               <Text
                 variant="bodySm"
                 weight="bold"
@@ -121,7 +128,7 @@ export function DesktopSidebar() {
               <Badge
                 label={isOwner ? 'Proprietário' : 'Barbeiro'}
                 tone={isOwner ? 'brand' : 'success'}
-                style={{ alignSelf: 'flex-start', transform: [{ scale: 0.85 }] }}
+                size="sm"
               />
             </View>
           </View>
@@ -182,6 +189,15 @@ export function DesktopSidebar() {
               isActive={activeDestination === 'services'}
               onPress={() => handleNavigate('/(app)/services')}
             />
+            {isOwnerActive && (
+              <SidebarItem
+                label="Equipe"
+                icon="people-outline"
+                activeIcon="people"
+                isActive={activeDestination === 'team'}
+                onPress={() => handleNavigate('/(app)/team')}
+              />
+            )}
           </View>
 
           {/* Grupo 2: Catálogo Público */}
@@ -346,8 +362,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   avatar: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',

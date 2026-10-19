@@ -1,9 +1,10 @@
 import React from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Text } from '@/shared/ui';
+import { Badge, Button, Text } from '@/shared/ui';
 import { useNavigation } from '@/shared/navigation';
 import type { Staff } from '@/entities/staff';
 
@@ -17,6 +18,7 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const { openDrawer } = useNavigation();
+  const router = useRouter();
 
   const formattedDate = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'short',
@@ -99,23 +101,34 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
         </View>
       </View>
 
-      {/* Lado Direito: Avatar do profissional */}
-      <View
-        accessibilityLabel={`Perfil de ${staff?.name ?? 'Profissional'}`}
-        style={[
-          styles.avatar,
-          {
-            borderRadius: radius.full,
-            backgroundColor: colors.surface.elevated,
-            borderColor: colors.brand.primary,
-            flexShrink: 0,
-            marginLeft: spacing[2],
-          },
-        ]}
-      >
-        <Text variant="caption" color={colors.text.primary} weight="bold">
-          {initials}
-        </Text>
+      {/* Lado Direito: Ação Rápida no Desktop + Avatar do profissional */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+        {isExpanded ? (
+          <Button
+            title="Novo Agendamento"
+            variant="primary"
+            leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+            onPress={() => router.push('/(app)/new-booking' as any)}
+            style={{ minHeight: 40, paddingHorizontal: spacing[4] }}
+          />
+        ) : null}
+
+        <View
+          accessibilityLabel={`Perfil de ${staff?.name ?? 'Profissional'}`}
+          style={[
+            styles.avatar,
+            {
+              borderRadius: radius.full,
+              backgroundColor: colors.surface.elevated,
+              borderColor: colors.brand.primary,
+              flexShrink: 0,
+            },
+          ]}
+        >
+          <Text variant="caption" color={colors.text.primary} weight="bold">
+            {initials}
+          </Text>
+        </View>
       </View>
     </View>
   );

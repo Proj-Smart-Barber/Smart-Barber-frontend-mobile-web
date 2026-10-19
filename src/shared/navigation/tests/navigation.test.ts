@@ -46,6 +46,12 @@ describe('Navigation Helpers', () => {
       expect(getActiveDestinationFromPathname('/services')).toBe('services');
       expect(getActiveDestinationFromPathname('/(app)/services')).toBe('services');
     });
+
+    it('deve identificar rota de equipe', () => {
+      expect(getActiveDestinationFromPathname('/team')).toBe('team');
+      expect(getActiveDestinationFromPathname('/(app)/team')).toBe('team');
+      expect(getActiveDestinationFromPathname('/(app)/team/123')).toBe('team');
+    });
   });
 
   describe('Drawer Progress Interpolation & Sincronização', () => {

@@ -196,7 +196,13 @@ export function AgendaView() {
                 onRetry={handleRefresh}
               />
 
-              {isExpanded && summary ? (
+              {isExpanded &&
+              (isInitialLoading ||
+                Boolean(
+                  summary &&
+                    ((summary.occupancyPercent !== null && summary.occupancyLabel !== null) ||
+                      summary.next !== null),
+                )) ? (
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing[6] }}>
                   <View style={{ width: 340, flexShrink: 0 }}>
                     <AgendaSummary summary={summary} isLoading={isInitialLoading} />

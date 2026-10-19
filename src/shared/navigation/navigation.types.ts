@@ -8,7 +8,9 @@ export type AppDestination =
   | 'my-schedule'
   | 'availability'
   | 'services'
-  | 'settings';
+  | 'settings'
+  | 'team';
+
 
 export interface NavigationItem {
   id: AppDestination;
