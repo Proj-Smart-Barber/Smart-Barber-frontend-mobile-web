@@ -5,6 +5,13 @@ import { sameSchedule } from './barber-schedule.schema';
 export async function saveBarberSchedule(repository: IAvailabilityRepository, shopId: string,
   barbermanId: string, entries: Omit<WeeklyScheduleEntry, 'id'>[]) {
   if (!shopId || !barbermanId) throw new Error('Unidade e profissional são obrigatórios.');
+  return saveScopedSchedule(repository, shopId, barbermanId, entries);
+}
+
+/** Shared write/reconciliation contract for general and individual schedules. */
+export async function saveScopedSchedule(repository: IAvailabilityRepository, shopId: string,
+  barbermanId: string | undefined, entries: Omit<WeeklyScheduleEntry, 'id'>[]) {
+  if (!shopId) throw new Error('Unidade obrigatória.');
   try {
     const saved = await repository.saveWeeklySchedule(shopId, entries, barbermanId);
     return { kind: 'saved' as const, entries: saved, message: 'Jornada salva com sucesso.' };

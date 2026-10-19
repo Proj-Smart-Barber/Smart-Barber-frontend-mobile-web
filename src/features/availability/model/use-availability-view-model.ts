@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { saveScopedSchedule } from './save-barber-schedule';
 import { useSession } from '@/features/auth';
 import { ENV } from '@/shared/config/env';
 import {
   useBarbershopQuery,
   useWeeklyScheduleQuery,
   useExceptionsQuery,
-  useSaveWeeklyScheduleMutation,
+  availabilityRepository,
+  AVAILABILITY_QUERY_KEYS,
   useCreateExceptionMutation,
   useUpdateExceptionMutation,
   useRemoveExceptionMutation,
@@ -41,7 +44,7 @@ export function useAvailabilityViewModel(
     barbermanId ?? undefined,
   );
 
-  // Consulta da jornada geral como fallback de herança quando barbermanId está ativo
+  // A jornada geral limita a validação individual; nunca substitui uma semana vazia.
   const generalScheduleQuery = useWeeklyScheduleQuery(
     barbershopId,
     undefined,
@@ -52,10 +55,12 @@ export function useAvailabilityViewModel(
     barbermanId ?? undefined,
   );
 
-  const saveScheduleMutation = useSaveWeeklyScheduleMutation(
-    barbershopId,
-    barbermanId ?? undefined,
-  );
+  const cache = useQueryClient();
+  const writeLock = useRef(false);
+  const pendingRef = useRef<'unconfirmed-view' | 'unknown' | null>(null);
+  const [schedulePending, setSchedulePending] = useState<typeof pendingRef.current>(null);
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
   const createExceptionMutation = useCreateExceptionMutation(
     barbershopId,
     barbermanId ?? undefined,
@@ -71,49 +76,9 @@ export function useAvailabilityViewModel(
 
   const [formError, setFormError] = useState<NormalizedAvailabilityError | null>(null);
 
-  // Determinar se os dados atuais são herdados da jornada geral
-  const hasIndividualEntries = Boolean(
-    barbermanId &&
-      scopedScheduleQuery.data &&
-      scopedScheduleQuery.data.length > 0,
-  );
-
-  const isInherited = Boolean(
-    barbermanId &&
-      scopedScheduleQuery.data &&
-      scopedScheduleQuery.data.length === 0,
-  );
-
-  // Montar as entradas da jornada considerando herança
-  const effectiveEntries = useMemo(() => {
-    if (!barbermanId) {
-      return scopedScheduleQuery.data ?? [];
-    }
-
-    if (hasIndividualEntries) {
-      return scopedScheduleQuery.data ?? [];
-    }
-
-    if (isInherited) {
-      // Herda horários da barbearia, marcando o barbermanId para o formulário
-      return (generalScheduleQuery.data ?? []).map((entry) => ({
-        ...entry,
-        barbermanId,
-      }));
-    }
-
-    return scopedScheduleQuery.data ?? [];
-  }, [
-    barbermanId,
-    hasIndividualEntries,
-    isInherited,
-    scopedScheduleQuery.data,
-    generalScheduleQuery.data,
-  ]);
-
   const scheduleDays = useMemo(
-    () => buildScheduleDayViews(effectiveEntries),
-    [effectiveEntries],
+    () => buildScheduleDayViews(scopedScheduleQuery.data ?? []),
+    [scopedScheduleQuery.data],
   );
 
   const isLoadingInitial =
@@ -125,17 +90,19 @@ export function useAvailabilityViewModel(
 
   const isFatalError =
     !hasHttpConfiguration ||
-    ((barbershopQuery.isError || scopedScheduleQuery.isError || exceptionsQuery.isError) &&
+    ((barbershopQuery.isError || scopedScheduleQuery.isError || exceptionsQuery.isError ||
+      (Boolean(barbermanId) && generalScheduleQuery.isError)) &&
       !isLoadingInitial);
 
   const isSaving =
-    saveScheduleMutation.isPending ||
+    scheduleBusy ||
     createExceptionMutation.isPending ||
     updateExceptionMutation.isPending ||
     removeExceptionMutation.isPending;
 
   const initialQueryError =
-    barbershopQuery.error ?? scopedScheduleQuery.error ?? exceptionsQuery.error ?? null;
+    barbershopQuery.error ?? scopedScheduleQuery.error ?? exceptionsQuery.error ??
+    (barbermanId ? generalScheduleQuery.error : null) ?? null;
 
   const normalizedInitialError = useMemo(
     () => (initialQueryError ? normalizeAvailabilityError(initialQueryError) : null),
@@ -157,21 +124,53 @@ export function useAvailabilityViewModel(
 
   const handleSaveSchedule = useCallback(
     async (entries: Omit<WeeklyScheduleEntry, 'id'>[]) => {
+      if (writeLock.current || pendingRef.current || isFatalError || isLoadingInitial) return null;
+      writeLock.current = true;
+      setScheduleBusy(true);
       setFormError(null);
+      setScheduleMessage(null);
       try {
-        const scopedEntries = entries.map((entry) => ({
-          ...entry,
-          barbermanId: barbermanId ?? null,
-        }));
-        await saveScheduleMutation.mutateAsync(scopedEntries);
-        return true;
-      } catch (error) {
-        setFormError(normalizeAvailabilityError(error));
-        return false;
+        const scopedEntries = entries.map(entry => ({ ...entry, barbermanId: barbermanId ?? null }));
+        const result = await saveScopedSchedule(
+          availabilityRepository, barbershopId, barbermanId ?? undefined, scopedEntries,
+        );
+        if (result.kind === 'saved') {
+          cache.setQueryData(AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId ?? undefined), result.entries);
+          void cache.invalidateQueries({ queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId) });
+        } else if (result.kind !== 'rejected') {
+          pendingRef.current = result.kind;
+          setSchedulePending(result.kind);
+          setScheduleMessage(result.message);
+        }
+        return result;
+      } finally {
+        writeLock.current = false;
+        setScheduleBusy(false);
       }
     },
-    [saveScheduleMutation, barbermanId],
+    [barbershopId, barbermanId, cache, isFatalError, isLoadingInitial],
   );
+
+  const reconcileSchedule = useCallback(async () => {
+    if (writeLock.current || !pendingRef.current) return null;
+    writeLock.current = true;
+    setScheduleBusy(true);
+    try {
+      const entries = await availabilityRepository.getWeeklySchedule(barbershopId, barbermanId ?? undefined);
+      cache.setQueryData(AVAILABILITY_QUERY_KEYS.schedule(barbershopId, barbermanId ?? undefined), entries);
+      void cache.invalidateQueries({ queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId) });
+      pendingRef.current = null;
+      setSchedulePending(null);
+      setScheduleMessage(null);
+      return entries;
+    } catch {
+      setScheduleMessage('Não foi possível consultar os dados salvos. Sua edição foi mantida. Tente consultar novamente.');
+      return null;
+    } finally {
+      writeLock.current = false;
+      setScheduleBusy(false);
+    }
+  }, [barbershopId, barbermanId, cache]);
 
   const handleCreateException = useCallback(
     async (exception: Omit<AvailabilityException, 'id'>) => {
@@ -241,7 +240,10 @@ export function useAvailabilityViewModel(
 
     barbermanId: barbermanId ?? null,
     isIndividual: Boolean(barbermanId),
-    isInherited,
+    opening: generalScheduleQuery.data,
+    schedulePending,
+    scheduleMessage,
+    reconcileSchedule,
 
     isLoadingInitial,
     isSaving,

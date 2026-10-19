@@ -12,9 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, FormProvider } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { FormProvider } from 'react-hook-form';
 import { Card, Skeleton, Spinner, ErrorState, Button, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useNavigation } from '@/shared/navigation/navigation-context';
@@ -24,22 +22,22 @@ import { AvailabilityError } from './AvailabilityError';
 import { AvailabilityDay } from './AvailabilityDay';
 import { ExceptionCard } from './ExceptionCard';
 import { ExceptionForm } from './ExceptionForm';
-import { weeklyScheduleEntrySchema, scheduleDaySchema } from '../model/availability.schema';
-import type { AvailabilityException, WeeklyScheduleEntry } from '../api/availability.contract';
+import { useAvailabilityScheduleForm, type AvailabilityFormValues } from '../model/use-availability-schedule-form';
+import { useUnsavedScheduleGuard } from '../model/use-unsaved-schedule-guard';
+import type { AvailabilityException } from '../api/availability.contract';
 import type { AvailabilityExceptionFormValues } from '../model/availability.schema';
 
-const formSchema = z.object({
-  days: z.array(
-    z.object({
-      weekday: weeklyScheduleEntrySchema.shape.weekday,
-      entries: scheduleDaySchema,
-    }),
-  ),
-});
+type AvailabilityScreenProps = {
+  barbershopId?: string | null;
+  barbermanId?: string | null;
+  professionalName?: string | null;
+};
 
-type AvailabilityFormValues = z.infer<typeof formSchema>;
+export function AvailabilityScreen(props: AvailabilityScreenProps) {
+  return <AvailabilityEditor key={JSON.stringify([props.barbershopId, props.barbermanId])} {...props} />;
+}
 
-export function AvailabilityScreen({
+function AvailabilityEditor({
   barbershopId,
   barbermanId,
   professionalName,
@@ -87,29 +85,9 @@ export function AvailabilityScreen({
     return () => clearTimeout(timeout);
   }, [saveFeedback]);
 
-  const methods = useForm<AvailabilityFormValues>({
-    resolver: zodResolver(formSchema),
-    mode: 'onBlur',
-    values: vm.scheduleDays
-      ? {
-          days: vm.scheduleDays.map((d) => ({
-            weekday: d.weekday,
-            entries: d.entries,
-          })),
-        }
-      : undefined,
-  });
-
-  useEffect(() => {
-    if (vm.scheduleDays) {
-      methods.reset({
-        days: vm.scheduleDays.map((d) => ({
-          weekday: d.weekday,
-          entries: d.entries,
-        })),
-      });
-    }
-  }, [barbermanId, vm.scheduleDays, methods]);
+  const { methods, submitJourney, reconcileJourney } = useAvailabilityScheduleForm(vm);
+  useUnsavedScheduleGuard(methods.formState.isDirty || Boolean(vm.schedulePending), vm.isSaving);
+  const scheduleDisabled = vm.isSaving || Boolean(vm.schedulePending);
 
   if (vm.isLoadingInitial) {
     return (
@@ -227,30 +205,18 @@ export function AvailabilityScreen({
   async function onSubmitJourney(values: AvailabilityFormValues) {
     setSaveFeedback(null);
 
-    const entries: Omit<WeeklyScheduleEntry, 'id'>[] = values.days.flatMap((day) =>
-      day.entries.map((entry) => ({
-        weekday: entry.weekday,
-        barbermanId: barbermanId ?? entry.barbermanId ?? null,
-        range: entry.range,
-      })),
-    );
-
-    const saved = await vm.handleSaveSchedule(entries);
-
-    if (saved) {
-      setSaveFeedback({
-        variant: 'success',
-        title: 'Alterações salvas',
-        message: 'A jornada de atendimento foi atualizada com sucesso.',
-      });
-      return;
-    }
-
+    const result = await submitJourney(values);
+    if (!result || result.kind === 'unconfirmed-view' || result.kind === 'unknown') return;
     setSaveFeedback({
-      variant: 'error',
-      title: 'Não foi possível salvar',
-      message: 'Verifique os campos preenchidos e tente novamente.',
+      variant: result.kind === 'saved' ? 'success' : 'error',
+      title: result.kind === 'saved' ? 'Alterações salvas' : 'Jornada não alterada',
+      message: result.message,
     });
+  }
+
+  async function onReconcileJourney() {
+    const message = await reconcileJourney();
+    if (message) setSaveFeedback({ variant: 'success', title: 'Dados salvos consultados', message });
   }
 
   function onInvalidJourney() {
@@ -357,11 +323,11 @@ export function AvailabilityScreen({
               {/* Área de alerta global — Critério de Aceite 4 */}
               {vm.formError && !saveFeedback && <AvailabilityError error={vm.formError} />}
 
-              {/* Banner de escala herdada da barbearia */}
-              {vm.isInherited && (
+              {/* Semana individual vazia representa ausência de atendimento. */}
+              {vm.isIndividual && vm.scheduleDays.every(day => day.entries.length === 0) && (
                 <View
                   style={[
-                    styles.inheritanceBanner,
+                    styles.emptyScheduleBanner,
                     {
                       backgroundColor: isDark ? 'rgba(197, 160, 89, 0.12)' : 'rgba(197, 160, 89, 0.16)',
                       borderColor: colors.brand.primary,
@@ -378,12 +344,19 @@ export function AvailabilityScreen({
                   <Ionicons name="information-circle-outline" size={24} color={colors.brand.primary} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text variant="caption" weight="bold" color={colors.brand.primary}>
-                      ESCALA HERDADA DA BARBEARIA
+                      SEM JORNADA INDIVIDUAL SALVA
                     </Text>
                     <Text variant="caption" color={colors.text.secondary}>
-                      Este profissional não possui jornada própria e opera com a escala geral da unidade. Salvar alterações aqui definirá horários específicos para ele sem alterar a barbearia.
+                      Este profissional está sem períodos de atendimento salvos. O expediente da unidade não é herdado automaticamente; configure os períodos e salve para disponibilizar horários.
                     </Text>
                   </View>
+                </View>
+              )}
+
+              {vm.schedulePending && (
+                <View style={{ gap: spacing[3], marginBottom: spacing[4] }}>
+                  <Text accessibilityRole="alert" accessibilityLiveRegion="polite">{vm.scheduleMessage}</Text>
+                  <Button title="Consultar dados salvos" onPress={() => void onReconcileJourney()} disabled={vm.isSaving} />
                 </View>
               )}
 
@@ -421,7 +394,9 @@ export function AvailabilityScreen({
                       </View>
                     </View>
                     <Text variant="bodySm" color={colors.text.secondary}>
-                      Ative os dias de atendimento e organize um ou mais intervalos por dia.
+                      {vm.isIndividual
+                        ? 'Cada período deve caber em um único período de funcionamento da unidade, mesmo quando os períodos gerais forem seguidos.'
+                        : 'Ative os dias de atendimento e organize um ou mais intervalos por dia.'}
                     </Text>
                   </View>
 
@@ -432,7 +407,8 @@ export function AvailabilityScreen({
                         day={day}
                         dayIndex={dayIndex}
                         fieldArrayName="days"
-                        disabled={vm.isSaving}
+                        barbermanId={barbermanId}
+                        disabled={scheduleDisabled}
                       />
                     ))}
                   </View>
@@ -585,8 +561,8 @@ export function AvailabilityScreen({
             accessibilityRole="button"
             accessibilityLabel="Salvar disponibilidade"
             accessibilityHint="Salva os horários recorrentes configurados para esta unidade"
-            accessibilityState={{ disabled: vm.isSaving }}
-            disabled={vm.isSaving}
+            accessibilityState={{ disabled: scheduleDisabled }}
+            disabled={scheduleDisabled}
             onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
             style={({ pressed }) => [
               styles.floatingSaveButton,
@@ -594,7 +570,7 @@ export function AvailabilityScreen({
                 right: spacing[5],
                 bottom: Math.max(insets.bottom, 12) + 100,
                 backgroundColor: colors.brand.primary,
-                opacity: vm.isSaving ? 0.7 : pressed ? 0.82 : 1,
+                opacity: scheduleDisabled ? 0.7 : pressed ? 0.82 : 1,
               },
             ]}
           >
@@ -857,7 +833,7 @@ const styles = StyleSheet.create({
   },
   timezoneIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   timezoneCopy: { flex: 1, gap: 2 },
-  inheritanceBanner: { width: '100%' },
+  emptyScheduleBanner: { width: '100%' },
 });
 
 function AvailabilityMenuButton({ onPress }: { onPress: () => void }) {
