@@ -1,5 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ENV } from '@/shared/config/env';
+import { serverClock } from '@/features/bookings/lib/server-clock';
+import { invalidateBookingQueries } from '@/features/bookings/model/booking-query-keys';
 import type {
   AvailabilityException,
   AvailabilitySlot,
@@ -19,6 +21,8 @@ export const AVAILABILITY_QUERY_KEYS = {
   barbershop: (barbershopId: string) => ['availability', barbershopId, 'barbershop'] as const,
   schedule: (barbershopId: string, barbermanId?: string) =>
     ['availability', barbershopId, 'schedule', barbermanId ?? 'general'] as const,
+  scope: (barbershopId: string, barbermanId?: string) =>
+    ['availability', barbershopId, 'scope', barbermanId ?? 'general'] as const,
   exceptions: (barbershopId: string, barbermanId?: string) =>
     ['availability', barbershopId, 'exceptions', barbermanId ?? 'general'] as const,
   slotsBase: (barbershopId: string) => ['availability', barbershopId, 'slots'] as const,
@@ -32,6 +36,34 @@ export const AVAILABILITY_QUERY_KEYS = {
       barbermanId ?? 'general',
     ] as const,
 };
+
+/** Jornada e exceções alteram slots ofertados: invalida disponibilidade da reserva, agenda e painel da unidade. */
+export function invalidateScheduleConsumers(queryClient: QueryClient, barbershopId: string) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: AVAILABILITY_QUERY_KEYS.all(barbershopId) }),
+    invalidateBookingQueries(queryClient, { shopId: barbershopId }),
+  ]);
+}
+
+/** Lê o documento autoritativo do escopo e alinha o relógio de servidor usado nas chaves de idempotência. */
+export async function fetchScheduleScope(barbershopId: string, barbermanId?: string) {
+  const expectedGeneration = serverClock.getGeneration();
+  const document = await availabilityRepository.getScheduleScope(barbershopId, barbermanId);
+  if (document.serverTime) {
+    try { serverClock.syncWithServer(document.serverTime, { expectedGeneration }); } catch { /* resposta continua válida */ }
+  }
+  return document;
+}
+
+export function useScheduleScopeQuery(barbershopId: string, barbermanId?: string) {
+  return useQuery({
+    queryKey: AVAILABILITY_QUERY_KEYS.scope(barbershopId, barbermanId),
+    queryFn: () => fetchScheduleScope(barbershopId, barbermanId),
+    enabled: Boolean(barbershopId),
+    staleTime: 0,
+    retry: false,
+  });
+}
 
 export function useBarbershopQuery(barbershopId: string) {
   return useQuery({
@@ -75,9 +107,7 @@ export function useSaveWeeklyScheduleMutation(
         });
       }
 
-      void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
-      });
+      void invalidateScheduleConsumers(queryClient, barbershopId);
     },
   });
 }
@@ -116,9 +146,7 @@ export function useCreateExceptionMutation(
         });
       }
 
-      void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
-      });
+      void invalidateScheduleConsumers(queryClient, barbershopId);
     },
   });
 }
@@ -152,9 +180,7 @@ export function useUpdateExceptionMutation(
         });
       }
 
-      void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
-      });
+      void invalidateScheduleConsumers(queryClient, barbershopId);
     },
   });
 }
@@ -180,9 +206,7 @@ export function useRemoveExceptionMutation(
         });
       }
 
-      void queryClient.invalidateQueries({
-        queryKey: AVAILABILITY_QUERY_KEYS.slotsBase(barbershopId),
-      });
+      void invalidateScheduleConsumers(queryClient, barbershopId);
     },
   });
 }

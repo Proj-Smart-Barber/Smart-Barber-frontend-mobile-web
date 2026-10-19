@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -191,7 +191,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   radiusPill: {
-    minHeight: 36,
+    minHeight: 44,
+    minWidth: 44,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,

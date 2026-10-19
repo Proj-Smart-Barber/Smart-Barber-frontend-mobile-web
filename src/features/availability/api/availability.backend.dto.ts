@@ -27,6 +27,11 @@ export interface BackendScheduleItemDto {
 
 export interface BackendScheduleListResponseDto {
   schedules: BackendScheduleItemDto[];
+  effectiveSchedules?: BackendScheduleItemDto[];
+  state?: string;
+  version?: number;
+  needsReview?: boolean;
+  serverTime?: string;
 }
 
 /** Contrato atual: 1 request = 1 escopo de jornada, com replace em batch. */
@@ -36,10 +41,18 @@ export interface BackendUpdateScheduleRequestDto {
     openTime: string;
     closeTime: string;
   }>;
+  /** Modo estrito (autoedição): state + expectedVersion; a identidade vem da sessão, o escopo da query. */
+  state?: 'INHERIT' | 'CUSTOM' | 'CLOSED';
+  expectedVersion?: number;
 }
 
 export interface BackendUpdateScheduleResponseDto {
   message: string;
+  schedules?: BackendScheduleItemDto[];
+  effectiveSchedules?: BackendScheduleItemDto[];
+  state?: string;
+  version?: number;
+  serverTime?: string;
 }
 
 export interface BackendExceptionItemDto {

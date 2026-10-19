@@ -10,6 +10,9 @@ import type {
   AvailabilityException,
   AvailabilitySlot,
   IAvailabilityRepository,
+  SaveScheduleScopeInput,
+  ScheduleScopeDocument,
+  ScheduleScopeState,
   WeeklyScheduleEntry,
   Weekday,
 } from './availability.contract';
@@ -93,6 +96,50 @@ function normalizeBackendExceptionItem(item: unknown): AvailabilityException | n
   };
 }
 
+const SCOPE_STATES: readonly ScheduleScopeState[] = ['INHERIT', 'CUSTOM', 'CLOSED'];
+
+function parseScopeEntries(items: unknown, label: string): WeeklyScheduleEntry[] {
+  if (!Array.isArray(items)) {
+    throw new ApiError(`Resposta de jornada inválida: ${label} ausente.`, 502, null, false);
+  }
+  return items.map((item) => {
+    const entry = normalizeBackendScheduleItem(item);
+    if (!entry) {
+      throw new ApiError(`Resposta de jornada inválida: item de ${label} malformado.`, 502, null, false);
+    }
+    return entry;
+  });
+}
+
+/** Falha fechado: o editor nunca recebe um documento parcial que poderia apagar horários ao salvar. */
+export function parseScheduleScopeDocument(
+  raw: BackendScheduleListResponseDto | BackendUpdateScheduleResponseDto | null | undefined,
+  barbermanId: string | null,
+): ScheduleScopeDocument {
+  const state = typeof raw?.state === 'string' ? raw.state.toUpperCase() : '';
+  const version = raw?.version;
+  if (
+    !SCOPE_STATES.includes(state as ScheduleScopeState) ||
+    typeof version !== 'number' ||
+    !Number.isInteger(version) ||
+    version < 0
+  ) {
+    throw new ApiError('Resposta de jornada inválida: estado ou versão ausentes.', 502, null, false);
+  }
+  const needsReview = (raw as BackendScheduleListResponseDto).needsReview;
+  const serverTime = typeof raw?.serverTime === 'string' && raw.serverTime.trim() ? raw.serverTime : null;
+
+  return {
+    barbermanId,
+    schedules: parseScopeEntries(raw?.schedules, 'schedules'),
+    effectiveSchedules: parseScopeEntries(raw?.effectiveSchedules ?? raw?.schedules, 'effectiveSchedules'),
+    state: state as ScheduleScopeState,
+    version,
+    needsReview: needsReview === true,
+    serverTime,
+  };
+}
+
 export class AvailabilityHttpAdapter implements IAvailabilityRepository {
   async getBarbershop(barbershopId: string): Promise<Barbershop> {
     const response = await httpClient.get<BackendBarbershopResponseDto>(
@@ -117,6 +164,53 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
       name: raw.name,
       timezone: raw.timezone,
     };
+  }
+
+  async getScheduleScope(
+    barbershopId: string,
+    barbermanId?: string,
+  ): Promise<ScheduleScopeDocument> {
+    const response = await httpClient.get<BackendScheduleListResponseDto>(
+      `/api/barbershops/${encodeURIComponent(barbershopId)}/schedules`,
+      { params: barbermanId ? { barbermanId } : undefined },
+    );
+    return parseScheduleScopeDocument(response, barbermanId ?? null);
+  }
+
+  async saveScheduleScope(
+    barbershopId: string,
+    input: SaveScheduleScopeInput,
+  ): Promise<ScheduleScopeDocument> {
+    if (input.entries.some((entry) => (entry.barbermanId ?? null) !== input.barbermanId)) {
+      throw new ApiError(
+        'A jornada informada não corresponde ao escopo selecionado.',
+        400,
+        { code: 'SCHEDULE_SCOPE_MISMATCH' },
+        false,
+      );
+    }
+
+    const body: BackendUpdateScheduleRequestDto = {
+      schedules: input.entries.map((entry) => ({
+        dayOfWeek: entry.weekday,
+        openTime: entry.range.start,
+        closeTime: entry.range.end,
+      })),
+      state: input.state,
+      expectedVersion: input.expectedVersion,
+    };
+
+    const response = await httpClient.put<BackendUpdateScheduleResponseDto>(
+      `/api/barbershops/${encodeURIComponent(barbershopId)}/schedules`,
+      body,
+      {
+        params: input.barbermanId ? { barbermanId: input.barbermanId } : undefined,
+        headers: { 'Idempotency-Key': input.requestId },
+      },
+    );
+
+    // 2xx com corpo ilegível não prova falha: o chamador trata (status 502) como incerto.
+    return parseScheduleScopeDocument(response, input.barbermanId);
   }
 
   async getWeeklySchedule(

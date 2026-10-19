@@ -1,3 +1,4 @@
+
 import type { AppDestination } from './navigation.types';
 
 export function getActiveDestinationFromPathname(
@@ -6,8 +7,22 @@ export function getActiveDestinationFromPathname(
   if (!pathname) return 'home';
 
   const clean = pathname.toLowerCase();
-  if (clean.includes('settings')) return 'settings';
-  if (clean.includes('agenda') || clean.includes('atendimentos')) return 'agenda';
+
+  if (clean.includes('my-schedule')) {
+    return 'my-schedule';
+  }
+
+  if (clean.includes('settings')) {
+    return 'settings';
+  }
+
+  if (
+    clean.includes('agenda') ||
+    clean.includes('atendimentos')
+  ) {
+    return 'agenda';
+  }
+
   if (
     clean.includes('availability') ||
     clean.includes('horarios') ||
@@ -15,6 +30,7 @@ export function getActiveDestinationFromPathname(
   ) {
     return 'availability';
   }
+
   if (
     clean.includes('services') ||
     clean.includes('servicos') ||
@@ -25,5 +41,6 @@ export function getActiveDestinationFromPathname(
   if (clean.includes('team') || clean.includes('equipe')) {
     return 'team';
   }
+
   return 'home';
 }

@@ -32,6 +32,16 @@ export const ENV = {
 
   /** ID padrão para testes/fallback; no HTTP a unidade vem da sessão ou storage. */
   BARBERSHOP_ID: process.env.EXPO_PUBLIC_BARBERSHOP_ID || MOCK_BARBERSHOP_ID,
+
+  /** Chave pública do Google Maps JavaScript SDK / Mapas sob demanda (restrita por referrer/bundle). */
+  GOOGLE_MAPS_WEB_API_KEY: (
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ||
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    ''
+  ).trim(),
+
+  /** Map ID opcional para renderização customizada do Google Maps. */
+  GOOGLE_MAPS_MAP_ID: (process.env.EXPO_PUBLIC_GOOGLE_MAPS_MAP_ID || '').trim(),
 } as const;
 
 export function getPublicCatalogUrl(barbershopId?: string | null): string {

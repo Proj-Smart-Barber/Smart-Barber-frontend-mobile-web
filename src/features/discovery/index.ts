@@ -16,3 +16,4 @@ export * from './ui/ClientSearchEntry';
 export * from './ui/ClientHeader';
 export * from './ui/ClientNextBookingCard';
 export * from './ui/DiscoveryMapModal';
+export * from './ui/GoogleMapCanvas';

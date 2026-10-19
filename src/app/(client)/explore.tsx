@@ -23,6 +23,7 @@ import {
   DiscoverySkeleton,
   DiscoveryMapModal,
   useDiscovery,
+  buildBarbershopCatalogHref,
   type PublicShop,
 } from '@/features/discovery';
 
@@ -55,14 +56,13 @@ export default function ClientExploreScreen() {
   const [mapModalVisible, setMapModalVisible] = useState(false);
 
   const discovery = useDiscovery({
-    initialMode: 'ALL',
     initialRadius: 10,
   });
 
   const isLocationGranted = discovery.locationSession.state === 'granted';
 
   const handleOpenShop = (shop: PublicShop) => {
-    router.push(`/(public)/barbershops/${shop.id}/services` as any);
+    router.push(buildBarbershopCatalogHref(shop.id) as any);
   };
 
   const handleClearFilters = () => {
@@ -166,13 +166,49 @@ export default function ClientExploreScreen() {
 
           {/* Filtros de Modo e Raio */}
           <DiscoveryFilters
-            mode={discovery.filters.mode}
+            mode={discovery.effectiveMode}
             onModeChange={discovery.setMode}
             radiusKm={discovery.filters.radiusKm}
             onRadiusChange={discovery.setRadiusKm}
             isLocationAvailable={isLocationGranted}
             onRequestLocation={discovery.requestLocation}
           />
+
+          {/* Banner de permissão negada/indisponível quando o usuário tentou usar GPS */}
+          {(discovery.locationSession.state === 'denied' ||
+            discovery.locationSession.state === 'unavailable' ||
+            discovery.locationSession.state === 'timeout') &&
+            discovery.locationSession.errorMessage && (
+              <View
+                style={[
+                  styles.geoWarningBanner,
+                  {
+                    backgroundColor: colors.surface.input,
+                    borderColor: colors.border.subtle,
+                    borderRadius: radius.md,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={20}
+                  color={colors.text.secondary}
+                />
+                <View style={styles.geoWarningContent}>
+                  <Text variant="caption" weight="medium" style={{ color: colors.text.primary }}>
+                    {discovery.locationSession.errorMessage}
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Exibindo todas as barbearias disponíveis.
+                  </Text>
+                </View>
+                <Button
+                  title="Tentar GPS"
+                  variant="outline"
+                  onPress={discovery.requestLocation}
+                />
+              </View>
+            )}
 
           {/* Banner de Indisponibilidade Geográfica (HTTP 503) */}
           {discovery.isServiceUnavailable && (
@@ -267,6 +303,9 @@ export default function ClientExploreScreen() {
         onClose={() => setMapModalVisible(false)}
         items={discovery.items}
         userCoordinates={discovery.locationSession.coords}
+        hasNextPage={discovery.hasNextPage}
+        onFetchNextPage={() => void discovery.fetchNextPage()}
+        isFetchingNextPage={discovery.isFetchingNextPage}
       />
     </View>
   );

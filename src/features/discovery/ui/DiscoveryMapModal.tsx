@@ -1,10 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Modal,
   StyleSheet,
   Pressable,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -13,14 +12,21 @@ import { useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import type { PublicShop } from '../api/discovery.contract';
+import {
+  buildBarbershopCatalogHref,
+  type PublicShop,
+} from '../api/discovery.contract';
 import { formatDistance } from './BarbershopCard';
+import { GoogleMapCanvas } from './GoogleMapCanvas';
 
 export interface DiscoveryMapModalProps {
   visible: boolean;
   onClose: () => void;
   items: PublicShop[];
   userCoordinates?: { latitude: number; longitude: number } | null;
+  hasNextPage?: boolean;
+  onFetchNextPage?: () => void;
+  isFetchingNextPage?: boolean;
 }
 
 export function DiscoveryMapModal({
@@ -28,9 +34,13 @@ export function DiscoveryMapModal({
   onClose,
   items,
   userCoordinates,
+  hasNextPage,
+  onFetchNextPage,
+  isFetchingNextPage,
 }: DiscoveryMapModalProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, radius } = useTheme();
   const router = useRouter();
+  const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
 
   // Filtrar apenas barbearias com coordenadas válidas
   const mappedShops = useMemo(() => {
@@ -43,6 +53,22 @@ export function DiscoveryMapModal({
   }, [items]);
 
   const hasPartialList = mappedShops.length < items.length;
+
+  const mapMarkers = useMemo(
+    () =>
+      mappedShops.map((shop) => ({
+        id: shop.id,
+        title: shop.name,
+        subtitle: shop.location,
+        coordinates: shop.coordinates!,
+      })),
+    [mappedShops],
+  );
+
+  const handleOpenCatalog = (shopId: string) => {
+    onClose();
+    router.push(buildBarbershopCatalogHref(shopId) as any);
+  };
 
   return (
     <Modal
@@ -66,6 +92,7 @@ export function DiscoveryMapModal({
               </Text>
               <Text variant="caption" color={colors.text.secondary}>
                 {mappedShops.length} de {items.length} estabelecimentos com localização
+                {hasNextPage ? ' (páginas adicionais disponíveis)' : ''}
               </Text>
             </View>
 
@@ -99,6 +126,21 @@ export function DiscoveryMapModal({
             </View>
           )}
 
+          {/* Superfície de Mapa sob demanda */}
+          {visible && mappedShops.length > 0 && (
+            <GoogleMapCanvas
+              markers={mapMarkers}
+              selectedMarkerId={selectedShopId}
+              onSelectMarker={(id) => {
+                setSelectedShopId(id);
+                handleOpenCatalog(id);
+              }}
+              userCoordinates={userCoordinates}
+              height={200}
+              testID="discovery-google-map"
+            />
+          )}
+
           {/* Lista de Pins e Estabelecimentos */}
           <ScrollView
             style={styles.itemsScroll}
@@ -107,20 +149,22 @@ export function DiscoveryMapModal({
           >
             {mappedShops.map((shop) => {
               const dist = formatDistance(shop.distanceMeters);
+              const isSelected = selectedShopId === shop.id;
               return (
                 <Pressable
                   key={shop.id}
-                  onPress={() => {
-                    onClose();
-                    router.push(`/barbershops/${shop.id}`);
-                  }}
+                  onPress={() => handleOpenCatalog(shop.id)}
                   accessibilityRole="button"
                   accessibilityLabel={`Abrir barbearia ${shop.name}`}
                   style={[
                     styles.shopPinCard,
                     {
-                      backgroundColor: colors.surface.default,
-                      borderColor: colors.border.subtle,
+                      backgroundColor: isSelected
+                        ? colors.surface.selected
+                        : colors.surface.default,
+                      borderColor: isSelected
+                        ? colors.brand.primary
+                        : colors.border.subtle,
                       borderRadius: radius.md,
                     },
                   ]}
@@ -156,6 +200,16 @@ export function DiscoveryMapModal({
                 </Pressable>
               );
             })}
+            {hasNextPage && onFetchNextPage ? (
+              <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                <Button
+                  title="Carregar mais unidades para o mapa"
+                  variant="outline"
+                  loading={isFetchingNextPage}
+                  onPress={onFetchNextPage}
+                />
+              </View>
+            ) : null}
           </ScrollView>
 
           <View style={styles.modalFooter}>

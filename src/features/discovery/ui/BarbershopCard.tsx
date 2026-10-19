@@ -7,7 +7,10 @@ import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import type { PublicShop } from '../api/discovery.contract';
+import {
+  buildBarbershopCatalogHref,
+  type PublicShop,
+} from '../api/discovery.contract';
 
 export interface BarbershopCardProps {
   shop: PublicShop;
@@ -36,7 +39,7 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
     if (onPress) {
       onPress();
     } else {
-      router.push(`/barbershops/${shop.id}`);
+      router.push(buildBarbershopCatalogHref(shop.id) as any);
     }
   };
 
@@ -285,7 +288,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     minWidth: 132,
-    minHeight: 40,
+    minHeight: 44,
   },
 });
 

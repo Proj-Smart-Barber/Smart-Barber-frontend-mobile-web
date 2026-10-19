@@ -6,6 +6,8 @@
 export type OperationResourceKind =
   | 'BOOKING'
   | 'MEMBERSHIP'
+  | 'SCHEDULE'
+  | 'LOCATION'
   | 'REGISTRATION'
   | 'INVITATION';
 
@@ -43,6 +45,7 @@ export interface OperationAttemptRecord<TPayload = any, TData = any> {
   requestId: string;
   operation: string;
   resourceKind: OperationResourceKind;
+  resourceId?: string | null;
   status: SubmissionStatus;
   createdAt: number;
   originScope?: 'PERSONAL' | 'UNIT';
@@ -56,6 +59,7 @@ export interface OperationReference {
   requestId: string;
   operation: string;
   resourceKind: OperationResourceKind;
+  resourceId?: string | null;
   status: SubmissionStatus;
   createdAt: number;
   originScope?: 'PERSONAL' | 'UNIT';

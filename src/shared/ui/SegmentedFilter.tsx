@@ -13,6 +13,7 @@ export interface SegmentedFilterProps<T extends string = string> {
   options: SegmentedFilterOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -25,6 +26,7 @@ export function SegmentedFilter<T extends string = string>({
   options,
   value,
   onChange,
+  disabled = false,
   style,
 }: SegmentedFilterProps<T>) {
   const { colors, spacing, radius } = useTheme();
@@ -42,6 +44,7 @@ export function SegmentedFilter<T extends string = string>({
           borderWidth: 1,
           borderColor: colors.border.default,
           alignItems: 'stretch',
+          opacity: disabled ? 0.6 : 1,
         },
         style,
       ]}
@@ -56,9 +59,12 @@ export function SegmentedFilter<T extends string = string>({
         return (
           <Pressable
             key={option.value}
-            onPress={() => onChange(option.value)}
+            disabled={disabled}
+            onPress={() => {
+              if (!disabled) onChange(option.value);
+            }}
             accessibilityRole="tab"
-            accessibilityState={{ selected: isSelected }}
+            accessibilityState={{ selected: isSelected, disabled }}
             accessibilityLabel={displayLabel}
             style={({ pressed }) => [
               {
@@ -72,14 +78,14 @@ export function SegmentedFilter<T extends string = string>({
                 borderCurve: 'continuous',
                 backgroundColor: isSelected
                   ? colors.background.primary
-                  : pressed
+                  : pressed && !disabled
                     ? colors.surface.selected
                     : 'transparent',
                 borderWidth: isSelected ? 1 : 0,
                 borderColor: isSelected ? colors.border.default : 'transparent',
                 ...(Platform.OS === 'web'
                   ? ({
-                      cursor: 'pointer',
+                      cursor: disabled ? 'not-allowed' : 'pointer',
                       userSelect: 'none',
                       transition: reducedMotion ? 'none' : 'background-color 150ms ease',
                     } as any)

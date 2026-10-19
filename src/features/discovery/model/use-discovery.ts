@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { serverClock } from '@/features/bookings/lib/server-clock';
 import { discoveryApi } from '../api/discovery.api';
 import { locationStore, type LocationSession } from './location-provider';
 import type {
@@ -15,10 +16,16 @@ export function useDiscovery(initialParams?: {
   initialRadius?: DiscoveryRadius;
   initialQuery?: string;
 }): UseDiscoveryViewModel {
-  const [filters, setFilters] = useState<DiscoveryFilters>({
-    mode: initialParams?.initialMode ?? 'ALL',
-    radiusKm: initialParams?.initialRadius ?? 10,
-    searchQuery: initialParams?.initialQuery ?? '',
+  const [filters, setFilters] = useState<DiscoveryFilters>(() => {
+    const currentLoc = locationStore.getSession();
+    const defaultMode =
+      initialParams?.initialMode ??
+      (currentLoc.state === 'granted' && currentLoc.coords !== null ? 'NEARBY' : 'ALL');
+    return {
+      mode: defaultMode,
+      radiusKm: initialParams?.initialRadius ?? 10,
+      searchQuery: initialParams?.initialQuery ?? '',
+    };
   });
 
   const [debouncedQuery, setDebouncedQuery] = useState(filters.searchQuery);
@@ -39,18 +46,41 @@ export function useDiscovery(initialParams?: {
   useEffect(() => {
     return locationStore.subscribe((session) => {
       setLocationSession(session);
+      if (
+        session.state === 'denied' ||
+        session.state === 'unavailable' ||
+        session.state === 'timeout' ||
+        session.state === 'stale' ||
+        session.state === 'idle'
+      ) {
+        setFilters((prev) => (prev.mode === 'NEARBY' ? { ...prev, mode: 'ALL' } : prev));
+      }
     });
   }, []);
 
   const requestLocation = useCallback(async () => {
-    await locationStore.requestCurrentPosition();
+    const session = await locationStore.requestCurrentPosition();
+    if (session.state === 'granted' && session.coords !== null) {
+      setFilters((prev) => ({
+        ...prev,
+        mode: 'NEARBY',
+        radiusKm: prev.radiusKm || 10,
+      }));
+    } else {
+      setFilters((prev) => (prev.mode === 'NEARBY' ? { ...prev, mode: 'ALL' } : prev));
+    }
   }, []);
 
   const setSearchQuery = useCallback((query: string) => {
     setFilters((prev) => ({ ...prev, searchQuery: query }));
   }, []);
 
+  const [proximityUnavailable, setProximityUnavailable] = useState(false);
+
   const setMode = useCallback((mode: DiscoveryMode) => {
+    if (mode === 'NEARBY') {
+      setProximityUnavailable(false);
+    }
     setFilters((prev) => ({ ...prev, mode }));
   }, []);
 
@@ -58,9 +88,15 @@ export function useDiscovery(initialParams?: {
     setFilters((prev) => ({ ...prev, radiusKm }));
   }, []);
 
+  const isNearbyEligible =
+    filters.mode === 'NEARBY' &&
+    !proximityUnavailable &&
+    locationSession.state === 'granted' &&
+    locationSession.coords !== null;
+
   // Chave de query estritamente opaca (NUNCA incluir coordenadas em query keys!)
   const queryKey = useMemo(() => {
-    if (filters.mode === 'NEARBY' && locationSession.state === 'granted') {
+    if (isNearbyEligible) {
       return [
         'discovery',
         'nearby',
@@ -71,17 +107,11 @@ export function useDiscovery(initialParams?: {
     }
     return ['discovery', 'all', debouncedQuery.trim()] as const;
   }, [
-    filters.mode,
+    isNearbyEligible,
     filters.radiusKm,
     debouncedQuery,
-    locationSession.state,
     locationSession.generationId,
   ]);
-
-  const isNearbyEligible =
-    filters.mode === 'NEARBY' &&
-    locationSession.state === 'granted' &&
-    locationSession.coords !== null;
 
   const {
     data,
@@ -94,22 +124,53 @@ export function useDiscovery(initialParams?: {
   } = useInfiniteQuery({
     queryKey,
     queryFn: async ({ pageParam = 1 }) => {
+      const expectedGeneration = serverClock.getGeneration();
       if (isNearbyEligible && locationSession.coords) {
-        return discoveryApi.searchNearby({
-          latitude: locationSession.coords.latitude,
-          longitude: locationSession.coords.longitude,
-          radiusKm: filters.radiusKm,
-          q: debouncedQuery.trim() || undefined,
-          page: pageParam,
-          limit: 20,
-        });
+        try {
+          const page = await discoveryApi.searchNearby({
+            latitude: locationSession.coords.latitude,
+            longitude: locationSession.coords.longitude,
+            radiusKm: filters.radiusKm,
+            q: debouncedQuery.trim() || undefined,
+            page: pageParam,
+            limit: 20,
+          });
+          if (page.serverTime) {
+            serverClock.syncWithServer(page.serverTime, { expectedGeneration });
+          }
+          return page;
+        } catch (err: unknown) {
+          const is503 =
+            (err as any)?.isServiceUnavailable === true ||
+            (err as any)?.statusCode === 503;
+          if (is503) {
+            setProximityUnavailable(true);
+            setFilters((prev) => ({ ...prev, mode: 'ALL' }));
+            const fallbackPage = await discoveryApi.searchAll({
+              q: debouncedQuery.trim() || undefined,
+              page: pageParam,
+              limit: 20,
+            });
+            if (fallbackPage.serverTime) {
+              serverClock.syncWithServer(fallbackPage.serverTime, {
+                expectedGeneration,
+              });
+            }
+            return fallbackPage;
+          }
+          throw err;
+        }
       }
 
-      return discoveryApi.searchAll({
+      const page = await discoveryApi.searchAll({
         q: debouncedQuery.trim() || undefined,
         page: pageParam,
         limit: 20,
       });
+      if (page.serverTime) {
+        serverClock.syncWithServer(page.serverTime, { expectedGeneration });
+      }
+      return page;
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
@@ -117,6 +178,17 @@ export function useDiscovery(initialParams?: {
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
+
+  const isServiceUnavailable = useMemo(() => {
+    return (
+      proximityUnavailable ||
+      (error as any)?.isServiceUnavailable === true ||
+      (error as any)?.statusCode === 503
+    );
+  }, [proximityUnavailable, error]);
+
+  const effectiveMode: DiscoveryMode =
+    isNearbyEligible && !isServiceUnavailable ? 'NEARBY' : 'ALL';
 
   // Concatenação de itens deduplicados por ID
   const items = useMemo<PublicShop[]>(() => {
@@ -128,22 +200,20 @@ export function useDiscovery(initialParams?: {
       for (const shop of page.items) {
         if (!seen.has(shop.id)) {
           seen.add(shop.id);
-          list.push(shop);
+          list.push(
+            effectiveMode === 'ALL'
+              ? { ...shop, distanceMeters: null }
+              : shop,
+          );
         }
       }
     }
     return list;
-  }, [data?.pages]);
-
-  const isServiceUnavailable = useMemo(() => {
-    return (
-      (error as any)?.isServiceUnavailable === true ||
-      (error as any)?.statusCode === 503
-    );
-  }, [error]);
+  }, [data?.pages, effectiveMode]);
 
   return {
     filters,
+    effectiveMode,
     searchQuery: filters.searchQuery,
     setSearchQuery,
     setMode,

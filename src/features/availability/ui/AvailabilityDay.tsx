@@ -13,6 +13,7 @@ interface AvailabilityDayProps {
   /** path base do array do form, ex: "days" */
   fieldArrayName: string;
   disabled?: boolean;
+  barbermanId?: string | null;
 }
 
 /**
@@ -29,6 +30,7 @@ export function AvailabilityDay({
   dayIndex,
   fieldArrayName,
   disabled,
+  barbermanId = null,
 }: AvailabilityDayProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { control, formState: { errors } } = useFormContext();
@@ -91,7 +93,7 @@ export function AvailabilityDay({
             onValueChange={(isOpen) => {
               if (isOpen) {
                 if (fields.length === 0) {
-                  append({ weekday: day.weekday, barbermanId: null, range: { start: '08:00', end: '18:00' } });
+                  append({ weekday: day.weekday, barbermanId, range: barbermanId ? { start: '', end: '' } : { start: '08:00', end: '18:00' } });
                 }
               } else {
                 // Remove de trás pra frente pra não deslocar índices
@@ -201,7 +203,7 @@ export function AvailabilityDay({
                 },
               ]}
               onPress={() =>
-                append({ weekday: day.weekday, barbermanId: null, range: { start: '', end: '' } })
+                append({ weekday: day.weekday, barbermanId, range: { start: '', end: '' } })
               }
               disabled={disabled}
             />

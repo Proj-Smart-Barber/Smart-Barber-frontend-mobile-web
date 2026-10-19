@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Badge, Text } from '@/shared/ui';
-import { useNavigation } from '@/shared/navigation';
+import { useOptionalNavigation } from '@/shared/navigation';
 import { useSession } from '@/features/auth';
 import type { LocationSession } from '../model/location-provider';
 
@@ -22,13 +22,8 @@ export function ClientHeader({
   const { isExpanded } = useAdaptiveLayout();
   const { identity } = useSession();
   const router = useRouter();
-
-  let openDrawer: (() => void) | undefined;
-  try {
-    openDrawer = useNavigation().openDrawer;
-  } catch {
-    openDrawer = undefined;
-  }
+  const navigation = useOptionalNavigation();
+  const openDrawer = navigation?.openDrawer;
 
   const firstName = identity?.name
     ? identity.name.split(' ')[0]
@@ -248,7 +243,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 2,
+    minHeight: 32,
+    paddingVertical: 4,
     gap: 4,
   },
   locationStatusText: {
@@ -268,8 +264,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   avatarButton: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,

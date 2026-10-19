@@ -166,3 +166,7 @@ export function useNavigation(): NavigationContextValue {
   }
   return context;
 }
+
+export function useOptionalNavigation(): NavigationContextValue | null {
+  return useContext(NavigationContext);
+}
