@@ -49,12 +49,12 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
           const target = match ? fields[Number(match[1])] : undefined;
           if (target && match) {
             methods.setError(`days.${target.dayIndex}.entries.${target.entryIndex}.range.${match[2] === 'openTime' ? 'start' : 'end'}`,
-              { message: result.error.message });
+              { message: detail.reason ?? result.error.message });
             return;
           }
           const index = WEEKDAY_ORDER.findIndex(day => day === detail.dayOfWeek);
           if (index >= 0) methods.setError(`days.${index}.entries`, {
-            message: result.error.message,
+            message: detail.reason ?? result.error.message,
           });
         });
       } else setPending(result.kind);

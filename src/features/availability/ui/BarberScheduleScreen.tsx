@@ -184,7 +184,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           <Text variant="subhead" color={colors.text.primary}>Como funciona</Text>
                         </View>
                         <Text variant="bodySm" color={colors.text.secondary}>
-                          Seus horários devem estar dentro do expediente geral da unidade. Você pode criar pausas usando períodos separados.
+                          Cada período deve caber em um dos períodos de funcionamento da unidade. Se a unidade tiver dois períodos seguidos, divida sua jornada no mesmo horário.
                         </Text>
                         <Text variant="bodySm" color={colors.text.secondary}>
                           Os dias sem períodos são considerados folgas.

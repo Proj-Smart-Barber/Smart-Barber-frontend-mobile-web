@@ -9,18 +9,10 @@ export function barberScheduleSchema(opening: WeeklyScheduleEntry[]) {
     entries: scheduleDaySchema,
   })) }).superRefine(({ days }, ctx) => {
     days.forEach((day, dayIndex) => day.entries.forEach((entry, index) => {
-      // Adjacent opening periods form one continuous window; actual gaps stay closed.
-      const windows = opening.filter(general => general.barbermanId === null &&
-        general.weekday === day.weekday).map(general => ({ ...general.range }))
-        .sort((a, b) => a.start.localeCompare(b.start));
-      const merged: typeof windows = [];
-      for (const window of windows) {
-        const previous = merged[merged.length - 1];
-        if (previous && window.start <= previous.end) {
-          if (window.end > previous.end) previous.end = window.end;
-        } else merged.push(window);
-      }
-      const contained = merged.some(window => window.start <= entry.range.start && window.end >= entry.range.end);
+      // Match the HTTP contract: each shift must fit in one general period.
+      const contained = opening.some(general => general.barbermanId === null &&
+        general.weekday === day.weekday && general.range.start <= entry.range.start &&
+        general.range.end >= entry.range.end);
       if (!contained) ctx.addIssue({ code: 'custom',
         path: ['days', dayIndex, 'entries', index, 'range', 'end'],
         message: 'O intervalo deve estar dentro de um período de funcionamento da unidade.',

@@ -30,9 +30,10 @@ describe('Minha jornada — formulário', () => {
     expect(barberScheduleSchema([]).safeParse(scheduleForm([])).success).toBe(true);
     expect(barberScheduleSchema([]).safeParse(scheduleForm([entry()])).success).toBe(false);
   });
-  it('aceita a união de períodos gerais contíguos sem inventar uma pausa', () => {
+  it('exige um único período geral por turno, como o backend', () => {
     const contiguous = [entry('08:00', '12:00', null), entry('12:00', '18:00', null)];
-    expect(barberScheduleSchema(contiguous).safeParse(scheduleForm([entry('09:00', '17:00')])).success).toBe(true);
+    expect(barberScheduleSchema(contiguous).safeParse(scheduleForm([entry('09:00', '17:00')])).success).toBe(false);
+    expect(barberScheduleSchema(contiguous).safeParse(scheduleForm([entry('09:00', '12:00'), entry('12:00', '17:00')])).success).toBe(true);
   });
   it('ignora horários de outro profissional ao validar abertura', () => {
     expect(barberScheduleSchema([entry()]).safeParse(scheduleForm([entry()])).success).toBe(false);

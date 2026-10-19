@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { httpClient } from '@/shared/api';
+import { ApiError, httpClient } from '@/shared/api';
 import { AvailabilityHttpAdapter } from '../api/availability.http';
+import { saveBarberSchedule } from '../model/save-barber-schedule';
 
 const SHOP_ID = '0f470c91-15b9-4ac4-9d28-9e486ecfb732';
 
@@ -213,5 +214,43 @@ describe('AvailabilityHttpAdapter — contrato real feat/availability-engine', (
       },
     );
     expect(slots).toHaveLength(1);
+  });
+});
+
+
+describe('recuperação de gravação no adapter HTTP', () => {
+  afterEach(() => vi.restoreAllMocks());
+  it.each([500, 0])('PUT 200 + GET %s mantém confirmação e não repete escrita', async status => {
+    const put = vi.spyOn(httpClient, 'put').mockResolvedValue({ message: 'ok' });
+    const get = vi.spyOn(httpClient, 'get').mockRejectedValue(new ApiError('Falha', status, null, status === 0));
+    const result = await saveBarberSchedule(new AvailabilityHttpAdapter(), SHOP_ID, 'barber', []);
+    expect(result.kind).toBe('unconfirmed-view');
+    expect(result.message).toContain('Jornada salva');
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+  it('PUT rejeitado não consulta nem informa sucesso', async () => {
+    vi.spyOn(httpClient, 'put').mockRejectedValue(new ApiError('Conflito', 409, {
+      error: 'Reserva incompatível', code: 'SCHEDULE_BOOKING_CONFLICT', conflicts: [],
+    }));
+    const get = vi.spyOn(httpClient, 'get');
+    const result = await saveBarberSchedule(new AvailabilityHttpAdapter(), SHOP_ID, 'barber', []);
+    expect(result.kind).toBe('rejected');
+    if (result.kind === 'rejected') expect(result.error.code).toBe('SCHEDULE_BOOKING_CONFLICT');
+    expect(get).not.toHaveBeenCalled();
+  });
+  it('PUT incerto reconcilia por GET sem repetir escrita', async () => {
+    const put = vi.spyOn(httpClient, 'put').mockRejectedValue(new ApiError('Timeout', 0, null, true));
+    const get = vi.spyOn(httpClient, 'get').mockResolvedValue({ schedules: [] });
+    const result = await saveBarberSchedule(new AvailabilityHttpAdapter(), SHOP_ID, 'barber', []);
+    expect(result.kind).toBe('saved');
+    expect(put).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+  it('PUT incerto e GET indisponível continuam pendentes', async () => {
+    const put = vi.spyOn(httpClient, 'put').mockRejectedValue(new ApiError('Timeout', 0, null, true));
+    vi.spyOn(httpClient, 'get').mockRejectedValue(new ApiError('Falha', 500));
+    expect((await saveBarberSchedule(new AvailabilityHttpAdapter(), SHOP_ID, 'barber', [])).kind).toBe('unknown');
+    expect(put).toHaveBeenCalledTimes(1);
   });
 });

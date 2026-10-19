@@ -4,6 +4,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AvailabilityMockAdapter } from '../api/availability.mock';
+import { ApiError } from '@/shared/api/api-errors';
 import { BarberScheduleError } from '../api/barber-schedule-error';
 import type { WeeklyScheduleEntry } from '../api/availability.contract';
 
@@ -84,6 +85,43 @@ describe('jornada pessoal integrada ao formulário e cache', () => {
     await act(() => result.current.save(result.current.methods.getValues()));
     expect(result.current.pending).toBe('unknown');
     expect(result.current.isDirty).toBe(true);
+    await act(() => result.current.save(result.current.methods.getValues()));
+    expect(write).toHaveBeenCalledTimes(1);
+    await act(() => result.current.reconcile());
+    expect(result.current.pending).toBeNull();
+    expect(result.current.isDirty).toBe(false);
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe('erros reais no formulário', () => {
+  it('associa cada issue Zod ao horário correspondente', async () => {
+    const { result } = renderEditor();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.methods.setValue('days.0.entries', [entry], { shouldDirty: true }));
+    vi.spyOn(repo, 'saveWeeklySchedule').mockRejectedValue(new ApiError('HTTP 400', 400, {
+      errors: [
+        { path: ['schedules', 0, 'openTime'], message: 'Abertura inválida.' },
+        { path: ['schedules', 0, 'closeTime'], message: 'Fechamento inválido.' },
+      ],
+    }));
+    await act(() => result.current.save(result.current.methods.getValues()));
+    expect(result.current.methods.getFieldState('days.0.entries.0.range.start').error?.message).toBe('Abertura inválida.');
+    expect(result.current.methods.getFieldState('days.0.entries.0.range.end').error?.message).toBe('Fechamento inválido.');
+    expect(result.current.isDirty).toBe(true);
+  });
+
+  it('gravação confirmada com releitura falha bloqueia outro PUT até consultar', async () => {
+    const { result } = renderEditor();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.methods.setValue('days.0.entries', [entry], { shouldDirty: true }));
+    repo.failNextSchedule('write', 'fixture-shop', 'fixture-user',
+      new BarberScheduleError('Releitura falhou', 500, 'SCHEDULE_REFETCH_FAILED', 'saved'));
+    const write = vi.spyOn(repo, 'saveWeeklySchedule');
+    await act(() => result.current.save(result.current.methods.getValues()));
+    expect(result.current.pending).toBe('unconfirmed-view');
+    expect(result.current.feedback).toContain('Jornada salva');
     await act(() => result.current.save(result.current.methods.getValues()));
     expect(write).toHaveBeenCalledTimes(1);
     await act(() => result.current.reconcile());

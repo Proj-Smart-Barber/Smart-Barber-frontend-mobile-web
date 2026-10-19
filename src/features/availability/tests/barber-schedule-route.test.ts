@@ -21,7 +21,7 @@ describe('rota pessoal na sessão atual', () => {
     state.session.selectedShopId = 'shop-A';
     state.session.memberships = [{ id: 'shop-A', role: 'BARBERMAN', state: 'ACTIVE' }];
     state.session.barbershop = { id: 'shop-A' };
-    state.env.AVAILABILITY_SOURCE = 'mock';
+    state.env.AVAILABILITY_SOURCE = 'http';
   });
   it('usa users.id da identidade, nunca o id de staff', () => {
     const view = MyScheduleRoute();
@@ -54,8 +54,11 @@ describe('rota pessoal na sessão atual', () => {
     state.session.memberships[0].role = 'OWNER';
     expect(MyScheduleRoute().type).toBe(RouteScreen);
   });
-  it('não ativa integração HTTP antes da homologação', () => {
-    state.env.AVAILABILITY_SOURCE = 'http';
-    expect(MyScheduleRoute().type).toBe(ErrorState);
+  it.each(['http', 'mock'])('abre a jornada autorizada em modo %s', source => {
+    state.env.AVAILABILITY_SOURCE = source;
+    const view = MyScheduleRoute();
+    expect(view.type).toBe(RouteScreen);
+    expect(view.props.barbermanId).toBe('user-A');
+    expect(view.props.barbershopId).toBe('shop-A');
   });
 });

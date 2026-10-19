@@ -5,6 +5,7 @@
  * 2026-09-13. A UI/domínio continua independente dos detalhes de transporte.
  */
 import { ApiError, httpClient } from '@/shared/api';
+import { BarberScheduleError, normalizeBarberScheduleError } from './barber-schedule-error';
 import type { Barbershop } from '@/entities/barbershop';
 import type {
   AvailabilityException,
@@ -194,7 +195,15 @@ export class AvailabilityHttpAdapter implements IAvailabilityRepository {
 
     // O PUT faz replace atômico e retorna apenas mensagem. Recarregamos o
     // escopo persistido para manter o cache do frontend autoritativo.
-    return this.getWeeklySchedule(barbershopId, scopeBarbermanId);
+    try {
+      return await this.getWeeklySchedule(barbershopId, scopeBarbermanId);
+    } catch (cause) {
+      const error = normalizeBarberScheduleError(cause);
+      throw new BarberScheduleError(
+        'Jornada salva, mas não foi possível atualizar a visualização.',
+        error.status, 'SCHEDULE_REFETCH_FAILED', 'saved', error.details, error.conflicts,
+      );
+    }
   }
 
   async listExceptions(
