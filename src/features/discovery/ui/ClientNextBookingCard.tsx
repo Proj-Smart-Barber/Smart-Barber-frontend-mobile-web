@@ -77,7 +77,12 @@ export function ClientNextBookingCard({
   // Estado de Carregamento
   if (isLoading) {
     return (
-      <LiquidGlassView style={[styles.container, { borderRadius: radius.lg }]}>
+      <LiquidGlassView
+        variant="card"
+        borderRadius={radius.lg}
+        style={styles.outerContainer}
+        contentStyle={styles.cardContent}
+      >
         <Skeleton width="40%" height={16} style={{ marginBottom: 12 }} />
         <Skeleton width="70%" height={22} style={{ marginBottom: 8 }} />
         <Skeleton width="50%" height={14} style={{ marginBottom: 16 }} />
@@ -89,7 +94,12 @@ export function ClientNextBookingCard({
   // Estado de Erro da Consulta
   if (isError) {
     return (
-      <LiquidGlassView style={[styles.container, { borderRadius: radius.lg }]}>
+      <LiquidGlassView
+        variant="card"
+        borderRadius={radius.lg}
+        style={styles.outerContainer}
+        contentStyle={styles.cardContent}
+      >
         <View style={styles.errorRow}>
           <Ionicons
             name="alert-circle-outline"
@@ -121,13 +131,18 @@ export function ClientNextBookingCard({
   // Estado Sem Agendamentos Elegíveis
   if (!booking) {
     return (
-      <LiquidGlassView style={[styles.container, { borderRadius: radius.lg }]}>
+      <LiquidGlassView
+        variant="card"
+        borderRadius={radius.lg}
+        style={styles.outerContainer}
+        contentStyle={styles.cardContent}
+      >
         <View style={styles.emptyContent}>
           <View
             style={[
               styles.emptyIconBadge,
               {
-                backgroundColor: colors.surface.default,
+                backgroundColor: colors.surface.input,
                 borderColor: colors.border.subtle,
                 borderRadius: radius.full,
               },
@@ -147,6 +162,7 @@ export function ClientNextBookingCard({
         <Button
           title="Encontrar barbearia"
           variant="primary"
+          leftIcon={<Ionicons name="compass-outline" size={18} color="#FFFFFF" />}
           onPress={onFindBarbershop || (() => router.push('/(client)/explore'))}
           style={styles.ctaButton}
         />
@@ -160,14 +176,12 @@ export function ClientNextBookingCard({
 
   return (
     <LiquidGlassView
-      style={[
-        styles.container,
-        {
-          borderRadius: radius.lg,
-          borderColor: colors.brand.primary,
-          borderWidth: 1.5,
-        },
-      ]}
+      variant="card"
+      borderRadius={radius.lg}
+      borderColor={colors.brand.primary}
+      borderWidth={1.5}
+      style={styles.outerContainer}
+      contentStyle={styles.cardContent}
     >
       <View style={styles.headerRow}>
         <View style={styles.tagBadge}>
@@ -219,9 +233,11 @@ export function ClientNextBookingCard({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 18,
+  outerContainer: {
     marginVertical: 10,
+  },
+  cardContent: {
+    padding: 18,
   },
   headerRow: {
     flexDirection: 'row',

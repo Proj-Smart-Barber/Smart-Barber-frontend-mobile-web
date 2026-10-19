@@ -14,6 +14,7 @@ import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { useNavigation } from '@/shared/navigation';
 import {
   ClientSearchEntry,
   BarbershopCard,
@@ -26,9 +27,16 @@ import {
 
 export default function ClientExploreScreen() {
   const { colors, spacing, radius } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
+  const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  let openDrawer: (() => void) | undefined;
+  try {
+    openDrawer = useNavigation().openDrawer;
+  } catch {
+    openDrawer = undefined;
+  }
 
   const [mapModalVisible, setMapModalVisible] = useState(false);
 
@@ -49,13 +57,13 @@ export default function ClientExploreScreen() {
   };
 
   return (
-    <View style={[styles.screenContainer, { backgroundColor: colors.background.primary }]}>
+    <View style={[styles.screenContainer, { backgroundColor: 'transparent' }]}>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           {
             paddingTop: Math.max(insets.top, 16),
-            paddingBottom: isCompact ? insets.bottom + 80 : 32,
+            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
             paddingHorizontal: isCompact ? 16 : 32,
           },
         ]}
@@ -69,26 +77,46 @@ export default function ClientExploreScreen() {
         }
       >
         <View style={styles.contentConstraint}>
-          {/* Topo: Título e Botão Mapa */}
+          {/* Topo: Menu Mobile + Título + Botão Mapa */}
           <View style={styles.headerRow}>
-            <View style={styles.titleCol}>
-              <Text variant="h2" style={styles.headerTitle}>
-                Explorar Barbearias
-              </Text>
-              <Text variant="caption" color={colors.text.secondary}>
-                Encontre barbearias para agendar seu próximo corte
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              {!isExpanded && openDrawer ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir menu de navegação"
+                  onPress={openDrawer}
+                  style={({ pressed }) => [
+                    styles.menuButton,
+                    {
+                      borderRadius: radius.md,
+                      backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                      borderColor: colors.border.default,
+                    },
+                  ]}
+                >
+                  <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+                </Pressable>
+              ) : null}
+
+              <View style={styles.titleCol}>
+                <Text variant="h2" style={styles.headerTitle}>
+                  Explorar Barbearias
+                </Text>
+                <Text variant="caption" color={colors.text.secondary}>
+                  Encontre barbearias para agendar seu próximo corte
+                </Text>
+              </View>
             </View>
 
             <Pressable
               onPress={() => setMapModalVisible(true)}
               accessibilityRole="button"
               accessibilityLabel="Ver barbearias no mapa"
-              style={[
+              style={({ pressed }) => [
                 styles.mapButton,
                 {
-                  backgroundColor: colors.surface.default,
-                  borderColor: colors.border.subtle,
+                  backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                  borderColor: colors.border.default,
                   borderRadius: radius.md,
                 },
               ]}
@@ -240,9 +268,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
+    gap: 12,
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   titleCol: {
     flex: 1,
+    minWidth: 0,
   },
   headerTitle: {
     fontWeight: '800',
@@ -250,7 +288,8 @@ const styles = StyleSheet.create({
   mapButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    minHeight: 44,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
     gap: 6,

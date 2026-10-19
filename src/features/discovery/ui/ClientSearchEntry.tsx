@@ -22,11 +22,16 @@ export function ClientSearchEntry({
   isReadOnlyButton = false,
   placeholder = 'Buscar barbearia ou endereço...',
 }: ClientSearchEntryProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, radius } = useTheme();
 
   if (isReadOnlyButton) {
     return (
-      <LiquidGlassView style={[styles.container, { borderRadius: radius.full }]}>
+      <LiquidGlassView
+        variant="card"
+        borderRadius={radius.lg}
+        style={styles.outerWrapper}
+        contentStyle={styles.contentContainer}
+      >
         <Pressable
           onPress={onPressPlaceholder}
           accessibilityRole="button"
@@ -40,20 +45,37 @@ export function ClientSearchEntry({
             style={styles.searchIcon}
           />
           <Text
-            variant="body"
+            variant="bodySm"
             color={colors.text.secondary}
             numberOfLines={1}
             style={styles.placeholderText}
           >
             {value || placeholder}
           </Text>
+          <View
+            style={[
+              styles.actionChip,
+              {
+                backgroundColor: colors.surface.input,
+                borderColor: colors.border.subtle,
+                borderRadius: radius.sm,
+              },
+            ]}
+          >
+            <Ionicons name="options-outline" size={16} color={colors.brand.primary} />
+          </View>
         </Pressable>
       </LiquidGlassView>
     );
   }
 
   return (
-    <LiquidGlassView style={[styles.container, { borderRadius: radius.full }]}>
+    <LiquidGlassView
+      variant="card"
+      borderRadius={radius.lg}
+      style={styles.outerWrapper}
+      contentStyle={styles.contentContainer}
+    >
       <View style={styles.inputRow}>
         <Ionicons
           name="search-outline"
@@ -93,20 +115,27 @@ export function ClientSearchEntry({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  outerWrapper: {
     marginVertical: 8,
+    minHeight: 50,
+  },
+  contentContainer: {
+    minHeight: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    justifyContent: 'center',
   },
   pressableContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
+    minHeight: 30,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
+    minHeight: 30,
   },
   searchIcon: {
     marginRight: 10,
@@ -114,14 +143,25 @@ const styles = StyleSheet.create({
   placeholderText: {
     flex: 1,
   },
+  actionChip: {
+    width: 30,
+    height: 30,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
   nativeInput: {
     flex: 1,
     fontSize: 15,
+    minHeight: 28,
     padding: 0,
     margin: 0,
     outlineStyle: 'none' as any,
   },
   clearButton: {
     marginLeft: 8,
+    padding: 4,
   },
 });
+

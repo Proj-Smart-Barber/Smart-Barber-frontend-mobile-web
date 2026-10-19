@@ -25,24 +25,35 @@ export function DiscoveryFilters({
   isLocationAvailable,
   onRequestLocation,
 }: DiscoveryFiltersProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, radius } = useTheme();
 
   return (
     <View style={styles.container}>
-      {/* Seletor de Modo (Todas / Perto de mim) */}
-      <LiquidGlassView style={[styles.modeToggle, { borderRadius: radius.full }]}>
+      {/* Seletor de Modo Horizontal (Todas / Perto de mim) */}
+      <LiquidGlassView
+        variant="card"
+        borderRadius={radius.lg}
+        style={styles.modeToggleOuter}
+        contentStyle={styles.modeToggleContent}
+      >
         <Pressable
           onPress={() => onModeChange('ALL')}
           accessibilityRole="tab"
           accessibilityState={{ selected: mode === 'ALL' }}
           style={[
             styles.modeButton,
+            { borderRadius: radius.md },
             mode === 'ALL' && {
               backgroundColor: colors.brand.primary,
-              borderRadius: radius.full,
             },
           ]}
         >
+          <Ionicons
+            name={mode === 'ALL' ? 'grid' : 'grid-outline'}
+            size={14}
+            color={mode === 'ALL' ? '#FFFFFF' : colors.text.secondary}
+            style={styles.modeIcon}
+          />
           <Text
             variant="caption"
             style={[
@@ -65,15 +76,15 @@ export function DiscoveryFilters({
           accessibilityState={{ selected: mode === 'NEARBY' }}
           style={[
             styles.modeButton,
+            { borderRadius: radius.md },
             mode === 'NEARBY' && {
               backgroundColor: colors.brand.primary,
-              borderRadius: radius.full,
             },
           ]}
         >
           <Ionicons
             name="navigate"
-            size={13}
+            size={14}
             color={mode === 'NEARBY' ? '#FFFFFF' : colors.text.secondary}
             style={styles.modeIcon}
           />
@@ -93,7 +104,7 @@ export function DiscoveryFilters({
       {mode === 'NEARBY' && (
         <View style={styles.radiusRow}>
           <Text variant="caption" color={colors.text.secondary} style={styles.radiusLabel}>
-            Raio:
+            Raio de busca:
           </Text>
           <View style={styles.radiusButtonsGroup}>
             {RADIUS_OPTIONS.map((opt) => {
@@ -109,9 +120,9 @@ export function DiscoveryFilters({
                     {
                       borderColor: isSelected ? colors.brand.primary : colors.border.subtle,
                       backgroundColor: isSelected
-                        ? colors.surface.selected
-                        : colors.surface.default,
-                      borderRadius: radius.sm,
+                        ? colors.brand.primary
+                        : colors.surface.input,
+                      borderRadius: radius.md,
                     },
                   ]}
                 >
@@ -120,8 +131,8 @@ export function DiscoveryFilters({
                     style={[
                       styles.radiusPillText,
                       {
-                        color: isSelected ? colors.brand.primary : colors.text.secondary,
-                        fontWeight: isSelected ? '700' : '400',
+                        color: isSelected ? '#FFFFFF' : colors.text.secondary,
+                        fontWeight: isSelected ? '700' : '500',
                       },
                     ]}
                   >
@@ -139,44 +150,56 @@ export function DiscoveryFilters({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
+    marginVertical: 4,
     gap: 12,
   },
-  modeToggle: {
-    flexDirection: 'row',
-    padding: 3,
+  modeToggleOuter: {
     alignSelf: 'flex-start',
+  },
+  modeToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+    gap: 4,
   },
   modeButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
     paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
   modeIcon: {
     marginRight: 6,
   },
   modeText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   radiusRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 8,
   },
   radiusLabel: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
   radiusButtonsGroup: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
   },
   radiusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   radiusPillText: {
     fontSize: 12,
   },
 });
+

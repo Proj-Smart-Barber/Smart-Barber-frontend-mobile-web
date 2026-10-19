@@ -17,7 +17,10 @@ export function DiscoverySkeleton({ count = 3 }: DiscoverySkeletonProps = {}) {
       {keys.map((key) => (
         <LiquidGlassView
           key={key}
-          style={[styles.card, { borderRadius: radius.lg, marginBottom: spacing[3] }]}
+          variant="card"
+          borderRadius={radius.lg}
+          style={{ marginBottom: spacing[3] }}
+          contentStyle={styles.card}
         >
           <View style={styles.row}>
             <Skeleton width={64} height={64} style={{ borderRadius: radius.md }} />

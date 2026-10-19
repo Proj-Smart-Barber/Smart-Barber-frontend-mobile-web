@@ -2,8 +2,10 @@ import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/shared/theme';
-import { Text } from '@/shared/ui/Text';
+import { BrandMark } from '@/shared/brand';
+import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { Badge, Text } from '@/shared/ui';
+import { useNavigation } from '@/shared/navigation';
 import { useSession } from '@/features/auth';
 import type { LocationSession } from '../model/location-provider';
 
@@ -16,13 +18,30 @@ export function ClientHeader({
   locationSession,
   onRequestLocation,
 }: ClientHeaderProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
+  const { isExpanded } = useAdaptiveLayout();
   const { identity } = useSession();
   const router = useRouter();
+
+  let openDrawer: (() => void) | undefined;
+  try {
+    openDrawer = useNavigation().openDrawer;
+  } catch {
+    openDrawer = undefined;
+  }
 
   const firstName = identity?.name
     ? identity.name.split(' ')[0]
     : 'Cliente';
+
+  const initials = identity?.name
+    ? identity.name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0].toUpperCase())
+        .join('')
+    : 'CL';
 
   const getLocationStatusText = () => {
     if (!locationSession) return 'Ativar localização';
@@ -43,67 +62,110 @@ export function ClientHeader({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
+        },
+      ]}
+    >
       <View style={styles.topRow}>
-        {/* Saudação e Localização */}
-        <View style={styles.greetingCol}>
-          <Text variant="caption" color={colors.text.secondary}>
-            Olá, {firstName} 👋
-          </Text>
-          <Pressable
-            onPress={onRequestLocation}
-            accessibilityRole="button"
-            accessibilityLabel="Gerenciar permissão de localização"
-            style={styles.locationButton}
-          >
-            <Ionicons
-              name={
-                locationSession?.state === 'granted'
-                  ? 'location'
-                  : 'location-outline'
-              }
-              size={14}
-              color={
-                locationSession?.state === 'granted'
-                  ? colors.brand.primary
-                  : colors.text.secondary
-              }
-            />
-            <Text
-              variant="caption"
-              style={[
-                styles.locationStatusText,
+        {/* Lado Esquerdo: Hamburger (mobile) + BrandMark + Saudação + Localização */}
+        <View style={[styles.leftGroup, { gap: spacing[3] }]}>
+          {!isExpanded && openDrawer ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abrir menu de navegação"
+              onPress={openDrawer}
+              style={({ pressed }) => [
+                styles.menuButton,
                 {
-                  color:
-                    locationSession?.state === 'granted'
-                      ? colors.brand.primary
-                      : colors.text.secondary,
+                  borderRadius: radius.md,
+                  backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                  borderColor: colors.border.default,
                 },
               ]}
-              numberOfLines={1}
             >
-              {getLocationStatusText()}
-            </Text>
-            <Ionicons
-              name="chevron-down"
-              size={12}
-              color={colors.text.secondary}
-            />
-          </Pressable>
+              <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
+            </Pressable>
+          ) : null}
+
+          {!isExpanded && (
+            <View style={{ flexShrink: 0 }}>
+              <BrandMark
+                variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+                size={32}
+                decorative={false}
+                accessibilityLabel="Smart Barber Logo"
+              />
+            </View>
+          )}
+
+          <View style={styles.greetingCol}>
+            <View style={styles.greetingRow}>
+              <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                Olá, {firstName}
+              </Text>
+              <Badge label="Cliente" tone="brand" />
+            </View>
+
+            <Pressable
+              onPress={onRequestLocation}
+              accessibilityRole="button"
+              accessibilityLabel="Gerenciar permissão de localização"
+              hitSlop={8}
+              style={styles.locationButton}
+            >
+              <Ionicons
+                name={
+                  locationSession?.state === 'granted'
+                    ? 'location'
+                    : 'location-outline'
+                }
+                size={14}
+                color={
+                  locationSession?.state === 'granted'
+                    ? colors.brand.primary
+                    : colors.text.secondary
+                }
+              />
+              <Text
+                variant="caption"
+                style={[
+                  styles.locationStatusText,
+                  {
+                    color:
+                      locationSession?.state === 'granted'
+                        ? colors.brand.primary
+                        : colors.text.secondary,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {getLocationStatusText()}
+              </Text>
+              <Ionicons
+                name="chevron-down"
+                size={12}
+                color={colors.text.secondary}
+              />
+            </Pressable>
+          </View>
         </View>
 
-        {/* Notificações e Perfil */}
+        {/* Lado Direito: Notificações + Avatar com borda Crimson */}
         <View style={styles.actionsRow}>
           <Pressable
             onPress={() => router.push('/(client)/notifications')}
             accessibilityRole="button"
             accessibilityLabel="Ver notificações"
-            style={[
+            style={({ pressed }) => [
               styles.iconButton,
               {
-                backgroundColor: colors.surface.default,
-                borderColor: colors.border.subtle,
-                borderRadius: radius.full,
+                backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
+                borderColor: colors.border.default,
+                borderRadius: radius.md,
               },
             ]}
           >
@@ -121,17 +183,18 @@ export function ClientHeader({
             style={[
               styles.avatarButton,
               {
-                backgroundColor: colors.surface.input,
-                borderColor: colors.border.subtle,
+                backgroundColor: colors.surface.elevated,
+                borderColor: colors.brand.primary,
                 borderRadius: radius.full,
               },
             ]}
           >
             <Text
               variant="caption"
+              weight="bold"
               style={[styles.avatarInitial, { color: colors.text.primary }]}
             >
-              {firstName.charAt(0).toUpperCase()}
+              {initials}
             </Text>
           </Pressable>
         </View>
@@ -143,20 +206,46 @@ export function ClientHeader({
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    marginBottom: 8,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
+  },
+  leftGroup: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   greetingCol: {
     flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
+    gap: 2,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 3,
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
     gap: 4,
   },
   locationStatusText: {
@@ -166,23 +255,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flexShrink: 0,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
   },
   avatarButton: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   avatarInitial: {
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 13,
   },
 });
+

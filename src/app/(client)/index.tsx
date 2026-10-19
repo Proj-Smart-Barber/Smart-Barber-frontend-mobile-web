@@ -25,7 +25,7 @@ import {
 
 export default function ClientHomeScreen() {
   const { colors, spacing, radius } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
+  const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -56,13 +56,13 @@ export default function ClientHomeScreen() {
   const remainingItems = discovery.items.slice(4, 10);
 
   return (
-    <View style={[styles.screenContainer, { backgroundColor: colors.background.primary }]}>
+    <View style={[styles.screenContainer, { backgroundColor: 'transparent' }]}>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           {
             paddingTop: Math.max(insets.top, 16),
-            paddingBottom: isCompact ? insets.bottom + 80 : 32,
+            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
             paddingHorizontal: isCompact ? 16 : 32,
           },
         ]}
@@ -108,7 +108,7 @@ export default function ClientHomeScreen() {
               style={[
                 styles.locationBanner,
                 {
-                  backgroundColor: colors.surface.default,
+                  backgroundColor: colors.surface.input,
                   borderColor: colors.border.subtle,
                   borderRadius: radius.md,
                 },
@@ -121,7 +121,7 @@ export default function ClientHomeScreen() {
                 style={styles.bannerIcon}
               />
               <View style={styles.bannerTextCol}>
-                <Text variant="caption" weight="medium" color={colors.text.primary}>
+                <Text variant="caption" weight="bold" color={colors.text.primary}>
                   Ver barbearias mais próximas de você
                 </Text>
                 <Text variant="caption" color={colors.text.secondary}>
@@ -184,6 +184,7 @@ export default function ClientHomeScreen() {
               <Button
                 title="Ver no mapa"
                 variant="outline"
+                leftIcon={<Ionicons name="map-outline" size={16} color={colors.text.primary} />}
                 onPress={() => setMapModalVisible(true)}
                 style={styles.mapActionButton}
               />
@@ -193,7 +194,7 @@ export default function ClientHomeScreen() {
           {/* 5. Seção secundária: Conheça outras barbearias (se houver itens adicionais) */}
           {!discovery.isLoading && remainingItems.length > 0 && (
             <View style={styles.secondarySection}>
-              <Text variant="body" weight="medium" style={styles.secondaryTitle}>
+              <Text variant="body" weight="bold" style={styles.secondaryTitle}>
                 Conheça outras barbearias
               </Text>
               <View style={styles.cardsGrid}>
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   },
   contentConstraint: {
     width: '100%',
-    maxWidth: 720,
+    maxWidth: 960,
   },
   locationBanner: {
     flexDirection: 'row',
