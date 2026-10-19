@@ -1,13 +1,19 @@
 import React from 'react';
 import { Stack } from 'expo-router';
+import { useTheme } from '@/shared/theme';
 import { NavigationShell } from '@/shared/navigation';
 
 export default function AppLayoutGroup() {
+  const { colors } = useTheme();
+
   return (
     <NavigationShell>
       <Stack
         screenOptions={{
           headerShown: false,
+          contentStyle: {
+            backgroundColor: colors.background.primary,
+          },
         }}
       >
         <Stack.Screen name="index" />

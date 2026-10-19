@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Platform,
   View,
   ScrollView,
   StyleSheet,
@@ -26,17 +27,30 @@ import {
 } from '@/features/discovery';
 
 export default function ClientExploreScreen() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
   let openDrawer: (() => void) | undefined;
+  let onContentScroll: ((event: any) => void) | undefined;
   try {
-    openDrawer = useNavigation().openDrawer;
+    const nav = useNavigation();
+    openDrawer = nav.openDrawer;
+    onContentScroll = nav.onContentScroll;
   } catch {
     openDrawer = undefined;
+    onContentScroll = undefined;
   }
+
+  const webBackgroundStyle: any =
+    Platform.OS === 'web'
+      ? {
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+            : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+      : {};
 
   const [mapModalVisible, setMapModalVisible] = useState(false);
 
@@ -57,8 +71,16 @@ export default function ClientExploreScreen() {
   };
 
   return (
-    <View style={[styles.screenContainer, { backgroundColor: 'transparent' }]}>
+    <View
+      style={[
+        styles.screenContainer,
+        { backgroundColor: colors.background.primary },
+        webBackgroundStyle,
+      ]}
+    >
       <ScrollView
+        onScroll={onContentScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           styles.scrollContent,
           {

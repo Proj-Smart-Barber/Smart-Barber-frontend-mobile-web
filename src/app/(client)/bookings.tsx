@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
+import { Platform, View, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import type { BookingDto } from '../../features/bookings/api/bookings.dto';
 type TabFilter = 'upcoming' | 'past' | 'all';
 
 export default function ClientBookingsScreen() {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -23,11 +23,24 @@ export default function ClientBookingsScreen() {
   const [activeTab, setActiveTab] = useState<TabFilter>('upcoming');
 
   let openDrawer: (() => void) | undefined;
+  let onContentScroll: ((event: any) => void) | undefined;
   try {
-    openDrawer = useNavigation().openDrawer;
+    const nav = useNavigation();
+    openDrawer = nav.openDrawer;
+    onContentScroll = nav.onContentScroll;
   } catch {
     openDrawer = undefined;
+    onContentScroll = undefined;
   }
+
+  const webBackgroundStyle: any =
+    Platform.OS === 'web'
+      ? {
+          backgroundImage: isDark
+            ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+            : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+      : {};
 
   const {
     bookings,
@@ -48,7 +61,13 @@ export default function ClientBookingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: 'transparent' }]}>
+      <View
+        style={[
+          styles.center,
+          { backgroundColor: colors.background.primary },
+          webBackgroundStyle,
+        ]}
+      >
         <Spinner size="large" />
       </View>
     );
@@ -62,7 +81,13 @@ export default function ClientBookingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.background.primary },
+        webBackgroundStyle,
+      ]}
+    >
       <View
         style={[
           styles.header,
@@ -154,6 +179,8 @@ export default function ClientBookingsScreen() {
         <FlatList
           data={displayedItems}
           keyExtractor={(item) => item.id}
+          onScroll={onContentScroll}
+          scrollEventThrottle={16}
           renderItem={({ item }) => (
             <View style={styles.contentConstraint}>
               <BookingCard
