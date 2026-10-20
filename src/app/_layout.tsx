@@ -104,7 +104,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     return (
       <>
         <StatusBar style="light" />
-        <Slot />
+        <Slot key="route-content" />
       </>
     );
   }
@@ -149,7 +149,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
         sessionState={status}
       />
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Slot />
+      <Slot key="route-content" />
     </>
   );
 }

@@ -15,6 +15,9 @@ export default function AccountNotificationDetailScreen() {
   const router = useRouter();
   const { colors, spacing } = useTheme();
   const { identity } = useSession();
+  const notificationsRoute = identity?.accountType === 'CLIENT'
+    ? '/(client)/notifications'
+    : '/(account)/notifications';
   const { notificationId } = useLocalSearchParams<{ notificationId: string }>();
 
   const hasMarkedReadRef = useRef(false);
@@ -56,7 +59,7 @@ export default function AccountNotificationDetailScreen() {
           title="Voltar"
           variant="outline"
           style={{ marginTop: spacing.md }}
-          onPress={() => router.back()}
+          onPress={() => router.replace(notificationsRoute)}
         />
       </View>
     );
@@ -69,7 +72,7 @@ export default function AccountNotificationDetailScreen() {
           title="← Voltar para notificações"
           variant="ghost"
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.replace(notificationsRoute)}
         />
 
         <Card style={styles.card}>

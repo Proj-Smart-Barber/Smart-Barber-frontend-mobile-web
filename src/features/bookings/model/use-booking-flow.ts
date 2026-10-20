@@ -75,10 +75,8 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   // 1. Consulta dos serviços da barbearia
   const servicesQuery = useQuery({
     queryKey: ['services', 'public', shopId],
-    queryFn: async () => {
-      const res = await servicesApi.listServices(shopId, { limit: 100, includeInactive: false });
-      return res.items || [];
-    },
+    queryFn: () => servicesApi.listServices(shopId, { limit: 100, includeInactive: false }),
+    select: (response) => response.items,
     enabled: Boolean(shopId),
   });
 
