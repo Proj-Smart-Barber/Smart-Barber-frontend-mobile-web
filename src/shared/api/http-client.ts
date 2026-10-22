@@ -58,6 +58,7 @@ export class HttpClient {
       params,
       token,
       timeoutMs = this.defaultTimeoutMs,
+      signal: callerSignal,
       ...rest
     } = options;
 
@@ -89,6 +90,9 @@ export class HttpClient {
     }
 
     const controller = new AbortController();
+    const abortFromCaller = () => controller.abort();
+    if (callerSignal?.aborted) controller.abort();
+    else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     let serializedBody: BodyInit | null | undefined = undefined;
@@ -166,6 +170,8 @@ export class HttpClient {
         : err.message || 'Erro inesperado na comunicação HTTP.';
 
       throw new ApiError(message, 0, null, true);
+    } finally {
+      callerSignal?.removeEventListener('abort', abortFromCaller);
     }
   }
 

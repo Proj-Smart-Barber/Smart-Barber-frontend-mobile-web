@@ -5,7 +5,6 @@ import { servicesApi } from '@/features/services/api/services.api';
 import { barbershopApi } from '@/features/barbershop';
 import {
   listBarbershopProfessionals,
-  getBookingAvailability,
   createBooking,
   createOperationalBooking,
   rescheduleBooking,
@@ -20,6 +19,7 @@ import type {
 } from './booking-flow.types';
 import { BookingFlowEngine } from './booking-draft';
 import { serverClock } from '../lib/server-clock';
+import { useBookingAvailability } from './use-booking-availability';
 import { bookingOperationEngine } from './booking-operation-engine';
 import { operationAttemptStore } from '@/shared/operations/operation-attempt-store';
 import type { BookingDto, ProfessionalDto } from '../api/bookings.dto';
@@ -99,35 +99,25 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   });
 
   // 4. Consulta de disponibilidade de horários
-  const availabilityQuery = useQuery({
-    queryKey: bookingQueryKeys.availability(shopId, {
-      date: selectedDate || '',
-      serviceIds: selectedServiceIds,
-      barbermanId: selectedProfessionalId || undefined,
-    }),
-    queryFn: async () => {
-      if (!selectedDate || selectedServiceIds.length === 0 || !selectedProfessionalId) {
-        return { slots: [] };
-      }
-      const res = await getBookingAvailability(shopId, {
-        date: selectedDate,
-        serviceIds: selectedServiceIds,
-        barbermanId: selectedProfessionalId,
-      });
+  // A data local serve apenas ao bootstrap HTTP; escolhas usam o relógio do servidor.
+  const availabilityQuery = useBookingAvailability(shopId, {
+    date: selectedDate || new Date().toISOString().slice(0, 10),
+    serviceIds: selectedServiceIds,
+    barbermanId: selectedProfessionalId || undefined,
+  }, step === 'SLOT' || step === 'REVIEW');
+  const { refetch: refetchAvailability } = availabilityQuery;
 
-      // Sincroniza o relógio autoritativo se serverTime estiver presente
-      if (res.serverTime) {
-        try {
-          serverClock.syncWithServer(res.serverTime);
-        } catch {
-          // Mantém relógio anterior se houver
-        }
-      }
-
-      return res;
-    },
-    enabled: Boolean(shopId && selectedDate && selectedServiceIds.length > 0 && selectedProfessionalId),
-  });
+  useEffect(() => {
+    if (!selectedSlot || isSubmittingRef.current || status === 'confirmed' || status === 'uncertain') return;
+    const now = serverClock.now();
+    const expired = now === null || Date.parse(selectedSlot.slotStartAt) <= now;
+    if (!expired && availabilityQuery.isRevalidating) return;
+    if (!availabilityQuery.slots.some(slot => slot.start === selectedSlot.slotStartAt && slot.end === selectedSlot.end)) {
+      setSelectedSlot(null);
+      setErrorMessage('Esse horário expirou ou não está mais disponível. Escolha outro horário.');
+      if (step === 'REVIEW') setStep('SLOT');
+    }
+  }, [selectedSlot, availabilityQuery.slots, availabilityQuery.isRevalidating, step, status]);
 
   // Mapeamento dos serviços selecionados
   const availableServices = useMemo(() => servicesQuery.data ?? [], [servicesQuery.data]);
@@ -206,9 +196,11 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   }, []);
 
   const selectSlot = useCallback((slot: SelectedSlot) => {
+    if (!availabilityQuery.slots.some(item => item.start === slot.slotStartAt && item.end === slot.end)) return;
     setSelectedSlot(slot);
     setQuoteMismatch(false);
-  }, []);
+    setErrorMessage(null);
+  }, [availabilityQuery.slots]);
 
   // Navegação entre passos
   const goToStep = useCallback((nextStep: BookingFlowStep) => {
@@ -246,6 +238,20 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     setErrorMessage(null);
 
     try {
+      const fresh = await refetchAvailability();
+      const now = serverClock.now();
+      if (fresh.isError || now === null) {
+        setStatus('error');
+        setErrorMessage('Não foi possível atualizar os horários. Verifique a conexão e tente novamente.');
+        return;
+      }
+      if (!fresh.data?.slots.some(slot => slot.start === selectedSlot.slotStartAt && slot.end === selectedSlot.end && Date.parse(slot.start) > now)) {
+        setSelectedSlot(null);
+        setStep('SLOT');
+        setStatus('error');
+        setErrorMessage('Esse horário expirou ou foi reservado. Escolha outro horário.');
+        return;
+      }
       // Exige referência autoritativa sincronizada pelo servidor via HTTP
       if (!serverClock.hasValidReference()) {
         setStatus('error');
@@ -324,9 +330,14 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
         dates: [selectedDate, oldDate].filter(Boolean),
       });
     } catch (err: any) {
-      if (err.requestId) { setUncertainKey(err.requestId); setStatus('uncertain'); setStep('UNCERTAIN'); setErrorMessage(err.message); return; }
       const normalized = normalizeBookingError(err);
-      if (normalized.code === 'QUOTE_CHANGED') {
+      if (normalized.code === 'SLOT_UNAVAILABLE') {
+        setSelectedSlot(null);
+        setStatus('error');
+        setStep('SLOT');
+        setErrorMessage(normalized.message || 'Esse horário não está mais disponível. Escolha outro.');
+        void refetchAvailability();
+      } else if (normalized.code === 'QUOTE_CHANGED') {
         setStatus('error');
         setQuoteMismatch(true);
         setAuthoritativeQuote(normalized.quote ?? null);
@@ -336,6 +347,8 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
         );
         // Retorna à revisão para reconfirmação explícita do usuário
         setStep('REVIEW');
+      } else if (err.requestId) {
+        setUncertainKey(err.requestId); setStatus('uncertain'); setStep('UNCERTAIN'); setErrorMessage(err.message);
       } else if (
         normalized.code === 'NETWORK_OR_TIMEOUT' ||
         normalized.isNetworkError ||
@@ -371,6 +384,9 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     totalDurationInMinutes,
     identity,
     queryClient,
+    refetchAvailability,
+    options.flowMode,
+    options.initialBooking,
   ]);
 
   // Reconciliação / ação de fechar tentativa incerta
@@ -408,7 +424,8 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
     barbershop: barbershopQuery.data,
     services: availableServices,
     professionals: mode === 'UNIT' && ownAgendaOnly ? (professionalsQuery.data ?? []).filter(p => p.id === identity?.id) : professionalsQuery.data ?? [],
-    availabilitySlots: availabilityQuery.data?.slots ?? [],
+    availabilitySlots: availabilityQuery.slots,
+    serverNow: availabilityQuery.serverNow,
     selectedServiceIds,
     selectedServices,
     selectedProfessionalId,

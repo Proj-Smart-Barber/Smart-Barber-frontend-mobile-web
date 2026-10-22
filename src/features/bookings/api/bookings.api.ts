@@ -260,7 +260,8 @@ export async function transitionBookingStatus(
 
 export async function getBookingAvailability(
   shopId: string,
-  params: BookingAvailabilityRequestDto
+  params: BookingAvailabilityRequestDto,
+  signal?: AbortSignal
 ): Promise<BookingAvailabilityResponseDto> {
   const queryParams = new URLSearchParams();
   queryParams.set('date', params.date);
@@ -269,13 +270,28 @@ export async function getBookingAvailability(
     queryParams.set('barbermanId', params.barbermanId);
   }
 
+  const expectedGeneration = serverClock.getGeneration();
+  const sampleMonotonicMs = performance.now();
   const response = await httpClient.get<unknown>(
-    `/api/barbershops/${shopId}/availability?${queryParams.toString()}`
+    `/api/barbershops/${shopId}/availability?${queryParams.toString()}`,
+    { signal, cache: 'no-store' }
   );
 
   const parsed = getBookingAvailabilityResponseSchema.safeParse(response);
   if (!parsed.success) {
     throw new Error('Resposta de disponibilidade inválida.');
+  }
+
+  // Sincroniza o relógio autoritativo se serverTime estiver presente
+  if (!parsed.data.serverTime || !Number.isFinite(Date.parse(parsed.data.serverTime))) {
+    // Mantém relógio anterior se houver
+    throw new Error('Não foi possível sincronizar o horário do servidor. Atualize os horários.');
+  }
+  if (!signal?.aborted) {
+    serverClock.syncWithServer(parsed.data.serverTime, {
+      expectedGeneration,
+      sampleMonotonicMs,
+    });
   }
 
   return parsed.data;
