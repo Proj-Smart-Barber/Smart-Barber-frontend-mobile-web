@@ -227,7 +227,7 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
 
         {flow.step === 'SLOT' && (
           <ScrollView contentContainerStyle={{ gap: spacing[3], paddingBottom: 100 }}>
-            {flow.availabilityError && (
+            {(flow.availabilityError || flow.errorMessage) && (
               <View
                 style={{
                   backgroundColor: colors.surface.default,
@@ -239,7 +239,7 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
                 }}
               >
                 <Text variant="caption" color={colors.feedback.error}>
-                  {flow.availabilityError}
+                  {flow.availabilityError || flow.errorMessage}
                 </Text>
                 <Button
                   title="Tentar Novamente"
@@ -251,6 +251,7 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
             )}
             <BookingSlotPicker
               timezone={flow.barbershop?.timezone}
+              serverNow={flow.serverNow}
               selectedDate={flow.selectedDate}
               selectedSlot={flow.selectedSlot}
               availabilitySlots={flow.availabilitySlots}

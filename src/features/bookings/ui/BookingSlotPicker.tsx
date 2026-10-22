@@ -9,6 +9,7 @@ import {formatSlotTime} from '../lib/slot-time';
 
 export interface BookingSlotPickerProps {
   timezone?: string;
+  serverNow?: number | null;
   selectedDate: string | null;
   selectedSlot: SelectedSlot | null;
   availabilitySlots: AvailabilitySlotDto[];
@@ -39,6 +40,7 @@ function formatDayNumber(dateStr: string): string {
 
 export function BookingSlotPicker({
   timezone,
+  serverNow,
   selectedDate,
   selectedSlot,
   availabilitySlots,
@@ -51,16 +53,19 @@ export function BookingSlotPicker({
   // Gera os próximos 14 dias para escolha rápida de data
   const upcomingDates = useMemo(() => {
     const dates: string[] = [];
-    const now = new Date();
+    if (!timezone || serverNow == null) return dates;
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(serverNow));
+    const part = (type: string) => Number(parts.find(p => p.type === type)?.value);
+    const now = new Date(Date.UTC(part('year'), part('month') - 1, part('day'), 12));
     for (let i = 0; i < 14; i++) {
       const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
+      const yyyy = d.getUTCFullYear();
+      const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(d.getUTCDate()).padStart(2, '0');
       dates.push(`${yyyy}-${mm}-${dd}`);
     }
     return dates;
-  }, []);
+  }, [timezone, serverNow]);
 
   if (!timezone) {
     return <EmptyState title="Horários indisponíveis" description="Não foi possível identificar o fuso da barbearia. Atualize a página e tente novamente." />;
@@ -78,6 +83,7 @@ export function BookingSlotPicker({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: spacing[2], paddingVertical: 4 }}
         >
+          {upcomingDates.length === 0 && <Text variant="caption" color={colors.text.muted}>Sincronizando a data da barbearia…</Text>}
           {upcomingDates.map((dateStr) => {
             const isSelected = selectedDate === dateStr;
             return (
