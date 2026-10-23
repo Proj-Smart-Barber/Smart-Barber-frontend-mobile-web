@@ -40,7 +40,8 @@
     "react-native-web": "~0.21.0",
     "zod": "^3.24.2",
     "expo-location": "~57.0.21",
-    "react-native-maps": "1.27.2"
+    "react-native-maps": "1.27.2",
+    "expo-image-picker": "~57.0.20"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.2",

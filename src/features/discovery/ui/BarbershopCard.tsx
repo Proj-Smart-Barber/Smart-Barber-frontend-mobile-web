@@ -107,6 +107,46 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
             </View>
 
             <View style={styles.metaBadgesRow}>
+              {/* Avaliações próprias */}
+              {shop.reviewCount && shop.reviewCount > 0 && shop.rating != null ? (
+                <View
+                  style={[
+                    styles.distanceBadge,
+                    {
+                      backgroundColor: 'rgba(217, 119, 6, 0.15)',
+                      borderColor: 'rgba(217, 119, 6, 0.3)',
+                      borderRadius: radius.sm,
+                    },
+                  ]}
+                >
+                  <Ionicons name="star" size={11} color="#f59e0b" />
+                  <Text
+                    variant="caption"
+                    style={[styles.distanceText, { color: '#fbbf24', fontWeight: '700' }]}
+                  >
+                    {shop.rating.toFixed(1)} ({shop.reviewCount})
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.distanceBadge,
+                    {
+                      backgroundColor: colors.surface.input,
+                      borderColor: colors.border.subtle,
+                      borderRadius: radius.sm,
+                    },
+                  ]}
+                >
+                  <Text
+                    variant="caption"
+                    style={[styles.distanceText, { color: colors.text.secondary }]}
+                  >
+                    Ainda sem avaliações
+                  </Text>
+                </View>
+              )}
+
               {formattedDistance ? (
                 <View
                   style={[
