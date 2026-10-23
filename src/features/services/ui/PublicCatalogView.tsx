@@ -20,6 +20,8 @@ import {
 import { usePublicServices } from '../model/use-public-services';
 import { ServiceCard } from './ServiceCard';
 import { SelectedServicesSummary } from './SelectedServicesSummary';
+import { BarbershopGalleryViewer, GoogleProfileLink } from '@/features/media';
+import { BarbershopReviewsList } from '@/features/reviews';
 
 export interface PublicCatalogViewProps {
   barbershopId: string;
@@ -183,6 +185,21 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
             ))}
           </View>
         )}
+
+        {/* Galeria do Espaço */}
+        <BarbershopGalleryViewer barbershopId={barbershopId} />
+
+        {/* Link do Perfil Google (se cadastrado) */}
+        {barbershop?.googleMapsUrl ? (
+          <GoogleProfileLink
+            barbershopId={barbershopId}
+            initialUrl={barbershop.googleMapsUrl}
+            isOwner={false}
+          />
+        ) : null}
+
+        {/* Avaliações Verificadas */}
+        <BarbershopReviewsList barbershopId={barbershopId} />
       </ScrollView>
 
       {/* Resumo e Ação de Agendamento */}

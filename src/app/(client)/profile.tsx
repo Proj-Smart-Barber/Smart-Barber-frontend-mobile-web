@@ -3,18 +3,21 @@ import { Platform, View, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { Badge, Button, Text } from '@/shared/ui';
 import { useNavigation } from '@/shared/navigation';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useSession } from '@/features/auth';
+import { AvatarUploader } from '@/features/media';
 
 export default function ClientProfileScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { colors, spacing, radius, mode, setMode, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
-  const { identity, signOut } = useSession();
+  const { identity, signOut, refreshIdentity } = useSession();
 
   let openDrawer: (() => void) | undefined;
   let onContentScroll: ((event: any) => void) | undefined;
@@ -111,20 +114,15 @@ export default function ClientProfileScreen() {
             borderRadius={radius.xl}
             contentStyle={styles.profileCardContent}
           >
-            <View
-              style={[
-                styles.avatarLarge,
-                {
-                  backgroundColor: colors.surface.elevated,
-                  borderColor: colors.brand.primary,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text variant="h3" style={{ color: colors.text.primary, fontWeight: '800', textAlign: 'center' }}>
-                {initials}
-              </Text>
-            </View>
+            <AvatarUploader
+              currentAvatarUrl={identity?.avatarUrl}
+              onAvatarUpdated={async () => {
+                await refreshIdentity?.().catch(() => {});
+                queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+              }}
+              size={72}
+              label=""
+            />
 
             <View style={styles.profileInfo}>
               <Text variant="body" weight="bold" style={{ color: colors.text.primary }}>

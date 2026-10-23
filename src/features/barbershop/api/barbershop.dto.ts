@@ -20,6 +20,8 @@ export interface BackendBarbershopEntityDto {
   timezone: string;
   status: string;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
+  googleMapsUrl?: string | null;
   createdAt?: string;
 }
 

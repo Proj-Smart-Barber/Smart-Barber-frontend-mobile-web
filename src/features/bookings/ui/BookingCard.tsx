@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { useTheme } from '../../../shared/theme';
 import { Text, Card, Badge, Button, type BadgeTone } from '../../../shared/ui';
 import type { BookingDto } from '../api/bookings.dto';
+import { BookingReviewAction } from '../../reviews';
 
 interface BookingCardProps {
   booking: BookingDto;
@@ -133,6 +134,12 @@ export function BookingCard({ booking, onPress, professionalName }: BookingCardP
           {priceLabel}
         </Text>
       </View>
+
+      {booking.status?.toUpperCase() === 'COMPLETED' ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <BookingReviewAction bookingId={booking.id} />
+        </View>
+      ) : null}
 
       {validCustomerPhone ? (
         <View style={[styles.actionRow, { marginTop: spacing.sm }]}>

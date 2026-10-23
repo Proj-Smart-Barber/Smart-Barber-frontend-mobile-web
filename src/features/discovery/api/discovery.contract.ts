@@ -13,6 +13,10 @@ export const publicShopSchema = z.object({
   slug: z.string().min(1),
   location: z.string().min(1),
   avatarUrl: z.string().nullable(),
+  coverUrl: z.string().nullable().optional(),
+  googleMapsUrl: z.string().nullable().optional(),
+  rating: z.number().nullable().optional(),
+  reviewCount: z.number().nullable().optional(),
   coordinates: geoPointSchema.nullable(),
   distanceMeters: z.number().nullable(),
 });
