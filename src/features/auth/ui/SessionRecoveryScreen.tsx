@@ -3,7 +3,7 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { BrandMark } from '@/shared/brand';
-import { LiquidGlassView } from '@/shared/navigation';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { Button, Text } from '@/shared/ui';
 

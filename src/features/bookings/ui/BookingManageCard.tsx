@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Button, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { formatCurrency, formatDurationMinutes, minutesBetween } from '@/features/agenda';
+import { formatCurrency, formatDurationMinutes, minutesBetween } from '@/features/agenda/model/agenda.helpers';
 import type { BookingDetails } from '../api/bookings.contract';
 
 function TimeBlock({ startTime, endTime }: { startTime: string; endTime: string }) {

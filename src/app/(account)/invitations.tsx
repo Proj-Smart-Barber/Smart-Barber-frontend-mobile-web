@@ -50,7 +50,7 @@ export default function AccountInvitationsScreen() {
           )}
           contentContainerStyle={{ padding: spacing.md }}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            <RefreshControl refreshing={isRefetching} onRefresh={() => { void refetch(); }} />
           }
         />
       )}

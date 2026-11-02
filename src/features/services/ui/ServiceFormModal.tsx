@@ -1,3 +1,4 @@
+import { ServicePhotoUploader } from './ServicePhotoUploader';
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
@@ -6,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
@@ -23,6 +25,9 @@ export interface ServiceFormModalProps {
   onSubmit: (values: {
     title: string;
     description?: string | null;
+    imageUrl?: string | null;
+    isFeatured?: boolean;
+    featuredOrder?: number;
     priceInCents: number;
     durationInMinutes: number;
   }) => Promise<void>;
@@ -42,6 +47,9 @@ export function ServiceFormModal({
   const [price, setPrice] = useState('');
   const [durationInMinutes, setDurationInMinutes] = useState('30');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [featuredOrder, setFeaturedOrder] = useState('1');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -52,11 +60,17 @@ export function ServiceFormModal({
         setPrice((serviceToEdit.priceInCents / 100).toFixed(2).replace('.', ','));
         setDurationInMinutes(String(serviceToEdit.durationInMinutes));
         setDescription(serviceToEdit.description || '');
+        setImageUrl(serviceToEdit.imageUrl || '');
+        setIsFeatured(Boolean(serviceToEdit.isFeatured));
+        setFeaturedOrder(String(serviceToEdit.featuredOrder || 1));
       } else {
         setTitle('');
         setPrice('');
         setDurationInMinutes('30');
         setDescription('');
+        setImageUrl('');
+        setIsFeatured(false);
+        setFeaturedOrder('1');
       }
       setErrors({});
       setSubmitError(null);
@@ -72,6 +86,9 @@ export function ServiceFormModal({
       price,
       durationInMinutes: Number(durationInMinutes),
       description: description || undefined,
+      imageUrl: imageUrl.trim() || undefined,
+      isFeatured,
+      featuredOrder: Number(featuredOrder) || 0,
     });
 
     if (!validation.success) {
@@ -88,28 +105,25 @@ export function ServiceFormModal({
     const priceInCents = parsePriceToCents(price);
     const duration = parseInt(durationInMinutes, 10);
     const cleanDesc = description.trim();
+    const cleanImg = imageUrl.trim();
 
     try {
       await onSubmit({
         title: title.trim(),
-        description: cleanDesc ? cleanDesc : (serviceToEdit ? null : undefined),
+        description: cleanDesc ? cleanDesc : serviceToEdit ? null : undefined,
+        imageUrl: cleanImg ? cleanImg : serviceToEdit ? null : undefined,
+        isFeatured,
+        featuredOrder: isFeatured ? parseInt(featuredOrder, 10) || 1 : 0,
         priceInCents,
         durationInMinutes: duration,
       });
     } catch (err: any) {
-      setSubmitError(
-        err?.message || 'Falha ao salvar serviço. Verifique os dados informados.',
-      );
+      setSubmitError(err?.message || 'Falha ao salvar serviço. Verifique os dados informados.');
     }
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{
@@ -159,9 +173,7 @@ export function ServiceFormModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: radius.full,
-                backgroundColor: pressed
-                  ? colors.surface.selected
-                  : 'transparent',
+                backgroundColor: pressed ? colors.surface.selected : 'transparent',
               })}
             >
               <Ionicons name="close" size={22} color={colors.text.secondary} />
@@ -176,12 +188,7 @@ export function ServiceFormModal({
             }}
             keyboardShouldPersistTaps="handled"
           >
-            {submitError && (
-              <Alert
-                message={submitError}
-                variant="error"
-              />
-            )}
+            {submitError && <Alert message={submitError} variant="error" />}
 
             <FormField
               label="Nome do serviço *"
@@ -204,11 +211,7 @@ export function ServiceFormModal({
               }}
             >
               <View style={{ flex: 1 }}>
-                <FormField
-                  label="Preço (R$) *"
-                  error={errors.price}
-                  helperText="Valor cobrado"
-                >
+                <FormField label="Preço (R$) *" error={errors.price} helperText="Valor cobrado">
                   <TextInput
                     value={price}
                     onChangeText={(val) => setPrice(maskCurrencyInput(val))}
@@ -254,6 +257,90 @@ export function ServiceFormModal({
                 inputStyle={{ minHeight: 90 }}
               />
             </FormField>
+
+            {/* Foto do Serviço */}
+            {serviceToEdit ? (
+              <ServicePhotoUploader
+                shopId={serviceToEdit.barbershopId}
+                serviceId={serviceToEdit.id}
+                url={imageUrl}
+                onUpdated={setImageUrl}
+              />
+            ) : (
+              <Text>Salve o serviço para adicionar fotos e vídeos.</Text>
+            )}
+
+            {/* Destacar no Explorar */}
+            <Pressable
+              onPress={() => setIsFeatured(!isFeatured)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: spacing[3],
+                paddingHorizontal: spacing[3],
+                backgroundColor: isFeatured
+                  ? 'rgba(184, 20, 27, 0.12)'
+                  : 'rgba(255, 255, 255, 0.04)',
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: isFeatured ? colors.brand.primary : 'rgba(255, 255, 255, 0.12)',
+                marginVertical: spacing[2],
+              }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isFeatured }}
+              accessibilityLabel="Destacar serviço na aba Explorar"
+            >
+              <View style={{ flex: 1, gap: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons
+                    name={isFeatured ? 'star' : 'star-outline'}
+                    size={18}
+                    color={isFeatured ? '#f59e0b' : colors.text.muted}
+                  />
+                  <Text style={{ color: colors.text.primary, fontWeight: '700', fontSize: 14 }}>
+                    Destacar no Explorar
+                  </Text>
+                </View>
+                <Text style={{ color: colors.text.muted, fontSize: 12 }}>
+                  Exibir foto e detalhes deste serviço no feed vertical de descoberta.
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: isFeatured ? colors.brand.primary : colors.text.muted,
+                  backgroundColor: isFeatured ? colors.brand.primary : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: 12,
+                }}
+              >
+                {isFeatured && <Ionicons name="checkmark" size={16} color="#ffffff" />}
+              </View>
+            </Pressable>
+
+            {/* Ordem de Prioridade no Feed */}
+            {isFeatured && (
+              <FormField
+                label="Ordem de Destaque no Explorar"
+                error={errors.featuredOrder}
+                helperText="1 = primeiro slide, 2 = segundo slide, etc."
+              >
+                <TextInput
+                  value={featuredOrder}
+                  onChangeText={setFeaturedOrder}
+                  placeholder="1"
+                  keyboardType="number-pad"
+                  editable={!isLoading}
+                  maxLength={2}
+                />
+              </FormField>
+            )}
 
             {/* Ações */}
             <View

@@ -1,5 +1,7 @@
 export * from './api/discovery.contract';
 export * from './api/discovery.api';
+export * from './api/explore-feed.contract';
+export * from './api/explore-feed.api';
 export * from './model/location-provider';
 export type {
   DiscoveryMode,
@@ -8,8 +10,14 @@ export type {
   UseDiscoveryViewModel,
 } from './model/discovery.types';
 export * from './model/use-discovery';
+export * from './model/use-explore-feed';
 export * from './model/use-next-booking';
 export * from './ui/BarbershopCard';
+export * from './ui/BarbershopPhotoCarousel';
+export * from './ui/BarbershopHomeCarousel';
+export * from './ui/ExploreFeedSlide';
+export * from './ui/ExploreFeedView';
+export * from './ui/ExploreSheets';
 export * from './ui/DiscoveryFilters';
 export * from './ui/DiscoverySkeleton';
 export * from './ui/ClientSearchEntry';

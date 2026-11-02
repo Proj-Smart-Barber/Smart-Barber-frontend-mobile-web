@@ -73,7 +73,7 @@ export default function AccountNotificationsScreen() {
           renderItem={({ item }) => <NotificationCard notification={item} />}
           contentContainerStyle={{ padding: spacing.md }}
           refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+            <RefreshControl refreshing={isRefetching} onRefresh={() => { void refetch(); }} />
           }
           ListFooterComponent={
             nextCursor ? (
@@ -83,7 +83,7 @@ export default function AccountNotificationsScreen() {
                 style={{ marginTop: spacing.md }}
                 onPress={() => setCursor(nextCursor)}
               />
-            ) : null
+            ) : undefined
           }
         />
       )}

@@ -98,7 +98,7 @@ export function ClientSearchEntry({
             },
           ]}
         />
-        {value && value.length > 0 && onChangeText && (
+        {onChangeText && Boolean(value && value.length > 0) ? (
           <Pressable
             onPress={() => onChangeText('')}
             accessibilityRole="button"
@@ -108,7 +108,7 @@ export function ClientSearchEntry({
           >
             <Ionicons name="close-circle" size={18} color={colors.text.secondary} />
           </Pressable>
-        )}
+        ) : null}
       </View>
     </LiquidGlassView>
   );

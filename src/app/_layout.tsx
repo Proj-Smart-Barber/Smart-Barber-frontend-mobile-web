@@ -4,10 +4,16 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { FontDisplay } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts, Epilogue_700Bold, Epilogue_800ExtraBold } from '@expo-google-fonts/epilogue';
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { ThemeProvider, useTheme } from '@/shared/theme';
 import { SessionProvider, useSession, SessionRecoveryScreen } from '@/features/auth';
 import { BootstrapScreen, ToastProvider } from '@/shared/ui';
@@ -24,7 +30,17 @@ import {
 } from '@/features/auth/model/booking-return-intent';
 
 function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const { status, barbershop, identity, memberships, selectedShopId, token, restoreSession, signOut, error } = useSession();
+  const {
+    status,
+    barbershop,
+    identity,
+    memberships,
+    selectedShopId,
+    token,
+    restoreSession,
+    signOut,
+    error,
+  } = useSession();
   const segments = useSegments();
   const router = useRouter();
   const { isDark } = useTheme();
@@ -85,12 +101,22 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
 
     if (status === 'unauthenticated') {
       if (!segments[0]) {
-        router.replace('/(public)/inicio' as any);
+        router.replace('/(auth)/login');
       } else if (inApp || inAccount || inClient || inBarber || inPlatform) {
         router.replace('/(auth)/login');
       }
     }
-  }, [fontsLoaded, status, barbershop, identity, memberships, selectedShopId, token, segments, router]);
+  }, [
+    fontsLoaded,
+    status,
+    barbershop,
+    identity,
+    memberships,
+    selectedShopId,
+    token,
+    segments,
+    router,
+  ]);
 
   const inPublic = (segments[0] as string) === '(public)';
 
@@ -109,7 +135,10 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     );
   }
 
-  if (!fontsLoaded || status === 'bootstrapping') {
+  const waitingForLogin =
+    status === 'unauthenticated' &&
+    ['(app)', '(account)', '(client)', '(barber)', '(platform)'].includes(segments[0] ?? '');
+  if (!fontsLoaded || status === 'bootstrapping' || waitingForLogin) {
     return (
       <BootstrapScreen
         message={fontsLoaded ? 'Verificando sua sessão…' : 'Carregando tipografia e recursos…'}
@@ -140,14 +169,8 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
 
   return (
     <>
-      <ClockLifecycleBridge
-        actorId={identity?.id ?? null}
-        sessionStatus={status}
-      />
-      <OperationLifecycleBridge
-        actorId={identity?.id ?? null}
-        sessionState={status}
-      />
+      <ClockLifecycleBridge actorId={identity?.id ?? null} sessionStatus={status} />
+      <OperationLifecycleBridge actorId={identity?.id ?? null} sessionState={status} />
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Slot key="route-content" />
     </>
@@ -234,24 +257,27 @@ function WebAutofillReset() {
 }
 
 function AppReady() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     ...Ionicons.font,
-    Epilogue_700Bold,
-    Epilogue_800ExtraBold,
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    Epilogue_700Bold: { uri: Epilogue_700Bold, display: FontDisplay.SWAP },
+    Epilogue_800ExtraBold: { uri: Epilogue_800ExtraBold, display: FontDisplay.SWAP },
+    Inter_400Regular: { uri: Inter_400Regular, display: FontDisplay.SWAP },
+    Inter_500Medium: { uri: Inter_500Medium, display: FontDisplay.SWAP },
+    Inter_600SemiBold: { uri: Inter_600SemiBold, display: FontDisplay.SWAP },
+    Inter_700Bold: { uri: Inter_700Bold, display: FontDisplay.SWAP },
   });
 
+  // Web text uses a fallback immediately; native font failures must not trap the splash.
+  const fontsReady = Platform.OS === 'web' || fontsLoaded || Boolean(fontError);
+
   useEffect(() => {
-    if (fontsLoaded) void SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+    if (fontsReady) void SplashScreen.hideAsync().catch(() => undefined);
+  }, [fontsReady]);
 
   return (
     <SessionProvider>
       <WebAutofillReset />
-      <AuthRouteGuard fontsLoaded={fontsLoaded} />
+      <AuthRouteGuard fontsLoaded={fontsReady} />
     </SessionProvider>
   );
 }

@@ -25,11 +25,11 @@
 
 | Tecnologia | Versão efetiva | Papel |
 |---|---:|---|
-| Expo | 57.0.19 | Runtime universal e configuração de plataformas |
-| React | 19.2.3 | Camada de UI |
-| React Native | 0.86.3 | Interface Android e iOS |
-| React Native Web | 0.21.2 | Interface Web |
-| Expo Router | 57.0.18 | Rotas baseadas em arquivos e guards |
+| Expo | 58.0.22 | Runtime universal e configuração de plataformas |
+| React | 19.3.0 | Camada de UI |
+| React Native | 0.88.1 | Interface Android e iOS |
+| React Native Web | 0.21.4 | Interface Web |
+| Expo Router | 58.0.29 | Rotas baseadas em arquivos e guards |
 | TypeScript | 6.0.3 | Tipagem estrita |
 | TanStack Query | 5.66.0 | Estado de servidor/cache |
 | React Hook Form + Zod | 7.54.2 + 3.24.2 | Formulários e validação |

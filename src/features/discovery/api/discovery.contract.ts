@@ -14,6 +14,7 @@ export const publicShopSchema = z.object({
   location: z.string().min(1),
   avatarUrl: z.string().nullable(),
   coverUrl: z.string().nullable().optional(),
+  photos: z.array(z.string()).optional(),
   googleMapsUrl: z.string().nullable().optional(),
   rating: z.number().nullable().optional(),
   reviewCount: z.number().nullable().optional(),

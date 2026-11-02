@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import { ClientNavbarMetricsContext } from './ClientNavbarMetrics';
+import { Platform as ShadowPlatform } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import {
   Animated,
   BackHandler,
@@ -33,6 +35,7 @@ interface ClientNavItem {
 }
 
 const PRIMARY_CLIENT_TABS: ClientNavItem[] = [
+  { id: 'menu', label: 'Menu', route: '#drawer', iconActive: 'menu', iconInactive: 'menu-outline' },
   {
     id: 'home',
     label: 'Início',
@@ -57,8 +60,7 @@ const PRIMARY_CLIENT_TABS: ClientNavItem[] = [
   },
   {
     id: 'profile',
-    label: 'Minha Conta',
-    compactLabel: 'Conta',
+    label: 'Conta',
     route: '/(client)/profile',
     iconActive: 'person',
     iconInactive: 'person-outline',
@@ -94,11 +96,7 @@ function getInitials(name?: string | null): string {
 
 function isRouteActive(pathname: string, route: string): boolean {
   if (route === '/(client)') {
-    return (
-      pathname === '/' ||
-      pathname === '/(client)' ||
-      pathname === '/(client)/'
-    );
+    return pathname === '/' || pathname === '/(client)' || pathname === '/(client)/';
   }
   const normalizedTarget = route.replace('/(client)', '');
   return (
@@ -110,6 +108,7 @@ function isRouteActive(pathname: string, route: string): boolean {
 }
 
 function ClientNavigationShellContent({ children }: ClientNavigationShellProps) {
+  const [measuredNavbarHeight,setMeasuredNavbarHeight]=useState(64);
   const { colors, spacing, radius, isDark } = useTheme();
   const { isExpanded, isCompact } = useAdaptiveLayout();
   const { width } = useWindowDimensions();
@@ -122,6 +121,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
     isDrawerOpen,
     isDrawerVisible,
     drawerProgress,
+    openDrawer,
     closeDrawer,
     scrollCollapseProgress,
   } = useNavigation();
@@ -207,7 +207,12 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                   accessibilityLabel="Smart Barber Logo"
                 />
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                  <Text
+                    variant="subhead"
+                    weight="bold"
+                    color={colors.text.primary}
+                    numberOfLines={1}
+                  >
                     Smart Barber
                   </Text>
                   <Text variant="caption" color={colors.text.muted}>
@@ -261,11 +266,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                   >
                     {userName}
                   </Text>
-                  <Badge
-                    label="Cliente"
-                    tone="brand"
-                    size="sm"
-                  />
+                  <Badge label="Cliente" tone="brand" size="sm" />
                 </View>
               </Pressable>
             </View>
@@ -392,14 +393,22 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
         inputRange: [0, 0.4, 1],
         outputRange: [1, 0, 0],
       });
-  const capsuleScale = scrollCollapseProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.94],
-  });
-  const capsuleTranslateY = scrollCollapseProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 4],
-  });
+  const isExploreRoute = pathname === '/(client)/explore' || pathname === '/explore';
+
+  const capsuleScale =
+    isExploreRoute || reducedMotion
+      ? 1
+      : scrollCollapseProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 0.94],
+        });
+  const capsuleTranslateY =
+    isExploreRoute || reducedMotion
+      ? 0
+      : scrollCollapseProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 4],
+        });
 
   return (
     <View
@@ -412,8 +421,10 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
       {/* LeftDrawer Mobile (Padrão Owner) */}
       {isDrawerVisible && (
         <View
-          pointerEvents={isDrawerOpen ? 'auto' : 'none'}
-          style={[StyleSheet.absoluteFill, styles.overlayContainer]}
+          style={[
+            [StyleSheet.absoluteFill, styles.overlayContainer],
+            { pointerEvents: isDrawerOpen ? 'auto' : 'none' },
+          ]}
           accessibilityViewIsModal={isDrawerOpen}
         >
           <Animated.View
@@ -466,7 +477,9 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                 ]}
               >
                 <View style={styles.brandRow}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}
+                  >
                     <BrandMark
                       variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
                       size={32}
@@ -474,7 +487,12 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                       accessibilityLabel="Smart Barber Logo"
                     />
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                      <Text
+                        variant="subhead"
+                        weight="bold"
+                        color={colors.text.primary}
+                        numberOfLines={1}
+                      >
                         Smart Barber
                       </Text>
                       <Text variant="caption" color={colors.text.muted}>
@@ -506,11 +524,20 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                   </Pressable>
                 </View>
 
-                <View
-                  style={[
+                <Pressable
+                  onPress={() => handleNavigate('/(client)/profile')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Acessar Minha Conta de ${userName}`}
+                  style={({ pressed }) => [
                     styles.userCard,
                     {
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.03)',
+                      backgroundColor: pressed
+                        ? isDark
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : 'rgba(0, 0, 0, 0.06)'
+                        : isDark
+                          ? 'rgba(255, 255, 255, 0.035)'
+                          : 'rgba(0, 0, 0, 0.03)',
                       borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
                       borderRadius: radius.md,
                       padding: spacing[3],
@@ -547,13 +574,10 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                     >
                       {userName}
                     </Text>
-                    <Badge
-                      label="Cliente"
-                      tone="brand"
-                      size="sm"
-                    />
+                    <Badge label="Cliente" tone="brand" size="sm" />
                   </View>
-                </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
+                </Pressable>
               </View>
 
               <ScrollView
@@ -574,7 +598,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                     DESCOBERTA & AGENDA
                   </Text>
 
-                  {PRIMARY_CLIENT_TABS.slice(0, 3).map((item) => (
+                  {PRIMARY_CLIENT_TABS.filter((item) => item.id !== 'menu').map((item) => (
                     <ClientSidebarItem
                       key={item.id}
                       label={item.label}
@@ -630,16 +654,31 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
             backgroundColor: colors.background.primary,
             transform: [{ translateX: pageTranslateX }, { scale: pageScale }],
             borderRadius: pageBorderRadius,
-            shadowColor: '#000',
-            shadowOffset: { width: -4, height: 8 },
-            shadowOpacity: pageShadowOpacity,
-            shadowRadius: 18,
+            ...(ShadowPlatform.OS === 'web'
+              ? {
+                  boxShadow:
+                    typeof pageShadowOpacity === 'number'
+                      ? 'none'
+                      : pageShadowOpacity.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [
+                            '-4px 8px 18px rgba(0,0,0,0)',
+                            '-4px 8px 18px rgba(0,0,0,1)',
+                          ],
+                        }),
+                }
+              : {
+                  shadowColor: '#000',
+                  shadowOffset: { width: -4, height: 8 },
+                  shadowOpacity: pageShadowOpacity,
+                  shadowRadius: 18,
+                }),
             elevation: isDrawerOpen ? 16 : 0,
           },
           webBackgroundStyle,
         ]}
       >
-        <View style={styles.pageInner}>{children}</View>
+        <ClientNavbarMetricsContext.Provider value={measuredNavbarHeight+bottomInset}><View style={styles.pageInner}>{children}</View></ClientNavbarMetricsContext.Provider>
 
         {isDrawerOpen ? (
           <Pressable
@@ -653,15 +692,18 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
 
       {/* BottomCapsuleBar Canônica (Padrão Owner com contentStyle horizontal e pílula Crimson) */}
       <Animated.View
-        pointerEvents={isDrawerOpen ? 'none' : 'box-none'}
+        onLayout={event=>{const height=event.nativeEvent.layout.height;if(height>0)setMeasuredNavbarHeight(height);}}
         style={[
-          styles.outerCapsuleContainer,
-          {
-            bottom: bottomInset,
-            paddingHorizontal: spacing[4],
-            opacity: capsuleOpacity,
-            transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
-          },
+          [
+            styles.outerCapsuleContainer,
+            {
+              bottom: bottomInset,
+              paddingHorizontal: spacing[4],
+              opacity: capsuleOpacity,
+              transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
+            },
+          ],
+          { pointerEvents: isDrawerOpen ? 'none' : 'box-none' },
         ]}
       >
         <LiquidGlassView
@@ -677,19 +719,40 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
             style={styles.tablistContainer}
           >
             {PRIMARY_CLIENT_TABS.map((item) => {
-              const isActive = isRouteActive(pathname, item.route);
+              const isMenuItem = item.id === 'menu';
+              const isActive = isMenuItem ? isDrawerOpen : isRouteActive(pathname, item.route);
               const iconName = isActive ? item.iconActive : item.iconInactive;
               const activeBg = colors.brand.primary;
               const activeTextColor = '#FFFFFF';
               const inactiveTextColor = colors.text.secondary;
 
+              const handleItemPress = () => {
+                if (isMenuItem) {
+                  if (isDrawerOpen) {
+                    closeDrawer();
+                  } else {
+                    openDrawer();
+                  }
+                } else {
+                  handleNavigate(item.route);
+                }
+              };
+
               return (
                 <Pressable
                   key={item.id}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`}
-                  accessibilityState={{ selected: isActive }}
-                  onPress={() => handleNavigate(item.route)}
+                  accessibilityRole={isMenuItem ? 'button' : 'tab'}
+                  accessibilityLabel={
+                    isMenuItem
+                      ? isDrawerOpen
+                        ? 'Fechar menu de navegação'
+                        : 'Abrir menu de navegação'
+                      : `${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`
+                  }
+                  accessibilityState={
+                    isMenuItem ? { expanded: isDrawerOpen } : { selected: isActive }
+                  }
+                  onPress={handleItemPress}
                   style={({ pressed }) => [
                     styles.tabItem,
                     {
@@ -716,7 +779,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                       textAlign: 'center',
                     }}
                   >
-                    {isCompact ? item.compactLabel ?? item.label : item.label}
+                    {isCompact ? (item.compactLabel ?? item.label) : item.label}
                   </Text>
                 </Pressable>
               );
@@ -794,9 +857,7 @@ function ClientSidebarItem({
       >
         {label}
       </Text>
-      {isActive ? (
-        <Ionicons name="chevron-forward" size={16} color={textColor} />
-      ) : null}
+      {isActive ? <Ionicons name="chevron-forward" size={16} color={textColor} /> : null}
     </Pressable>
   );
 }
@@ -951,4 +1012,3 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
 });
-

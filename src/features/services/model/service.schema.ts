@@ -25,6 +25,18 @@ export const serviceFormSchema = z.object({
     .trim()
     .max(500, 'A descrição não pode exceder 500 caracteres.')
     .optional(),
+  imageUrl: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal('')),
+  isFeatured: z.boolean().default(false),
+  featuredOrder: z.coerce
+    .number()
+    .int('A ordem deve ser um número inteiro.')
+    .min(0, 'A ordem mínima é 0.')
+    .max(99, 'A ordem máxima é 99.')
+    .default(0),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>;

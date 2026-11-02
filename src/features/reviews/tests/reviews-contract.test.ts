@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ReviewItemDto, BarbershopReviewsResponseDto } from '../api/reviews.types';
 
+// O contrato verifica o payload HTTP, sem inicializar storage ou runtime React Native.
+vi.mock('@/shared/api', () => ({
+  httpClient: { delete: vi.fn(), patch: vi.fn() },
+}));
+
 describe('Reviews Domain & Presentation Logic', () => {
   it('exibe "Ainda sem avaliações" quando total for zero', () => {
     const emptyResponse: BarbershopReviewsResponseDto = {

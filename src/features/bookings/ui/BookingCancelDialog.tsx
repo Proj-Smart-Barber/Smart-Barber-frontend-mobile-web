@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
 import { Button, Spinner, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { formatDateLabel } from '@/features/agenda';
+import { formatDateLabel } from '@/features/agenda/model/agenda.helpers';
 import type { BookingDetails } from '../api/bookings.contract';
 import type { BookingActionResult } from '../model/use-bookings-view-model';
 
@@ -229,13 +229,13 @@ export function BookingCancelDialog({
                 })}
               >
                 <View
-                  pointerEvents="none"
-                  style={{
+
+                  style={[{
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: spacing[2],
-                  }}
+                  }, { pointerEvents: "none" }]}
                 >
                   {phase === 'submitting' ? (
                     <Spinner color={colors.feedback.error} size="small" />

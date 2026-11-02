@@ -15,6 +15,7 @@ export interface EphemeralCoordinates {
   accuracyMeters: number | null;
   timestamp: number;
   isApproximate: boolean;
+  formattedLocation?: string | null;
 }
 
 export interface LocationSession {
@@ -24,8 +25,69 @@ export interface LocationSession {
   errorMessage?: string;
 }
 
-const STALE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos de validade de UX
+const LOCATION_STORAGE_KEY = '@smart_barber:cached_user_location';
+export const LOCATION_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos de validade do cache
+const STALE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos para sinalizar atualização sugerida
 const GPS_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 segundos de timeout de hardware
+
+export interface CachedLocationData {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  timestamp: number;
+  isApproximate: boolean;
+  formattedLocation?: string | null;
+}
+
+let memoryCache: string | null = null;
+
+async function getCachedRaw(): Promise<string | null> {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return memoryCache;
+  }
+  if (Platform.OS === 'web') {
+    try {
+      return typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage.getItem(LOCATION_STORAGE_KEY)
+        : memoryCache;
+    } catch {
+      return memoryCache;
+    }
+  }
+  try {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+  } catch {
+    return memoryCache;
+  }
+}
+
+async function setCachedRaw(value: string | null): Promise<void> {
+  memoryCache = value;
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return;
+  }
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (value === null) {
+          window.localStorage.removeItem(LOCATION_STORAGE_KEY);
+        } else {
+          window.localStorage.setItem(LOCATION_STORAGE_KEY, value);
+        }
+      }
+    } catch {}
+    return;
+  }
+  try {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    if (value === null) {
+      await AsyncStorage.removeItem(LOCATION_STORAGE_KEY);
+    } else {
+      await AsyncStorage.setItem(LOCATION_STORAGE_KEY, value);
+    }
+  } catch {}
+}
 
 class EphemeralLocationStore {
   private currentSession: LocationSession = {
@@ -68,7 +130,7 @@ class EphemeralLocationStore {
   }
 
   /**
-   * Limpa integralmente as coordenadas em memória (ao deslogar ou trocar de ator)
+   * Limpa integralmente as coordenadas em memória e no cache persistente (ao deslogar ou trocar de ator)
    */
   clear() {
     this.currentSession = {
@@ -76,6 +138,7 @@ class EphemeralLocationStore {
       state: 'idle',
       coords: null,
     };
+    void setCachedRaw(null);
     this.notify();
   }
 
@@ -87,6 +150,55 @@ class EphemeralLocationStore {
   }
 
   /**
+   * Restaura coordenadas salvas no cache persistente local (se ainda válidas)
+   */
+  async restoreFromCache(): Promise<LocationSession> {
+    try {
+      const raw = await getCachedRaw();
+      if (!raw) return this.currentSession;
+      const parsed: CachedLocationData = JSON.parse(raw);
+      if (
+        parsed &&
+        typeof parsed.latitude === 'number' &&
+        typeof parsed.longitude === 'number' &&
+        typeof parsed.timestamp === 'number'
+      ) {
+        const isFresh = Date.now() - parsed.timestamp < STALE_TIMEOUT_MS;
+        if (isFresh) {
+          this.currentSession = {
+            generationId: this.currentSession.generationId,
+            state: 'granted',
+            coords: {
+              latitude: parsed.latitude,
+              longitude: parsed.longitude,
+              accuracyMeters: parsed.accuracyMeters ?? null,
+              timestamp: parsed.timestamp,
+              isApproximate: Boolean(parsed.isApproximate),
+              formattedLocation: parsed.formattedLocation ?? null,
+            },
+          };
+          this.notify();
+        } else {
+          this.currentSession = {
+            ...this.currentSession,
+            state: 'stale',
+            coords: {
+              latitude: parsed.latitude,
+              longitude: parsed.longitude,
+              accuracyMeters: parsed.accuracyMeters ?? null,
+              timestamp: parsed.timestamp,
+              isApproximate: Boolean(parsed.isApproximate),
+              formattedLocation: parsed.formattedLocation ?? null,
+            },
+          };
+          this.notify();
+        }
+      }
+    } catch {}
+    return this.currentSession;
+  }
+
+  /**
    * Atualiza a sessão manualmente (usado internamente e em testes unitários controlados)
    */
   updateSession(update: Partial<LocationSession>) {
@@ -95,6 +207,9 @@ class EphemeralLocationStore {
       ...update,
       generationId: update.generationId ?? Math.random().toString(36).substring(2, 15),
     };
+    if (this.currentSession.state === 'granted' && this.currentSession.coords) {
+      void setCachedRaw(JSON.stringify(this.currentSession.coords));
+    }
     this.notify();
   }
 
@@ -157,17 +272,21 @@ class EphemeralLocationStore {
           const accuracy = pos.coords.accuracy ?? null;
           const isApprox = accuracy !== null && accuracy > 1000;
 
+          const coords: EphemeralCoordinates = {
+            latitude: lat,
+            longitude: lng,
+            accuracyMeters: accuracy,
+            timestamp: Date.now(),
+            isApproximate: isApprox,
+            formattedLocation: null,
+          };
+
           this.currentSession = {
             generationId: expectedGenId,
             state: 'granted',
-            coords: {
-              latitude: lat,
-              longitude: lng,
-              accuracyMeters: accuracy,
-              timestamp: Date.now(),
-              isApproximate: isApprox,
-            },
+            coords,
           };
+          void setCachedRaw(JSON.stringify(coords));
           this.notify();
           resolve(this.currentSession);
         },
@@ -267,17 +386,42 @@ class EphemeralLocationStore {
       }
 
       const accuracy = loc.coords.accuracy ?? null;
+      let formattedLocation: string | null = null;
+
+      if (expoLocation && expoLocation.reverseGeocodeAsync) {
+        try {
+          const addrs = await expoLocation.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          if (addrs && addrs[0]) {
+            const addr = addrs[0];
+            const city = addr.city || addr.subregion || addr.region || '';
+            const district = addr.district || addr.subregion || addr.street || '';
+            if (district && city && district !== city) {
+              formattedLocation = `${district}, ${city}`;
+            } else {
+              formattedLocation = city || district || null;
+            }
+          }
+        } catch {}
+      }
+
+      const coords: EphemeralCoordinates = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        accuracyMeters: accuracy,
+        timestamp: Date.now(),
+        isApproximate: accuracy !== null && accuracy > 1000,
+        formattedLocation,
+      };
+
       this.currentSession = {
         generationId: expectedGenId,
         state: 'granted',
-        coords: {
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          accuracyMeters: accuracy,
-          timestamp: Date.now(),
-          isApproximate: accuracy !== null && accuracy > 1000,
-        },
+        coords,
       };
+      void setCachedRaw(JSON.stringify(coords));
       this.notify();
       return this.currentSession;
     } catch (err: any) {
@@ -301,3 +445,4 @@ class EphemeralLocationStore {
 }
 
 export const locationStore = new EphemeralLocationStore();
+void locationStore.restoreFromCache();

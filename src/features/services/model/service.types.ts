@@ -3,6 +3,9 @@ export interface Service {
   barbershopId: string;
   title: string;
   description: string | null;
+  imageUrl?: string | null;
+  isFeatured?: boolean;
+  featuredOrder?: number;
   priceInCents: number;
   durationInMinutes: number;
   isActive: boolean;
@@ -20,6 +23,9 @@ export interface ListServicesResponse {
 export interface CreateServiceInput {
   title: string;
   description?: string | null;
+  imageUrl?: string | null;
+  isFeatured?: boolean;
+  featuredOrder?: number;
   priceInCents: number;
   durationInMinutes: number;
 }
@@ -27,6 +33,9 @@ export interface CreateServiceInput {
 export interface UpdateServiceInput {
   title?: string;
   description?: string | null;
+  imageUrl?: string | null;
+  isFeatured?: boolean;
+  featuredOrder?: number;
   priceInCents?: number;
   durationInMinutes?: number;
 }

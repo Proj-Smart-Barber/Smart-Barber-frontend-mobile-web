@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
@@ -587,7 +588,7 @@ export function AvailabilityScreen({
             accessibilityHint="Salva os horários recorrentes configurados para esta unidade"
             accessibilityState={{ disabled: vm.isSaving }}
             disabled={vm.isSaving}
-            onPress={methods.handleSubmit(onSubmitJourney, onInvalidJourney)}
+            onPress={() => { void methods.handleSubmit(onSubmitJourney, onInvalidJourney)(); }}
             style={({ pressed }) => [
               styles.floatingSaveButton,
               {
@@ -607,15 +608,15 @@ export function AvailabilityScreen({
         </KeyboardAvoidingView>
 
         <Animated.View
-          pointerEvents="box-none"
-          style={[
+
+          style={[[
             styles.stickyHeaderOverlay,
             {
               paddingHorizontal: spacing[isExpanded ? 8 : 5],
               opacity: stickyHeaderOpacity,
               transform: [{ translateY: stickyHeaderTranslateY }],
             },
-          ]}
+          ], { pointerEvents: "box-none" }]}
         >
           <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
             <LiquidGlassView
@@ -774,10 +775,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 8,
     zIndex: 20,
-    shadowColor: '#000',
+    ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 4px 8px rgba(0,0,0,${0.28})` } : { shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.28,
-    shadowRadius: 8,
+    shadowRadius: 8, }),
   },
   topBarTitle: { flex: 1 },
   feedbackBackdrop: {

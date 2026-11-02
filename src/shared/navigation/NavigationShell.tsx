@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import React from 'react';
 import {
   Animated,
@@ -121,10 +122,10 @@ function NavigationShellContent({ children }: NavigationShellProps) {
               { scale: pageScale },
             ],
             borderRadius: pageBorderRadius,
-            shadowColor: '#000',
+            ...(ShadowPlatform.OS === 'web' ? { boxShadow: typeof pageShadowOpacity === 'number' ? 'none' : pageShadowOpacity.interpolate({ inputRange: [0, 1], outputRange: ['-4px 8px 18px rgba(0,0,0,0)', '-4px 8px 18px rgba(0,0,0,1)'] }) } : { shadowColor: '#000',
             shadowOffset: { width: -4, height: 8 },
             shadowOpacity: pageShadowOpacity,
-            shadowRadius: 18,
+            shadowRadius: 18, }),
             elevation: isDrawerOpen ? 16 : 0,
           },
         ]}
@@ -158,14 +159,14 @@ function NavigationShellContent({ children }: NavigationShellProps) {
       {/* Disparador do Menu Lateral para telas secundárias */}
       {showFloatingMenuTrigger ? (
         <View
-          pointerEvents="box-none"
-          style={[
+
+          style={[[
             styles.floatingTriggerContainer,
             {
               bottom: Math.max(insets.bottom, 10) + 76,
               right: 16,
             },
-          ]}
+          ], { pointerEvents: "box-none" }]}
         >
           <Pressable
             accessibilityRole="button"
@@ -178,10 +179,10 @@ function NavigationShellContent({ children }: NavigationShellProps) {
                 borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : colors.border.default,
                 borderRadius: radius.full,
                 opacity: pressed ? 0.8 : 1,
-                shadowColor: '#000',
+                ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 4px 8px rgba(0,0,0,${0.3})` } : { shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
-                shadowRadius: 8,
+                shadowRadius: 8, }),
                 elevation: 6,
               },
             ]}

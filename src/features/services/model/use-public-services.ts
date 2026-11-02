@@ -1,10 +1,10 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { servicesApi } from '../api/services.api';
 import { barbershopApi } from '@/features/barbershop';
 import type { Service } from './service.types';
 
-export function usePublicServices(barbershopId?: string | null) {
+export function usePublicServices(barbershopId?: string | null, initialServiceId?: string) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isHandoffModalOpen, setIsHandoffModalOpen] = useState(false);
 
@@ -38,11 +38,26 @@ export function usePublicServices(barbershopId?: string | null) {
     [servicesQuery.data?.items],
   );
 
+  const appliedIntent = useRef<string | null>(null);
+  useEffect(() => {
+    setSelectedIds([]);
+    appliedIntent.current = null;
+  }, [barbershopId]);
+  useEffect(() => {
+    const key = `${barbershopId}:${initialServiceId}`;
+    if (
+      initialServiceId &&
+      appliedIntent.current !== key &&
+      availableServices.some((service) => service.id === initialServiceId)
+    ) {
+      setSelectedIds([initialServiceId]);
+      appliedIntent.current = key;
+    }
+  }, [barbershopId, initialServiceId, availableServices]);
+
   const toggleService = useCallback((serviceId: string) => {
     setSelectedIds((prev) =>
-      prev.includes(serviceId)
-        ? prev.filter((id) => id !== serviceId)
-        : [...prev, serviceId],
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId],
     );
   }, []);
 

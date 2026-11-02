@@ -14,6 +14,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       'react-native': 'react-native-web',
+      'expo/build/async-require/hmr': path.resolve(
+        __dirname,
+        './node_modules/expo/build/async-require/hmr.js'
+      ),
     },
   },
 });

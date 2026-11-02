@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import {
   View,
   ScrollView,
@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Modal,
-  Dimensions,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,15 +14,24 @@ import { Text } from '@/shared/ui/Text';
 import { mediaApi } from '../api/media.api';
 import type { GalleryItemDto } from '../api/media.types';
 
+const GalleryVideo = lazy(() =>
+  import('@/features/discovery/ui/ExploreVideo').then((module) => ({
+    default: module.ExploreVideo,
+  })),
+);
+
 export interface BarbershopGalleryViewerProps {
   items?: GalleryItemDto[];
   barbershopId?: string;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-export function BarbershopGalleryViewer({ items: initialItems, barbershopId }: BarbershopGalleryViewerProps) {
+export function BarbershopGalleryViewer({
+  items: initialItems,
+  barbershopId,
+}: BarbershopGalleryViewerProps) {
   const { colors, radius } = useTheme();
+  const [selectedMedia, setSelectedMedia] = useState<GalleryItemDto | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const { data: fetchedItems } = useQuery({
@@ -56,7 +64,10 @@ export function BarbershopGalleryViewer({ items: initialItems, barbershopId }: B
             <TouchableOpacity
               key={item.id}
               activeOpacity={0.8}
-              onPress={() => setSelectedPhoto(item.publicUrl!)}
+              onPress={() => {
+                setSelectedPhoto(item.publicUrl!);
+                setSelectedMedia(item);
+              }}
               style={[
                 styles.photoThumb,
                 {
@@ -69,10 +80,11 @@ export function BarbershopGalleryViewer({ items: initialItems, barbershopId }: B
               accessibilityLabel="Ver foto ampliada"
             >
               <Image
-                source={{ uri: item.publicUrl }}
+                source={{ uri: item.posterUrl ?? item.publicUrl }}
                 style={styles.thumbImage}
                 resizeMode="cover"
               />
+              {item.caption&&<View style={{position:"absolute",bottom:0,left:0,right:0,backgroundColor:"rgba(0,0,0,0.8)",padding:4}}><Text variant="caption" numberOfLines={2} style={{color:"white"}}>{item.caption}</Text></View>}
             </TouchableOpacity>
           );
         })}
@@ -83,12 +95,18 @@ export function BarbershopGalleryViewer({ items: initialItems, barbershopId }: B
         visible={!!selectedPhoto}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedPhoto(null)}
+        onRequestClose={() => {
+          setSelectedPhoto(null);
+          setSelectedMedia(null);
+        }}
       >
         <View style={styles.modalBackdrop}>
           <TouchableOpacity
             style={styles.closeBtn}
-            onPress={() => setSelectedPhoto(null)}
+            onPress={() => {
+              setSelectedPhoto(null);
+              setSelectedMedia(null);
+            }}
             accessibilityRole="button"
             accessibilityLabel="Fechar visualização da foto"
           >
@@ -96,11 +114,23 @@ export function BarbershopGalleryViewer({ items: initialItems, barbershopId }: B
           </TouchableOpacity>
 
           {selectedPhoto ? (
-            <Image
-              source={{ uri: selectedPhoto }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            selectedMedia?.mimeType?.startsWith('video/') ? (
+              <View style={styles.fullImage}>
+                <Suspense fallback={<Text>Carregando vídeo…</Text>}>
+                  <GalleryVideo
+                    url={selectedPhoto}
+                    poster={selectedMedia.posterUrl}
+                    active={Boolean(selectedPhoto)}
+                  />
+                </Suspense>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: selectedPhoto }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            )
           ) : null}
         </View>
       </Modal>
@@ -144,7 +174,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   fullImage: {
-    width: SCREEN_WIDTH * 0.92,
+    width: '92%',
     height: '80%',
   },
 });

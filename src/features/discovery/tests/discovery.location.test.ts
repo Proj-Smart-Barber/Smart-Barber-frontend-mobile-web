@@ -102,4 +102,43 @@ describe('EphemeralLocationStore', () => {
     expect(notified).toBe(true);
     unsubscribe();
   });
+
+  it('deve persistir a localização no cache e restaurar com restoreFromCache()', async () => {
+    locationStore.updateSession({
+      state: 'granted',
+      coords: {
+        latitude: -23.5491,
+        longitude: -46.613,
+        accuracyMeters: 12,
+        timestamp: Date.now(),
+        isApproximate: false,
+        formattedLocation: 'Mooca, São Paulo',
+      },
+    });
+
+    // Simula reinicialização do componente lendo do cache
+    const restored = await locationStore.restoreFromCache();
+    expect(restored.state).toBe('granted');
+    expect(restored.coords?.latitude).toBe(-23.5491);
+    expect(restored.coords?.formattedLocation).toBe('Mooca, São Paulo');
+  });
+
+  it('deve limpar o cache ao chamar clear()', async () => {
+    locationStore.updateSession({
+      state: 'granted',
+      coords: {
+        latitude: -23.5491,
+        longitude: -46.613,
+        accuracyMeters: 12,
+        timestamp: Date.now(),
+        isApproximate: false,
+      },
+    });
+
+    locationStore.clear();
+
+    const restored = await locationStore.restoreFromCache();
+    expect(restored.state).toBe('idle');
+    expect(restored.coords).toBeNull();
+  });
 });

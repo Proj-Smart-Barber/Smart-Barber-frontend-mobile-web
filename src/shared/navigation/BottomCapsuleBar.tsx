@@ -23,6 +23,13 @@ interface DestinationConfig {
 
 const DESTINATIONS: DestinationConfig[] = [
   {
+    id: 'menu' as any,
+    label: 'Menu',
+    route: '#drawer',
+    iconActive: 'menu',
+    iconInactive: 'menu-outline',
+  },
+  {
     id: 'home',
     label: 'Início',
     route: '/(app)',
@@ -54,7 +61,7 @@ export function BottomCapsuleBar() {
   const { isOwner } = useSession();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { activeDestination, isDrawerOpen, drawerProgress, scrollCollapseProgress } = useNavigation();
+  const { activeDestination, isDrawerOpen, drawerProgress, scrollCollapseProgress, openDrawer, closeDrawer } = useNavigation();
   const reducedMotion = useReducedMotion();
 
   const visibleDestinations = DESTINATIONS.filter(
@@ -80,8 +87,8 @@ export function BottomCapsuleBar() {
 
   return (
     <Animated.View
-      pointerEvents={isDrawerOpen ? 'none' : 'box-none'}
-      style={[
+
+      style={[[
         styles.outerContainer,
         {
           bottom: bottomInset,
@@ -89,7 +96,7 @@ export function BottomCapsuleBar() {
           opacity: capsuleOpacity,
           transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
         },
-      ]}
+      ], { pointerEvents: isDrawerOpen ? 'none' : 'box-none' }]}
     >
       <LiquidGlassView
         borderRadius={radius.full}
@@ -104,19 +111,38 @@ export function BottomCapsuleBar() {
           style={styles.tablistContainer}
         >
           {visibleDestinations.map((item) => {
-            const isActive = activeDestination === item.id;
+            const isMenuItem = item.id === ('menu' as any);
+            const isActive = isMenuItem ? isDrawerOpen : activeDestination === item.id;
             const iconName = isActive ? item.iconActive : item.iconInactive;
             const activeBg = colors.brand.primary;
             const activeTextColor = '#FFFFFF';
             const inactiveTextColor = colors.text.secondary;
 
+            const handlePress = () => {
+              if (isMenuItem) {
+                if (isDrawerOpen) {
+                  closeDrawer();
+                } else {
+                  openDrawer();
+                }
+              } else {
+                handleNavigate(item.route, item.id);
+              }
+            };
+
             return (
               <Pressable
                 key={item.id}
-                accessibilityRole="tab"
-                accessibilityLabel={`${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`}
-                accessibilityState={{ selected: isActive }}
-                onPress={() => handleNavigate(item.route, item.id)}
+                accessibilityRole={isMenuItem ? 'button' : 'tab'}
+                accessibilityLabel={
+                  isMenuItem
+                    ? isDrawerOpen
+                      ? 'Fechar menu'
+                      : 'Abrir menu lateral'
+                    : `${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`
+                }
+                accessibilityState={isMenuItem ? { expanded: isDrawerOpen } : { selected: isActive }}
+                onPress={handlePress}
                 style={({ pressed }) => [
                   styles.tabItem,
                   {

@@ -517,7 +517,7 @@ export default function BarbershopSetupScreen() {
                 title="Cadastrar Barbearia"
                 loading={loading}
                 disabled={loading}
-                onPress={createForm.handleSubmit(handleCreate)}
+                onPress={() => { void createForm.handleSubmit(handleCreate)(); }}
                 style={{ marginTop: spacing[2] }}
               />
             </View>

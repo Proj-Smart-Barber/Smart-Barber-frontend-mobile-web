@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 /** Configuração de variáveis de ambiente públicas do Smart Barber. */
 
 const DEFAULT_API_URL = 'https://api-black-theta-13.vercel.app';
-const DEFAULT_WEB_URL = 'https://smartbarber.app';
+const DEFAULT_WEB_URL = 'https://app.smartbarber.wellingtonsp.uk';
 const MOCK_BARBERSHOP_ID = 'barbershop-seed-0001';
 
 const availabilitySource =

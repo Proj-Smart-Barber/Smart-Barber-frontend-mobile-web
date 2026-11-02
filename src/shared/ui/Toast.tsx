@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { View, Pressable, Animated, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -112,8 +113,8 @@ function ToastContainer({
 
   return (
     <View
-      pointerEvents="box-none"
-      style={{
+
+      style={[{
         position: 'absolute',
         top: Math.max(insets.top, spacing[3]),
         left: spacing[4],
@@ -121,7 +122,7 @@ function ToastContainer({
         zIndex: 9999,
         alignItems: 'center',
         gap: spacing[2],
-      }}
+      }, { pointerEvents: "box-none" }]}
     >
       {toasts.map((toast) => (
         <ToastCard
@@ -181,10 +182,10 @@ function ToastCard({
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing[3],
-        shadowColor: '#000',
+        ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 4px 10px rgba(0,0,0,${0.25})` } : { shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
-        shadowRadius: 10,
+        shadowRadius: 10, }),
         elevation: 8,
       }}
     >

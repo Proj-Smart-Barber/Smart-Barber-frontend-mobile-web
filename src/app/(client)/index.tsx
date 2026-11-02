@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
-import { useOptionalNavigation } from '@/shared/navigation';
+import { useOptionalNavigation, LiquidGlassView } from '@/shared/navigation';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import {
@@ -19,11 +20,13 @@ import {
   ClientSearchEntry,
   ClientNextBookingCard,
   BarbershopCard,
+  BarbershopHomeCarousel,
   DiscoverySkeleton,
   useDiscovery,
   useNextBooking,
   DiscoveryMapModal,
   buildBarbershopCatalogHref,
+  discoveryApi,
 } from '@/features/discovery';
 
 export default function ClientHomeScreen() {
@@ -58,6 +61,14 @@ export default function ClientHomeScreen() {
   const discovery = useDiscovery({
     initialRadius: 10,
   });
+
+  // Consulta de apoio com barbearias gerais em destaque caso o raio próximo não encontre nada
+  const { data: generalFallbackData } = useQuery({
+    queryKey: ['discovery', 'featured_fallback'],
+    queryFn: () => discoveryApi.searchAll({ limit: 6 }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const fallbackShops = generalFallbackData?.items ?? [];
 
   const isNearbyActive = discovery.effectiveMode === 'NEARBY';
   const isLocationGranted = discovery.locationSession.state === 'granted';
@@ -146,6 +157,10 @@ export default function ClientHomeScreen() {
                 <Text variant="caption" weight="bold" color={colors.text.primary}>
                   {discovery.locationSession.state === 'denied'
                     ? 'Localização desativada — exibindo todas as barbearias'
+                    : discovery.locationSession.state === 'unavailable'
+                    ? 'GPS indisponível — exibindo todas as barbearias'
+                    : discovery.locationSession.state === 'timeout'
+                    ? 'Tempo limite de GPS — toque para tentar novamente'
                     : discovery.locationSession.state === 'stale'
                     ? 'Localização desatualizada — toque para atualizar'
                     : 'Ver barbearias mais próximas de você'}
@@ -233,16 +248,72 @@ export default function ClientHomeScreen() {
             <DiscoverySkeleton />
           )}
 
-          {/* Lista de Prévia */}
+          {/* Carrossel Principal da Home */}
           {!discovery.isLoading && previewItems.length > 0 && (
-            <View style={styles.cardsGrid}>
-              {previewItems.map((shop) => (
-                <BarbershopCard
-                  key={shop.id}
-                  shop={shop}
-                  onPress={() => router.push(buildBarbershopCatalogHref(shop.id) as any)}
+            <BarbershopHomeCarousel
+              items={previewItems}
+              onSelectShop={(shop) => router.push(buildBarbershopCatalogHref(shop.id) as any)}
+            />
+          )}
+
+          {/* Estado Informativo quando nenhuma barbearia estiver no raio próximo */}
+          {!discovery.isLoading && discovery.items.length === 0 && isNearbyActive && (
+            <LiquidGlassView
+              variant="card"
+              elevated
+              style={styles.emptyNearbyCard}
+              contentStyle={styles.emptyNearbyContent}
+            >
+              <View style={styles.emptyNearbyHeader}>
+                <Ionicons name="navigate-circle-outline" size={30} color={colors.brand.primary} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text variant="subhead" weight="bold" color={colors.text.primary}>
+                    Nenhuma barbearia a até {discovery.filters.radiusKm} km
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary} style={{ marginTop: 2 }}>
+                    Não localizamos unidades próximas ao seu endereço no raio selecionado.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.emptyNearbyActions}>
+                {discovery.filters.radiusKm < 50 && (
+                  <Button
+                    title={`Buscar em ${discovery.filters.radiusKm === 10 ? 25 : 50} km`}
+                    variant="primary"
+                    onPress={() => discovery.setRadiusKm(discovery.filters.radiusKm === 10 ? 25 : 50)}
+                    style={{ flex: 1 }}
+                  />
+                )}
+                <Button
+                  title="Ver todas disponíveis"
+                  variant="outline"
+                  onPress={() => discovery.setMode('ALL')}
+                  style={{ flex: 1 }}
                 />
-              ))}
+              </View>
+            </LiquidGlassView>
+          )}
+
+          {/* Carrossel de apoio com barbearias da rede quando o raio imediato não retornar unidades */}
+          {!discovery.isLoading && discovery.items.length === 0 && isNearbyActive && fallbackShops.length > 0 && (
+            <View style={{ marginTop: 14 }}>
+              <Text variant="caption" weight="bold" color={colors.text.secondary} style={{ marginBottom: 10 }}>
+                BARBEARIAS DISPONÍVEIS NA REDE
+              </Text>
+              <BarbershopHomeCarousel
+                items={fallbackShops.slice(0, 4)}
+                onSelectShop={(shop) => router.push(buildBarbershopCatalogHref(shop.id) as any)}
+              />
+            </View>
+          )}
+
+          {/* Mensagem simples se o modo ALL não tiver itens */}
+          {!discovery.isLoading && discovery.items.length === 0 && !isNearbyActive && (
+            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+              <Text variant="caption" color={colors.text.secondary}>
+                Nenhum estabelecimento encontrado no momento.
+              </Text>
             </View>
           )}
 
@@ -352,5 +423,21 @@ const styles = StyleSheet.create({
   secondaryTitle: {
     fontWeight: '700',
     marginBottom: 8,
+  },
+  emptyNearbyCard: {
+    marginVertical: 12,
+    width: '100%',
+  },
+  emptyNearbyContent: {
+    padding: 16,
+  },
+  emptyNearbyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  emptyNearbyActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
 });

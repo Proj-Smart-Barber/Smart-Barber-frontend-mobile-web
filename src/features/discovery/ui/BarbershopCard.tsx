@@ -11,10 +11,12 @@ import {
   buildBarbershopCatalogHref,
   type PublicShop,
 } from '../api/discovery.contract';
+import { BarbershopPhotoCarousel } from './BarbershopPhotoCarousel';
 
 export interface BarbershopCardProps {
   shop: PublicShop;
   onPress?: () => void;
+  showPhotoCarousel?: boolean;
 }
 
 export function formatDistance(distanceMeters: number | null): string | null {
@@ -28,7 +30,11 @@ export function formatDistance(distanceMeters: number | null): string | null {
   return `${km} km de você`;
 }
 
-export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
+export function BarbershopCard({
+  shop,
+  onPress,
+  showPhotoCarousel = true,
+}: BarbershopCardProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const router = useRouter();
@@ -43,6 +49,15 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
     }
   };
 
+  const ratingLabel =
+    shop.reviewCount && shop.reviewCount > 0 && shop.rating != null
+      ? `Avaliação ${shop.rating.toFixed(1)} com ${shop.reviewCount} ${
+          shop.reviewCount === 1 ? 'avaliação' : 'avaliações'
+        }`
+      : 'Sem avaliações';
+
+  const distanceLabel = formattedDistance ? `, a ${formattedDistance}` : '';
+
   return (
     <LiquidGlassView
       variant="card"
@@ -50,154 +65,179 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
       style={styles.outerContainer}
       contentStyle={styles.cardContent}
     >
-      <Pressable
-        onPress={handleNavigate}
-        accessibilityRole="button"
-        accessibilityLabel={`Barbearia ${shop.name}`}
-        style={styles.innerPressable}
-      >
+      {/* 1. Carrossel de fotos (até 3 fotos) ou Capa única */}
+      {showPhotoCarousel && (
+        <BarbershopPhotoCarousel
+          photos={shop.photos}
+          coverUrl={shop.coverUrl}
+          barbershopName={shop.name}
+          height={175}
+          onPress={handleNavigate}
+          style={{
+            borderTopLeftRadius: radius.lg - 2,
+            borderTopRightRadius: radius.lg - 2,
+          }}
+        />
+      )}
+
+      {/* 2. Conteúdo da Barbearia */}
+      <View style={styles.innerContainer}>
         <View style={styles.contentRow}>
-          {/* Avatar / Imagem ou BrandMark Oficial */}
-          <View
-            style={[
-              styles.avatarContainer,
-              {
-                borderRadius: radius.md,
-                backgroundColor: colors.surface.input,
-                borderColor: colors.border.subtle,
-              },
-            ]}
+          <Pressable
+            onPress={handleNavigate}
+            accessibilityRole="button"
+            accessibilityLabel={`Barbearia ${shop.name}, ${ratingLabel}${distanceLabel}. Toque para ver detalhes.`}
+            style={styles.clickableInfo}
           >
-            {shop.avatarUrl ? (
-              <Image
-                source={{ uri: shop.avatarUrl }}
-                style={styles.avatar}
-                resizeMode="cover"
-              />
-            ) : (
-              <BrandMark
-                variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-                size={28}
-                decorative
-              />
-            )}
-          </View>
+            {/* Logo / Avatar separado da capa */}
+            <View
+              style={[
+                styles.avatarContainer,
+                {
+                  borderRadius: radius.md,
+                  backgroundColor: colors.surface.input,
+                  borderColor: colors.border.subtle,
+                },
+              ]}
+            >
+              {shop.avatarUrl ? (
+                <Image
+                  source={{ uri: shop.avatarUrl }}
+                  style={styles.avatar}
+                  resizeMode="contain"
+                />
+              ) : (
+                <BrandMark
+                  variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+                  size={26}
+                  decorative
+                />
+              )}
+            </View>
 
-          {/* Dados da barbearia */}
-          <View style={styles.infoCol}>
-            <Text variant="body" weight="bold" numberOfLines={1} style={styles.nameText}>
-              {shop.name}
-            </Text>
-
-            <View style={styles.locationRow}>
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={colors.text.secondary}
-                style={styles.locationIcon}
-              />
+            {/* Dados descritivos */}
+            <View style={styles.infoCol}>
               <Text
-                variant="caption"
-                color={colors.text.secondary}
+                variant="body"
+                weight="bold"
                 numberOfLines={2}
-                style={styles.locationText}
+                style={styles.nameText}
               >
-                {shop.location}
+                {shop.name}
               </Text>
+
+              <View style={styles.locationRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={colors.text.secondary}
+                  style={styles.locationIcon}
+                />
+                <Text
+                  variant="caption"
+                  color={colors.text.secondary}
+                  numberOfLines={2}
+                  style={styles.locationText}
+                >
+                  {shop.location}
+                </Text>
+              </View>
+
+              {/* Badges de Reputação e Distância */}
+              <View style={styles.metaBadgesRow}>
+                {/* Avaliação com nota e contagem */}
+                {shop.reviewCount && shop.reviewCount > 0 && shop.rating != null ? (
+                  <View
+                    style={[
+                      styles.badgeItem,
+                      {
+                        backgroundColor: 'rgba(217, 119, 6, 0.15)',
+                        borderColor: 'rgba(217, 119, 6, 0.3)',
+                        borderRadius: radius.sm,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="star" size={12} color="#f59e0b" />
+                    <Text
+                      variant="caption"
+                      style={[styles.badgeText, { color: '#fbbf24', fontWeight: '700' }]}
+                    >
+                      {shop.rating.toFixed(1)} ({shop.reviewCount})
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.badgeItem,
+                      {
+                        backgroundColor: colors.surface.input,
+                        borderColor: colors.border.subtle,
+                        borderRadius: radius.sm,
+                      },
+                    ]}
+                  >
+                    <Text
+                      variant="caption"
+                      style={[styles.badgeText, { color: colors.text.secondary }]}
+                    >
+                      Sem avaliações
+                    </Text>
+                  </View>
+                )}
+
+                {/* Distância autoritativa em km */}
+                {formattedDistance ? (
+                  <View
+                    style={[
+                      styles.badgeItem,
+                      {
+                        backgroundColor: colors.surface.input,
+                        borderColor: colors.border.subtle,
+                        borderRadius: radius.sm,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="navigate"
+                      size={11}
+                      color={colors.brand.primary}
+                    />
+                    <Text
+                      variant="caption"
+                      style={[styles.badgeText, { color: colors.text.primary }]}
+                    >
+                      {formattedDistance}
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={[
+                      styles.badgeItem,
+                      {
+                        backgroundColor: colors.surface.input,
+                        borderColor: colors.border.subtle,
+                        borderRadius: radius.sm,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={12}
+                      color={colors.brand.primary}
+                    />
+                    <Text
+                      variant="caption"
+                      style={[styles.badgeText, { color: colors.text.secondary }]}
+                    >
+                      Catálogo online
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
+          </Pressable>
 
-            <View style={styles.metaBadgesRow}>
-              {/* Avaliações próprias */}
-              {shop.reviewCount && shop.reviewCount > 0 && shop.rating != null ? (
-                <View
-                  style={[
-                    styles.distanceBadge,
-                    {
-                      backgroundColor: 'rgba(217, 119, 6, 0.15)',
-                      borderColor: 'rgba(217, 119, 6, 0.3)',
-                      borderRadius: radius.sm,
-                    },
-                  ]}
-                >
-                  <Ionicons name="star" size={11} color="#f59e0b" />
-                  <Text
-                    variant="caption"
-                    style={[styles.distanceText, { color: '#fbbf24', fontWeight: '700' }]}
-                  >
-                    {shop.rating.toFixed(1)} ({shop.reviewCount})
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.distanceBadge,
-                    {
-                      backgroundColor: colors.surface.input,
-                      borderColor: colors.border.subtle,
-                      borderRadius: radius.sm,
-                    },
-                  ]}
-                >
-                  <Text
-                    variant="caption"
-                    style={[styles.distanceText, { color: colors.text.secondary }]}
-                  >
-                    Ainda sem avaliações
-                  </Text>
-                </View>
-              )}
-
-              {formattedDistance ? (
-                <View
-                  style={[
-                    styles.distanceBadge,
-                    {
-                      backgroundColor: colors.surface.input,
-                      borderColor: colors.border.subtle,
-                      borderRadius: radius.sm,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="navigate"
-                    size={11}
-                    color={colors.brand.primary}
-                  />
-                  <Text
-                    variant="caption"
-                    style={[styles.distanceText, { color: colors.text.primary }]}
-                  >
-                    {formattedDistance}
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={[
-                    styles.distanceBadge,
-                    {
-                      backgroundColor: colors.surface.input,
-                      borderColor: colors.border.subtle,
-                      borderRadius: radius.sm,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={12}
-                    color={colors.brand.primary}
-                  />
-                  <Text
-                    variant="caption"
-                    style={[styles.distanceText, { color: colors.text.secondary }]}
-                  >
-                    Catálogo online
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Desktop / Tablet: CTA alinhado à direita da mesma linha */}
+          {/* Desktop / Tablet CTA à direita */}
           {!isCompact && (
             <View style={styles.desktopActionCol}>
               <Button
@@ -211,7 +251,7 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
           )}
         </View>
 
-        {/* Mobile: Rodapé equilibrado com indicador + CTA */}
+        {/* Mobile: Rodapé equilibrado com CTA claro */}
         {isCompact && (
           <View
             style={[
@@ -226,7 +266,7 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
             <View style={styles.mobileTrustHint}>
               <Ionicons name="time-outline" size={13} color={colors.text.muted} />
               <Text variant="caption" color={colors.text.muted}>
-                Agendamento imediato
+                Agendamento online
               </Text>
             </View>
             <Button
@@ -238,28 +278,37 @@ export function BarbershopCard({ shop, onPress }: BarbershopCardProps) {
             />
           </View>
         )}
-      </Pressable>
+      </View>
     </LiquidGlassView>
   );
 }
 
 const styles = StyleSheet.create({
   outerContainer: {
-    marginVertical: 6,
+    marginVertical: 8,
+    width: '100%',
   },
   cardContent: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  innerContainer: {
+    width: '100%',
     padding: 16,
   },
-  innerPressable: {
-    width: '100%',
+  clickableInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    minWidth: 0,
   },
   contentRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   avatarContainer: {
-    width: 60,
-    height: 60,
+    width: 48,
+    height: 48,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
@@ -277,16 +326,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nameText: {
-    fontWeight: '700',
+    fontSize: 16,
+    lineHeight: 22,
     marginBottom: 4,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 4,
   },
   locationIcon: {
-    marginRight: 4,
+    flexShrink: 0,
   },
   locationText: {
     flex: 1,
@@ -295,18 +346,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
-  distanceBadge: {
+  badgeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderWidth: 1,
     gap: 4,
   },
-  distanceText: {
+  badgeText: {
     fontSize: 11,
     fontWeight: '600',
   },
@@ -331,4 +381,3 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
 });
-
