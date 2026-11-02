@@ -1,3 +1,4 @@
+import { preparePickedImage } from '../model/prepare-picked-image';
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
@@ -119,10 +120,7 @@ export function BarbershopGalleryManager({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const fileName = asset.fileName || `foto_${Date.now()}.jpg`;
-        const mimeType = asset.mimeType || 'image/jpeg';
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
+        const { file: blob, name: fileName, type: mimeType } = await preparePickedImage(asset);
 
         const isFirst = items.length === 0;
         const newItem = await uploadGalleryPhoto(blob, fileName, mimeType, '', isFirst);
@@ -246,21 +244,11 @@ export function BarbershopGalleryManager({
       ) : null}
 
       {error ? (
-        <Alert
-          variant="error"
-          title="Erro no upload"
-          message={error}
-          style={styles.alert}
-        />
+        <Alert variant="error" title="Erro no upload" message={error} style={styles.alert} />
       ) : null}
 
       {actionError ? (
-        <Alert
-          variant="error"
-          title="Erro na galeria"
-          message={actionError}
-          style={styles.alert}
-        />
+        <Alert variant="error" title="Erro na galeria" message={actionError} style={styles.alert} />
       ) : null}
 
       {items.length === 0 ? (
@@ -299,7 +287,7 @@ export function BarbershopGalleryManager({
               >
                 {item.publicUrl ? (
                   <Image
-                    source={{ uri: item.publicUrl }}
+                    source={{ uri: item.posterUrl ?? item.publicUrl }}
                     style={styles.itemImage}
                     resizeMode="cover"
                   />
@@ -325,7 +313,11 @@ export function BarbershopGalleryManager({
                         accessibilityRole="button"
                         accessibilityLabel={`Mover foto ${index + 1} para esquerda`}
                       >
-                        <Ionicons name="arrow-back-outline" size={16} color={colors.text.secondary} />
+                        <Ionicons
+                          name="arrow-back-outline"
+                          size={16}
+                          color={colors.text.secondary}
+                        />
                       </TouchableOpacity>
                     ) : null}
                     {canMoveNext ? (
@@ -336,7 +328,11 @@ export function BarbershopGalleryManager({
                         accessibilityRole="button"
                         accessibilityLabel={`Mover foto ${index + 1} para direita`}
                       >
-                        <Ionicons name="arrow-forward-outline" size={16} color={colors.text.secondary} />
+                        <Ionicons
+                          name="arrow-forward-outline"
+                          size={16}
+                          color={colors.text.secondary}
+                        />
                       </TouchableOpacity>
                     ) : null}
                   </View>

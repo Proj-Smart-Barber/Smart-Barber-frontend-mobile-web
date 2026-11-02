@@ -6,7 +6,7 @@ import { mapStatusBadgeTone, mapStatusLabel } from '@/entities/appointment';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Badge, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { serverClock } from '@/features/bookings';
+import { serverClock } from '@/features/bookings/lib/server-clock';
 import type { AgendaAppointmentEntry } from '../api/agenda.contract';
 import { mapPaymentStatusLabel } from '../model/agenda.helpers';
 

@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import React, { useEffect } from 'react';
 import {
   Animated,
@@ -118,8 +119,8 @@ export function LeftDrawer() {
 
   return (
     <View
-      pointerEvents={isDrawerOpen ? 'auto' : 'none'}
-      style={[StyleSheet.absoluteFill, styles.overlayContainer]}
+
+      style={[[StyleSheet.absoluteFill, styles.overlayContainer], { pointerEvents: isDrawerOpen ? 'auto' : 'none' }]}
       accessibilityViewIsModal={isDrawerOpen}
     >
       {/* Backdrop semi-transparente que escurece conforme drawerProgress */}
@@ -470,10 +471,10 @@ const styles = StyleSheet.create({
     height: '100%',
     borderTopRightRadius: 26,
     borderBottomRightRadius: 26,
-    shadowColor: '#000',
+    ...(ShadowPlatform.OS === 'web' ? { boxShadow: `6px 0px 24px rgba(0,0,0,${0.35})` } : { shadowColor: '#000',
     shadowOffset: { width: 6, height: 0 },
     shadowOpacity: 0.35,
-    shadowRadius: 24,
+    shadowRadius: 24, }),
     elevation: 20,
   },
   drawerGlass: {

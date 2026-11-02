@@ -1,3 +1,4 @@
+import { ServicePhotoUploader } from '@/features/services/ui/ServicePhotoUploader';
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -16,13 +17,34 @@ import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { ThemeMode, useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
 
-const themeOptions: Array<{ mode: ThemeMode; title: string; description: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { mode: 'system', title: 'Sistema', description: 'Seguir a preferência de aparência do dispositivo.', icon: 'phone-portrait-outline' },
-  { mode: 'light', title: 'Claro', description: 'Usar a aparência clara no aplicativo.', icon: 'sunny-outline' },
-  { mode: 'dark', title: 'Escuro', description: 'Usar a aparência escura no aplicativo.', icon: 'moon-outline' },
+const themeOptions: Array<{
+  mode: ThemeMode;
+  title: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}> = [
+  {
+    mode: 'system',
+    title: 'Sistema',
+    description: 'Seguir a preferência de aparência do dispositivo.',
+    icon: 'phone-portrait-outline',
+  },
+  {
+    mode: 'light',
+    title: 'Claro',
+    description: 'Usar a aparência clara no aplicativo.',
+    icon: 'sunny-outline',
+  },
+  {
+    mode: 'dark',
+    title: 'Escuro',
+    description: 'Usar a aparência escura no aplicativo.',
+    icon: 'moon-outline',
+  },
 ];
 
 export function AppearanceSettingsScreen() {
+  const [galleryRevision, setGalleryRevision] = React.useState(0);
   const queryClient = useQueryClient();
   const { colors, spacing, radius, mode, setMode } = useTheme();
   const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
@@ -39,31 +61,77 @@ export function AppearanceSettingsScreen() {
   const { uploadLogo, removeLogo } = useBarbershopMedia(activeShopId || '');
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background.primary }}>
-      <View style={{ minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingHorizontal: spacing[isCompact ? 4 : 6] }}>
+    <SafeAreaView
+      edges={['top', 'bottom']}
+      style={{ flex: 1, backgroundColor: colors.background.primary }}
+    >
+      <View
+        style={{
+          minHeight: 64,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing[3],
+          paddingHorizontal: spacing[isCompact ? 4 : 6],
+        }}
+      >
         {!isExpanded ? (
-          <LiquidGlassView variant="navigation" borderRadius={radius.md} elevated={false} style={{ width: 44, height: 44 }} contentStyle={{ padding: 0 }}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Abrir menu" onPress={openDrawer} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md }}>
+          <LiquidGlassView
+            variant="navigation"
+            borderRadius={radius.md}
+            elevated={false}
+            style={{ width: 44, height: 44 }}
+            contentStyle={{ padding: 0 }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Abrir menu"
+              onPress={openDrawer}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.md,
+              }}
+            >
               <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
             </Pressable>
           </LiquidGlassView>
         ) : null}
         <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="h2" color={colors.text.primary} accessibilityRole="header">Configurações</Text>
-          <Text variant="caption" color={colors.text.secondary}>Preferências do aplicativo e unidade</Text>
+          <Text variant="h2" color={colors.text.primary} accessibilityRole="header">
+            Configurações
+          </Text>
+          <Text variant="caption" color={colors.text.secondary}>
+            Preferências do aplicativo e unidade
+          </Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: 'center', padding: spacing[isCompact ? 4 : 6], paddingBottom: spacing[10] }}>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          alignItems: 'center',
+          padding: spacing[isCompact ? 4 : 6],
+          paddingBottom: spacing[10],
+        }}
+      >
         <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[4] }}>
           {isOwnerOfUnit && activeShopId ? (
             <>
               <BarbershopLocationSection shopId={activeShopId} />
 
-              <LiquidGlassView variant="card" style={{ width: '100%' }} contentStyle={{ padding: spacing[5], gap: spacing[3] }}>
+              <LiquidGlassView
+                variant="card"
+                style={{ width: '100%' }}
+                contentStyle={{ padding: spacing[5], gap: spacing[3] }}
+              >
                 <View style={{ gap: spacing[1] }}>
-                  <Text variant="h3" color={colors.text.primary}>Identidade Visual da Unidade</Text>
-                  <Text variant="bodySm" color={colors.text.secondary}>Logotipo oficial exibido para os clientes no catálogo e busca.</Text>
+                  <Text variant="h3" color={colors.text.primary}>
+                    Identidade Visual da Unidade
+                  </Text>
+                  <Text variant="bodySm" color={colors.text.secondary}>
+                    Logotipo oficial exibido para os clientes no catálogo e busca.
+                  </Text>
                 </View>
                 <AvatarUploader
                   currentAvatarUrl={barbershop?.avatarUrl}
@@ -83,10 +151,18 @@ export function AppearanceSettingsScreen() {
                 />
               </LiquidGlassView>
 
-              <LiquidGlassView variant="card" style={{ width: '100%' }} contentStyle={{ padding: spacing[5], gap: spacing[3] }}>
+              <LiquidGlassView
+                variant="card"
+                style={{ width: '100%' }}
+                contentStyle={{ padding: spacing[5], gap: spacing[3] }}
+              >
                 <View style={{ gap: spacing[1] }}>
-                  <Text variant="h3" color={colors.text.primary}>Perfil no Google Maps</Text>
-                  <Text variant="bodySm" color={colors.text.secondary}>Link público oficial para os clientes acessarem a ficha da unidade.</Text>
+                  <Text variant="h3" color={colors.text.primary}>
+                    Perfil no Google Maps
+                  </Text>
+                  <Text variant="bodySm" color={colors.text.secondary}>
+                    Link público oficial para os clientes acessarem a ficha da unidade.
+                  </Text>
                 </View>
                 <GoogleProfileLink
                   barbershopId={activeShopId}
@@ -95,19 +171,47 @@ export function AppearanceSettingsScreen() {
                 />
               </LiquidGlassView>
 
-              <LiquidGlassView variant="card" style={{ width: '100%' }} contentStyle={{ padding: spacing[5], gap: spacing[3] }}>
-                <BarbershopGalleryManager shopId={activeShopId} isOwner={isOwnerOfUnit} />
+              <LiquidGlassView
+                variant="card"
+                style={{ width: '100%' }}
+                contentStyle={{ padding: spacing[5], gap: spacing[3] }}
+              >
+                <BarbershopGalleryManager
+                  key={galleryRevision}
+                  shopId={activeShopId}
+                  isOwner={isOwnerOfUnit}
+                />
+                <ServicePhotoUploader
+                  shopId={activeShopId}
+                  onUpdated={() => {
+                    setGalleryRevision((value) => value + 1);
+                    queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
+                    queryClient.invalidateQueries({ queryKey: ['barbershop', activeShopId] });
+                  }}
+                />
               </LiquidGlassView>
             </>
           ) : null}
 
-          <LiquidGlassView variant="card" style={{ width: '100%' }} contentStyle={{ padding: spacing[5], gap: spacing[4] }}>
+          <LiquidGlassView
+            variant="card"
+            style={{ width: '100%' }}
+            contentStyle={{ padding: spacing[5], gap: spacing[4] }}
+          >
             <View style={{ gap: spacing[1] }}>
-              <Text variant="h3" color={colors.text.primary}>Aparência</Text>
-              <Text variant="bodySm" color={colors.text.secondary}>Escolha como o Smart Barber será exibido.</Text>
+              <Text variant="h3" color={colors.text.primary}>
+                Aparência
+              </Text>
+              <Text variant="bodySm" color={colors.text.secondary}>
+                Escolha como o Smart Barber será exibido.
+              </Text>
             </View>
 
-            <View accessibilityRole="radiogroup" accessibilityLabel="Tema do aplicativo" style={{ gap: spacing[2] }}>
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel="Tema do aplicativo"
+              style={{ gap: spacing[2] }}
+            >
               {themeOptions.map((option) => {
                 const selected = mode === option.mode;
                 return (
@@ -127,15 +231,29 @@ export function AppearanceSettingsScreen() {
                       borderRadius: radius.md,
                       borderWidth: 1,
                       borderColor: selected ? colors.brand.primary : colors.border.subtle,
-                      backgroundColor: selected ? colors.surface.selected : pressed ? colors.surface.selected : colors.surface.default,
+                      backgroundColor: selected
+                        ? colors.surface.selected
+                        : pressed
+                          ? colors.surface.selected
+                          : colors.surface.default,
                     })}
                   >
-                    <Ionicons name={option.icon} size={20} color={selected ? colors.brand.primary : colors.text.secondary} />
+                    <Ionicons
+                      name={option.icon}
+                      size={20}
+                      color={selected ? colors.brand.primary : colors.text.secondary}
+                    />
                     <View style={{ flex: 1, gap: 2 }}>
-                      <Text variant="bodySm" weight="semibold" color={colors.text.primary}>{option.title}</Text>
-                      <Text variant="caption" color={colors.text.secondary}>{option.description}</Text>
+                      <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+                        {option.title}
+                      </Text>
+                      <Text variant="caption" color={colors.text.secondary}>
+                        {option.description}
+                      </Text>
                     </View>
-                    {selected ? <Ionicons name="checkmark-circle" size={20} color={colors.brand.primary} /> : null}
+                    {selected ? (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.brand.primary} />
+                    ) : null}
                   </Pressable>
                 );
               })}

@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View,
@@ -338,7 +339,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                             {vm.isDirty ? 'Você possui alterações não salvas.' : vm.needsReview ? 'Confirme sua jornada.' : 'Sua jornada está atualizada.'}
                           </Text>
                           <Button title={vm.needsReview ? 'Confirmar jornada' : 'Salvar minha jornada'} loading={vm.busy}
-                            disabled={!canSave} onPress={submit} />
+                            disabled={!canSave} onPress={() => { void submit(); }} />
                           <Button title="Descartar alterações" variant="outline"
                             disabled={locked || !vm.isDirty} onPress={() => confirmScheduleDiscard(vm.discard)} />
                         </LiquidGlassView>
@@ -357,7 +358,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
             accessibilityLabel={vm.needsReview ? 'Confirmar jornada' : 'Salvar jornada'}
             accessibilityState={{ disabled: !canSave, busy: vm.busy }}
             disabled={!canSave}
-            onPress={submit}
+            onPress={() => { void submit(); }}
             style={({ pressed }) => [styles.floatingSaveButton, {
               right: spacing[5], bottom: Math.max(insets.bottom, 12) + 100, backgroundColor: colors.brand.primary,
               opacity: !canSave ? 0.45 : pressed ? 0.82 : 1 }]}
@@ -367,9 +368,9 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
         )}
       </KeyboardAvoidingView>
 
-      <Animated.View pointerEvents="box-none"
-        style={[styles.stickyHeaderOverlay, { paddingHorizontal: spacing[isExpanded ? 8 : 5],
-          opacity: stickyOpacity, transform: [{ translateY: stickyTranslateY }] }]}>
+      <Animated.View
+        style={[[styles.stickyHeaderOverlay, { paddingHorizontal: spacing[isExpanded ? 8 : 5],
+          opacity: stickyOpacity, transform: [{ translateY: stickyTranslateY }] }], { pointerEvents: "box-none" }]}>
         <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
           <LiquidGlassView variant="navigation" borderRadius={radius.xl} intensity={60} elevated style={{ width: '100%' }}
             contentStyle={{ minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing[3],
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
   stickyHeaderOverlay: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: 80 },
   floatingSaveButton: {
     position: 'absolute', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
-    elevation: 8, zIndex: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 8,
+    elevation: 8, zIndex: 20, ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 4px 8px rgba(0,0,0,${0.28})` } : { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.28, shadowRadius: 8, }),
   },
   hero: { gap: 12, paddingTop: 16, paddingBottom: 12 },
   heroAccent: { width: 44, height: 4, marginBottom: 4 },

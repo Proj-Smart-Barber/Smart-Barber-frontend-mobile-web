@@ -42,6 +42,9 @@ export function ClientHeader({
     if (!locationSession) return 'Ativar localização';
     switch (locationSession.state) {
       case 'granted':
+        if (locationSession.coords?.formattedLocation) {
+          return locationSession.coords.formattedLocation;
+        }
         return locationSession.coords?.isApproximate
           ? 'Perto de você (aprox.)'
           : 'Perto de você';
@@ -66,36 +69,16 @@ export function ClientHeader({
       ]}
     >
       <View style={styles.topRow}>
-        {/* Lado Esquerdo: Hamburger (mobile) + BrandMark + Saudação + Localização */}
+        {/* Lado Esquerdo: BrandMark + Saudação + Localização (Menu hambúrguer agora reside na barra inferior) */}
         <View style={[styles.leftGroup, { gap: spacing[3] }]}>
-          {!isExpanded && openDrawer ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Abrir menu de navegação"
-              onPress={openDrawer}
-              style={({ pressed }) => [
-                styles.menuButton,
-                {
-                  borderRadius: radius.md,
-                  backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
-                  borderColor: colors.border.default,
-                },
-              ]}
-            >
-              <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
-            </Pressable>
-          ) : null}
-
-          {!isExpanded && (
-            <View style={{ flexShrink: 0 }}>
-              <BrandMark
-                variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-                size={32}
-                decorative={false}
-                accessibilityLabel="Smart Barber Logo"
-              />
-            </View>
-          )}
+          <View style={{ flexShrink: 0 }}>
+            <BrandMark
+              variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+              size={32}
+              decorative={false}
+              accessibilityLabel="Smart Barber Logo"
+            />
+          </View>
 
           <View style={styles.greetingCol}>
             <View style={styles.greetingRow}>
@@ -149,7 +132,7 @@ export function ClientHeader({
           </View>
         </View>
 
-        {/* Lado Direito: Notificações + Avatar com borda Crimson */}
+        {/* Lado Direito: Notificações + Botão Explícito de Conta/Perfil */}
         <View style={styles.actionsRow}>
           <Pressable
             onPress={() => router.push('/(client)/notifications')}
@@ -171,28 +154,53 @@ export function ClientHeader({
             />
           </Pressable>
 
+          {/* Botão Explícito de Conta no canto superior direito */}
           <Pressable
             onPress={() => router.push('/(client)/profile')}
             accessibilityRole="button"
-            accessibilityLabel="Menu de perfil e conta"
-            style={[
-              styles.avatarButton,
+            accessibilityLabel="Acessar Minha Conta"
+            accessibilityHint="Navega para o perfil e configurações da sua conta"
+            style={({ pressed }) => [
+              styles.explicitAccountButton,
               {
-                backgroundColor: colors.surface.elevated,
-                borderColor: colors.brand.primary,
+                backgroundColor: pressed
+                  ? colors.surface.selected
+                  : isDark
+                    ? 'rgba(255, 255, 255, 0.04)'
+                    : colors.surface.input,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.border.default,
                 borderRadius: radius.full,
               },
             ]}
           >
+            <View
+              style={[
+                styles.accountAvatarCircle,
+                {
+                  backgroundColor: colors.surface.elevated,
+                  borderColor: colors.brand.primary,
+                  borderRadius: radius.full,
+                },
+              ]}
+            >
+              <Text
+                variant="caption"
+                weight="bold"
+                style={[
+                  styles.avatarInitial,
+                  { color: colors.brand.primary, lineHeight: 13, textAlign: 'center' },
+                ]}
+              >
+                {initials}
+              </Text>
+            </View>
             <Text
               variant="caption"
               weight="bold"
-              style={[
-                styles.avatarInitial,
-                { color: colors.text.primary, lineHeight: 14, textAlign: 'center' },
-              ]}
+              color={colors.text.primary}
+              style={styles.accountButtonText}
             >
-              {initials}
+              Conta
             </Text>
           </Pressable>
         </View>
@@ -263,16 +271,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
-  avatarButton: {
-    width: 44,
+  explicitAccountButton: {
     height: 44,
-    justifyContent: 'center',
+    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingLeft: 4,
+    paddingRight: 12,
+    borderWidth: 1,
+    gap: 6,
+  },
+  accountAvatarCircle: {
+    width: 32,
+    height: 32,
     borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   avatarInitial: {
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 11,
+  },
+  accountButtonText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
   },
 });
 

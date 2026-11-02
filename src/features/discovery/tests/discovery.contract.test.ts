@@ -16,6 +16,12 @@ describe('Discovery Contracts & Schemas', () => {
         slug: 'barbearia-vintage-club',
         location: 'Rua das Flores, 123, Centro',
         avatarUrl: 'https://images.unsplash.com/photo-barber',
+        coverUrl: 'https://images.unsplash.com/photo-cover',
+        photos: [
+          'https://images.unsplash.com/photo-cover',
+          'https://images.unsplash.com/photo-detail-1',
+          'https://images.unsplash.com/photo-detail-2',
+        ],
         coordinates: {
           latitude: -23.55052,
           longitude: -46.633308,
@@ -29,6 +35,7 @@ describe('Discovery Contracts & Schemas', () => {
         expect(parsed.data.name).toBe('Barbearia Vintage Club');
         expect(parsed.data.distanceMeters).toBe(2340);
         expect(parsed.data.coordinates?.latitude).toBe(-23.55052);
+        expect(parsed.data.photos).toHaveLength(3);
       }
     });
 

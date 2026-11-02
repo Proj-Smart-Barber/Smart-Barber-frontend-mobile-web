@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { httpClient } from '@/shared/api';
 import type {
   InitiateUploadRequestDto,
@@ -15,11 +16,7 @@ export class MediaApi {
     data: InitiateUploadRequestDto,
     token?: string | null,
   ): Promise<InitiateUploadResponseDto> {
-    return httpClient.post<InitiateUploadResponseDto>(
-      '/api/media/upload-intent',
-      data,
-      { token },
-    );
+    return httpClient.post<InitiateUploadResponseDto>('/api/media/upload-intent', data, { token });
   }
 
   /**
@@ -31,7 +28,8 @@ export class MediaApi {
     contentType: string,
     signal?: AbortSignal,
   ): Promise<void> {
-    const response = await fetch(uploadUrl, {
+    const send = Platform.OS === 'web' ? fetch : (await import('expo/fetch')).fetch;
+    const response = await send(uploadUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': contentType,
@@ -45,14 +43,32 @@ export class MediaApi {
     }
   }
 
+  async uploadMultipart(mediaId:string,file:Blob,type:string,signal?:AbortSignal,onProgress?:(progress:number)=>void):Promise<void>{
+    const route=`/api/media/${encodeURIComponent(mediaId)}/multipart`;
+    const session=await httpClient.post<{partSize:number;parts:Array<{part:number;size:number}>;complete:boolean}>(route,{}, {signal});
+    if(session.complete){onProgress?.(1);return;}
+    if(!Number.isSafeInteger(session.partSize)||session.partSize<5*1024*1024||session.partSize>10*1024*1024)throw new Error('Sessão de envio inválida.');
+    const count=Math.ceil(file.size/session.partSize);
+    for(let part=1;part<=count;part++){
+      if(signal?.aborted)throw new Error('Envio cancelado.');
+      const begin=(part-1)*session.partSize;const chunk=file.slice(begin,Math.min(begin+session.partSize,file.size),type);
+      if(!session.parts.some(item=>item.part===part&&item.size===chunk.size)){
+        let sent=false;
+        for(let attempt=0;attempt<3&&!sent;attempt++){
+          try{const signed=await httpClient.post<{uploadUrl:string}>(route+'/part',{part},{signal});await this.uploadToPresignedUrl(signed.uploadUrl,chunk,type,signal);sent=true;}
+          catch(error){if(signal?.aborted||attempt===2)throw error;await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));}
+        }
+      }
+      onProgress?.(Math.min(part*session.partSize,file.size)/file.size);
+    }
+    await httpClient.post(route+'/complete',{}, {signal});
+  }
+
   /**
    * Confirma o upload, processa e valida a integridade/metadados no backend:
    * POST /api/media/:mediaId/confirm
    */
-  async confirmUpload(
-    mediaId: string,
-    token?: string | null,
-  ): Promise<ConfirmUploadResponseDto> {
+  async confirmUpload(mediaId: string, token?: string | null): Promise<ConfirmUploadResponseDto> {
     return httpClient.post<ConfirmUploadResponseDto>(
       `/api/media/${encodeURIComponent(mediaId)}/confirm`,
       {},
@@ -64,15 +80,8 @@ export class MediaApi {
    * Atualiza avatar do usuário logado:
    * PATCH /api/users/me/avatar
    */
-  async updateUserAvatar(
-    mediaId: string,
-    token?: string | null,
-  ): Promise<{ avatarUrl: string }> {
-    return httpClient.patch<{ avatarUrl: string }>(
-      '/api/users/me/avatar',
-      { mediaId },
-      { token },
-    );
+  async updateUserAvatar(mediaId: string, token?: string | null): Promise<{ avatarUrl: string }> {
+    return httpClient.patch<{ avatarUrl: string }>('/api/users/me/avatar', { mediaId }, { token });
   }
 
   /**
@@ -103,14 +112,10 @@ export class MediaApi {
    * Remove logotipo da barbearia (apenas OWNER):
    * DELETE /api/barbershops/:shopId/logo
    */
-  async removeBarbershopLogo(
-    shopId: string,
-    token?: string | null,
-  ): Promise<void> {
-    return httpClient.delete<void>(
-      `/api/barbershops/${encodeURIComponent(shopId)}/logo`,
-      { token },
-    );
+  async removeBarbershopLogo(shopId: string, token?: string | null): Promise<void> {
+    return httpClient.delete<void>(`/api/barbershops/${encodeURIComponent(shopId)}/logo`, {
+      token,
+    });
   }
 
   /**
@@ -185,11 +190,7 @@ export class MediaApi {
    * Reordena itens da galeria:
    * PATCH /api/barbershops/:shopId/gallery/reorder
    */
-  async reorderGallery(
-    shopId: string,
-    itemIds: string[],
-    token?: string | null,
-  ): Promise<void> {
+  async reorderGallery(shopId: string, itemIds: string[], token?: string | null): Promise<void> {
     return httpClient.patch<void>(
       `/api/barbershops/${encodeURIComponent(shopId)}/gallery/reorder`,
       { itemIds },

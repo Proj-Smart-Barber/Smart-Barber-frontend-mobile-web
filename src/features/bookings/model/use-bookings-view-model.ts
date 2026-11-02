@@ -12,7 +12,7 @@ import {
   minutesBetween,
   sortAgendaEntriesChronologically,
   toISODate,
-} from '@/features/agenda';
+} from '@/features/agenda/model/agenda.helpers';
 import { fetchUnitBookings } from '../api/bookings.api';
 import type { BookingDto } from '../api/bookings.dto';
 import type { BookingDetails, UpdateBookingInput } from '../api/bookings.contract';

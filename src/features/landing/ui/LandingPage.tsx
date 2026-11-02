@@ -10,6 +10,9 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useSession } from '@/features/auth';
 import { BrandMark } from '@/shared/brand';
 import { landingContent } from '../content/landing-content';
@@ -20,9 +23,10 @@ import { buildWhatsAppUrl, buildWhatsAppMessage, copyMessageToClipboard } from '
 
 export function LandingPage(): React.ReactElement {
   const isDark = true;
+  const insets = useSafeAreaInsets();
   const { status } = useSession();
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView | null>(null);
+  const scrollViewRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
 
   const [formData, setFormData] = useState<DemoFormData>({
     nome: '',
@@ -143,30 +147,14 @@ export function LandingPage(): React.ReactElement {
   const authLabel = isAuthenticated ? landingContent.header.authenticatedAction : landingContent.header.loginAction;
 
   return (
+    <View style={[styles.container, { backgroundColor: '#0B0B0B' }]}>
+    <StatusBar style="light" />
     <ScrollView
       ref={scrollViewRef}
       style={[styles.container, { backgroundColor: isDark ? '#0B0B0B' : '#F7F5F3' }]}
-      contentContainerStyle={styles.contentContainer}
+      contentInsetAdjustmentBehavior="never"
+      contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top + 96, paddingBottom: insets.bottom + 48 }]}
     >
-      {/* 1. Header */}
-      <View style={[styles.header, { borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : '#E7E0DD' }]}>
-        <View style={styles.headerBrand}>
-          <BrandMark variant="symbol-crimson" size={32} decorative />
-          <Text style={[styles.headerBrandText, { color: isDark ? '#FFFFFF' : '#171313' }]}>
-            {landingContent.header.brandName}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.authButton, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : '#D5CECA' }]}
-          onPress={() => router.push(isAuthenticated ? '/(app)' : '/(auth)/login')}
-        >
-          <Text style={[styles.authButtonText, { color: isDark ? '#FFFFFF' : '#171313' }]}>
-            {authLabel}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       {/* 2. Hero Section */}
       <View style={styles.section}>
         <Text style={styles.heroEyebrow}>{landingContent.hero.eyebrow}</Text>
@@ -598,6 +586,30 @@ export function LandingPage(): React.ReactElement {
         </Text>
       </View>
     </ScrollView>
+      {/* 1. Header */}
+      <LiquidGlassView variant="navigation" autoHeight borderRadius={24} elevated intensity={60}
+        backgroundColor="rgba(11,11,11,0.82)" borderColor="rgba(255,255,255,0.14)"
+        style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, zIndex: 20 }}
+        contentStyle={styles.header}>
+        <View style={styles.headerBrand}>
+          <BrandMark variant="symbol-crimson" size={32} decorative />
+          <Text numberOfLines={1} style={[styles.headerBrandText, { color: isDark ? '#FFFFFF' : '#171313' }]}>
+            {landingContent.header.brandName}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          accessibilityRole="button" accessibilityLabel={authLabel}
+          style={[styles.authButton, { borderColor: isDark ? 'rgba(255,255,255,0.14)' : '#D5CECA' }]}
+          onPress={() => router.push(isAuthenticated ? '/(app)' : '/(auth)/login')}
+        >
+          <Text style={[styles.authButtonText, { color: isDark ? '#FFFFFF' : '#171313' }]}>
+            {authLabel}
+          </Text>
+        </TouchableOpacity>
+      </LiquidGlassView>
+
+    </View>
   );
 }
 
@@ -609,19 +621,23 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   header: {
-    height: 64,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
   },
   headerBrand: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   headerBrandText: {
+    flexShrink: 1,
     fontSize: 18,
     fontWeight: '800',
     fontFamily: 'Inter_700Bold',

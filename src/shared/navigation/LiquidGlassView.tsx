@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import React from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -189,33 +190,33 @@ export function LiquidGlassView({
     ? {}
     : isSidebar
       ? {
-          shadowColor: '#000',
+          ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 10px 28px rgba(0,0,0,${isDark ? 0.35 : 0.10})` } : { shadowColor: '#000',
           shadowOffset: { width: 0, height: 10 },
           shadowOpacity: isDark ? 0.35 : 0.10,
-          shadowRadius: 28,
+          shadowRadius: 28, }),
           elevation: 8,
         }
       : isForm
         ? {
-            shadowColor: '#000',
+            ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 8px 24px rgba(0,0,0,${isDark ? 0.35 : 0.09})` } : { shadowColor: '#000',
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: isDark ? 0.35 : 0.09,
-            shadowRadius: 24,
+            shadowRadius: 24, }),
             elevation: 6,
           }
         : isCard
           ? {
-              shadowColor: '#000',
+              ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 6px 16px rgba(0,0,0,${isDark ? 0.25 : 0.07})` } : { shadowColor: '#000',
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: isDark ? 0.25 : 0.07,
-              shadowRadius: 16,
+              shadowRadius: 16, }),
               elevation: 4,
             }
           : {
-              shadowColor: '#000',
+              ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 8px 20px rgba(0,0,0,${isDark ? 0.45 : 0.16})` } : { shadowColor: '#000',
               shadowOffset: { width: 0, height: 8 },
               shadowOpacity: isDark ? 0.45 : 0.16,
-              shadowRadius: 20,
+              shadowRadius: 20, }),
               elevation: 12,
             };
 
@@ -256,8 +257,8 @@ export function LiquidGlassView({
         {/* Camada sutil de reflexo / acabamento especular */}
         {!reducedTransparency ? (
           <View
-            pointerEvents="none"
-            style={[
+
+            style={[[
               styles.specularHighlight,
               {
                 borderTopColor: isDark
@@ -284,7 +285,7 @@ export function LiquidGlassView({
                         : 'linear-gradient(145deg, rgba(255, 255, 255, 0.45), transparent 42%)',
                   } as any)
                 : null,
-            ]}
+            ], { pointerEvents: "none" }]}
           />
         ) : null}
 

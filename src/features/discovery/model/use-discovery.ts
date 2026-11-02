@@ -94,13 +94,16 @@ export function useDiscovery(initialParams?: {
     locationSession.state === 'granted' &&
     locationSession.coords !== null;
 
-  // Chave de query estritamente opaca (NUNCA incluir coordenadas em query keys!)
+  // Chave de query estritamente opaca e estável (coordenadas discretizadas em ~1km para permitir cache compartilhado)
   const queryKey = useMemo(() => {
-    if (isNearbyEligible) {
+    if (isNearbyEligible && locationSession.coords) {
+      const latBucket = Math.round(locationSession.coords.latitude * 100) / 100;
+      const lngBucket = Math.round(locationSession.coords.longitude * 100) / 100;
       return [
         'discovery',
         'nearby',
-        locationSession.generationId,
+        latBucket,
+        lngBucket,
         filters.radiusKm,
         debouncedQuery.trim(),
       ] as const;
@@ -110,7 +113,8 @@ export function useDiscovery(initialParams?: {
     isNearbyEligible,
     filters.radiusKm,
     debouncedQuery,
-    locationSession.generationId,
+    locationSession.coords?.latitude,
+    locationSession.coords?.longitude,
   ]);
 
   const {

@@ -1,3 +1,4 @@
+import { Platform as ShadowPlatform } from 'react-native';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -280,14 +281,14 @@ export function TeamView() {
       {/* Floating Action Button (FAB) circular para telas compactas / mobile */}
       {!isExpanded && (
         <View
-          pointerEvents="box-none"
-          style={{
+
+          style={[{
             position: 'absolute',
             right: 24,
             bottom: Math.max(insets.bottom, 12) + (isCompact ? 86 : 24),
             zIndex: 95,
             elevation: 12,
-          }}
+          }, { pointerEvents: "box-none" }]}
         >
           <Pressable
             accessibilityRole="button"
@@ -302,10 +303,10 @@ export function TeamView() {
               borderRadius: 28,
               backgroundColor: colors.brand.primary,
               opacity: pressed ? 0.85 : 1,
-              shadowColor: colors.brand.primary,
+              ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 4px 10px color-mix(in srgb, ${colors.brand.primary} ${(0.38) * 100}%, transparent)` } : { shadowColor: colors.brand.primary,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.38,
-              shadowRadius: 10,
+              shadowRadius: 10, }),
               elevation: 8,
             })}
           >

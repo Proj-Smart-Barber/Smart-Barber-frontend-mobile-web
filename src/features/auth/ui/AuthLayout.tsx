@@ -2,7 +2,7 @@ import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandMark } from '@/shared/brand';
-import { LiquidGlassView } from '@/shared/navigation';
+import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
 

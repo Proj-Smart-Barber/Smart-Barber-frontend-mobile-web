@@ -270,7 +270,7 @@ export function RegisterForm({ defaultIntent }: RegisterFormProps) {
         variant="primary"
         loading={isSubmitting}
         disabled={isSubmitting}
-        onPress={onSubmit}
+        onPress={() => { void onSubmit(); }}
         style={{ marginTop: spacing.md, marginBottom: spacing.md }}
       />
 

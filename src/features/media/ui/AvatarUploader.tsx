@@ -1,3 +1,4 @@
+import { preparePickedImage } from '../model/prepare-picked-image';
 import React, { useRef } from 'react';
 import {
   View,
@@ -96,10 +97,7 @@ export function AvatarUploader({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const fileName = asset.fileName || `avatar_${Date.now()}.jpg`;
-        const mimeType = asset.mimeType || 'image/jpeg';
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
+        const { file: blob, name: fileName, type: mimeType } = await preparePickedImage(asset);
 
         if (customUpload) {
           setLocalUploading(true);
@@ -143,7 +141,11 @@ export function AvatarUploader({
   return (
     <View style={styles.container}>
       {label ? (
-        <Text variant="caption" weight="medium" style={{ color: colors.text.secondary, marginBottom: 8 }}>
+        <Text
+          variant="caption"
+          weight="medium"
+          style={{ color: colors.text.secondary, marginBottom: 8 }}
+        >
           {label}
         </Text>
       ) : null}
@@ -228,12 +230,7 @@ export function AvatarUploader({
       ) : null}
 
       {activeError ? (
-        <Alert
-          variant="error"
-          title="Erro no upload"
-          message={activeError}
-          style={styles.alert}
-        />
+        <Alert variant="error" title="Erro no upload" message={activeError} style={styles.alert} />
       ) : null}
     </View>
   );

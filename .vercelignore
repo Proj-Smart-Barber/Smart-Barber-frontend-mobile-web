@@ -1,0 +1,14 @@
+.env
+.env.*
+.git
+node_modules
+.expo
+.tmp
+docs
+coverage
+*.log
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision

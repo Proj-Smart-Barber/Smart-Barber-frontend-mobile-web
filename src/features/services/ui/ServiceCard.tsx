@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Pressable, Switch, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Pressable, Switch, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/shared/theme';
@@ -123,7 +123,43 @@ export function ServiceCard({
             >
               {service.title}
             </Text>
+
+            {service.isFeatured && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 3,
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  borderColor: 'rgba(245, 158, 11, 0.4)',
+                  borderWidth: 1,
+                  borderRadius: radius.sm,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                }}
+              >
+                <Ionicons name="star" size={12} color="#f59e0b" />
+                <Text style={{ color: '#f59e0b', fontSize: 11, fontWeight: '700' }}>
+                  Destaque #{service.featuredOrder || 1}
+                </Text>
+              </View>
+            )}
           </View>
+
+          {service.imageUrl && (
+            <View style={{ marginVertical: 4 }}>
+              <Image
+                source={{ uri: service.imageUrl }}
+                style={{
+                  width: '100%',
+                  height: 90,
+                  borderRadius: radius.md,
+                  backgroundColor: '#1c1c20',
+                }}
+                resizeMode="cover"
+              />
+            </View>
+          )}
 
           {service.description ? (
             <Text

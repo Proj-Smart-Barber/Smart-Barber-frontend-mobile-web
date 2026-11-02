@@ -71,6 +71,9 @@ export function ServicesManagementView({
   const handleFormSubmit = async (values: {
     title: string;
     description?: string | null;
+    imageUrl?: string | null;
+    isFeatured?: boolean;
+    featuredOrder?: number;
     priceInCents: number;
     durationInMinutes: number;
   }) => {
@@ -188,7 +191,7 @@ export function ServicesManagementView({
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
-            onRefresh={refetch}
+            onRefresh={() => { void refetch(); }}
             tintColor={colors.brand.primary}
           />
         }

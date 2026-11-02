@@ -79,24 +79,6 @@ export default function ClientProfileScreen() {
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
-              {!isExpanded && openDrawer ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Abrir menu de navegação"
-                  onPress={openDrawer}
-                  style={({ pressed }) => [
-                    styles.menuButton,
-                    {
-                      borderRadius: radius.md,
-                      backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
-                      borderColor: colors.border.default,
-                    },
-                  ]}
-                >
-                  <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
-                </Pressable>
-              ) : null}
-
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text variant="h2" style={styles.headerTitle}>
                   Minha Conta
@@ -263,14 +245,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-  },
-  menuButton: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
   headerTitle: {
     fontWeight: '800',

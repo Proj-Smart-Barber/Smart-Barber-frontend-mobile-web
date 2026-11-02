@@ -2,7 +2,10 @@ export type MediaPurpose =
   | 'USER_AVATAR'
   | 'BARBERSHOP_LOGO'
   | 'BARBERSHOP_COVER'
-  | 'BARBERSHOP_GALLERY';
+  | 'BARBERSHOP_GALLERY'
+  | 'SERVICE_PHOTO'
+  | 'SERVICE_VIDEO'
+  | 'BARBERSHOP_VIDEO';
 
 export interface InitiateUploadRequestDto {
   purpose: MediaPurpose;
@@ -23,7 +26,7 @@ export interface ConfirmUploadResponseDto {
   media: {
     id: string;
     purpose: MediaPurpose;
-    status: 'PENDING' | 'READY' | 'REJECTED';
+    status: 'PENDING' | 'PROCESSING' | 'READY' | 'REJECTED' | 'EXPIRED' | 'CANCELLED';
     publicUrl: string;
     width?: number;
     height?: number;
@@ -37,8 +40,11 @@ export interface GalleryItemDto {
   barbershopId: string;
   mediaId: string;
   displayOrder: number;
+  caption?:string;
   isCover: boolean;
   publicUrl?: string;
+  mimeType?: string;
+  posterUrl?: string;
   createdAt?: string | Date;
 }
 

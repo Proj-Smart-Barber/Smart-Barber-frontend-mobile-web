@@ -58,6 +58,15 @@
         {
           "locationWhenInUsePermission": "O Smart Barber utiliza sua localização para exibir barbearias e serviços mais próximos de você."
         }
+      ],
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permita ao Smart Barber selecionar fotos e vídeos da sua biblioteca para a barbearia e seus serviços.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "experiments": {

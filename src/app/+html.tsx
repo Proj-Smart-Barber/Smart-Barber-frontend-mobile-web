@@ -1,4 +1,4 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
+import { ScrollViewStyleReset, useServerDocumentContext } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
 /**
@@ -6,18 +6,21 @@ import { type PropsWithChildren } from 'react';
  * Define lang="pt-BR", meta theme-color dinâmica para claro e escuro,
  * título factual, e cor de fundo no <body> para eliminar o flash branco no Safari.
  */
-export default function Root({ children }: PropsWithChildren) {
+export default function Root({ children, pathname }: PropsWithChildren<{ pathname?: string }>) {
+  const { headNodes, bodyNodes, htmlAttributes, bodyAttributes } = useServerDocumentContext();
+  const hasLandingMetadata = pathname?.replace(/\/$/, '').endsWith('/inicio') ?? false;
   return (
-    <html lang="pt-BR">
+    <html {...htmlAttributes} lang="pt-BR">
       <head>
+        {headNodes}
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
-        <title>Smart Barber — Gestão e Agendamento</title>
-        <meta name="description" content="Plataforma de gestão e agendamento para barbearias e clientes." />
+        {!hasLandingMetadata && <title>Smart Barber — Gestão e Agendamento</title>}
+        {!hasLandingMetadata && <meta name="description" content="Plataforma de gestão e agendamento para barbearias e clientes." />}
         <meta name="theme-color" content="#0B0B0B" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#F7F5F3" media="(prefers-color-scheme: light)" />
 
@@ -84,7 +87,7 @@ export default function Root({ children }: PropsWithChildren) {
           }}
         />
       </head>
-      <body>{children}</body>
+      <body {...bodyAttributes}>{children}{bodyNodes}</body>
     </html>
   );
 }

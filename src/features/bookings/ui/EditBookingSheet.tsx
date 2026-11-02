@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
 import { Button, FormField, Text, TextInput } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { AgendaDatePicker, formatDateLabel } from '@/features/agenda';
+import { AgendaDatePicker } from '@/features/agenda/ui/AgendaDatePicker';
+import { formatDateLabel } from '@/features/agenda/model/agenda.helpers';
 import type { BookingDetails } from '../api/bookings.contract';
 import {
   computeEndTime,

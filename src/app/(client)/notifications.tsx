@@ -88,24 +88,6 @@ export default function ClientNotificationsScreen() {
         <View style={styles.contentConstraint}>
           <View style={styles.titleRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
-              {!isExpanded && openDrawer ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Abrir menu de navegação"
-                  onPress={openDrawer}
-                  style={({ pressed }) => [
-                    styles.menuButton,
-                    {
-                      borderRadius: radius.md,
-                      backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
-                      borderColor: colors.border.default,
-                    },
-                  ]}
-                >
-                  <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
-                </Pressable>
-              ) : null}
-
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={styles.titleWithBadge}>
                   <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
@@ -121,11 +103,40 @@ export default function ClientNotificationsScreen() {
               </View>
             </View>
 
-            <Button
-              title="Voltar"
-              variant="ghost"
-              onPress={() => router.back()}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <Button
+                title="Voltar"
+                variant="ghost"
+                onPress={() => router.back()}
+              />
+              <Pressable
+                onPress={() => router.push('/(client)/profile')}
+                accessibilityRole="button"
+                accessibilityLabel="Acessar Minha Conta"
+                style={({ pressed }) => [
+                  styles.explicitAccountButton,
+                  {
+                    backgroundColor: pressed
+                      ? colors.surface.selected
+                      : isDark
+                        ? 'rgba(255, 255, 255, 0.04)'
+                        : colors.surface.input,
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.border.default,
+                    borderRadius: radius.full,
+                  },
+                ]}
+              >
+                <Ionicons name="person-circle-outline" size={20} color={colors.brand.primary} />
+                <Text
+                  variant="caption"
+                  weight="bold"
+                  color={colors.text.primary}
+                  style={styles.accountButtonText}
+                >
+                  Conta
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -168,7 +179,7 @@ export default function ClientNotificationsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={refetch}
+              onRefresh={() => { void refetch(); }}
               tintColor={colors.brand.primary}
             />
           }
@@ -182,7 +193,7 @@ export default function ClientNotificationsScreen() {
                   onPress={() => setCursor(nextCursor)}
                 />
               </View>
-            ) : null
+            ) : undefined
           }
         />
       )}
@@ -208,13 +219,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
-  menuButton: {
-    width: 44,
+  explicitAccountButton: {
     height: 44,
-    borderWidth: 1,
+    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    gap: 6,
+  },
+  accountButtonText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '700',
   },
   titleWithBadge: {
     flexDirection: 'row',

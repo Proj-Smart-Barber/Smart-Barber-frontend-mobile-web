@@ -16,7 +16,7 @@ type WebTextInputStyle = TextStyle & {
   caretColor?: string;
 };
 
-export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput(
+export const TextInput = forwardRef<React.ComponentRef<typeof RNTextInput>, TextInputProps>(function TextInput(
   {
     error = false,
     disabled = false,
