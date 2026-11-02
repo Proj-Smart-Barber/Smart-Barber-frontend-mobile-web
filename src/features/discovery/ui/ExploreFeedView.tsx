@@ -134,7 +134,7 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
 
   const locationLabel = regionKey
     ? `Região: ${regionKey}`
-    : locationSession.state === 'granted' && locationSession.coords
+    : mode === 'NEARBY' && locationSession.state === 'granted' && locationSession.coords
       ? locationSession.coords.formattedLocation || 'Perto de você'
       : mode === 'NEARBY'
         ? 'Perto de você'
@@ -222,6 +222,7 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
           onPress={refetch}
           style={{ marginTop: 20 }}
         />
+        <Button variant="outline" title="Ver todas as regiões" onPress={()=>{setMode('ALL');setRegionKey('');setSearchQuery('');if(mode==='ALL')refetch();}} style={{marginTop:12}}/>
       </View>
     );
   }

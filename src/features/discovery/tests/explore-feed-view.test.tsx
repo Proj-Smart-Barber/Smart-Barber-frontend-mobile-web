@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/shared/theme';
 import { ExploreFeedView } from '../ui/ExploreFeedView';
@@ -112,6 +112,14 @@ describe('ExploreFeedView', () => {
     expect(await screen.findByText('Barbearia Estação Mooca — Demonstração')).toBeTruthy();
     expect(await screen.findByText('Barba Terapia e Alinhamento')).toBeTruthy();
   });
+  it('oferece recuperação para a busca geral após falha no feed',async()=>{
+    const queryClient=new QueryClient({defaultOptions:{queries:{retry:false}}});
+    vi.spyOn(exploreFeedApi,'getFeed').mockRejectedValueOnce(new Error('Serviço indisponível')).mockResolvedValueOnce({items:[],nextCursor:null,hasNext:false,total:0,rankingVersion:'test',snapshotExpiresAt:new Date().toISOString()});
+    render(<QueryClientProvider client={queryClient}><ThemeProvider><ExploreFeedView initialMode="ALL"/></ThemeProvider></QueryClientProvider>);
+    const action=await screen.findByRole('button',{name:'Ver todas as regiões'});fireEvent.click(action);
+    expect(await screen.findByText('Nenhuma barbearia encontrada')).toBeTruthy();
+  });
+
 });
 
 // Native player is verified separately; these tests exercise gallery and catalogue UI.
