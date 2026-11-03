@@ -97,6 +97,23 @@ class EphemeralLocationStore {
   };
 
   private listeners = new Set<(session: LocationSession) => void>();
+  private pendingResolves = new Set<(session: LocationSession) => void>();
+
+  constructor() {
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', () => {
+        this.handleVisibilityChange();
+      });
+    }
+  }
+
+  private handleVisibilityChange() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      // Reavalia validade do cache ao retornar à aba
+      this.getSession();
+      this.notify();
+    }
+  }
 
   getSession(): LocationSession {
     if (
@@ -223,6 +240,15 @@ class EphemeralLocationStore {
       state: 'requesting',
       coords: null,
     };
+
+    // Notifica cancelamento/substituição de requisições concorrentes pendentes
+    for (const resolvePending of this.pendingResolves) {
+      try {
+        resolvePending(this.currentSession);
+      } catch {}
+    }
+    this.pendingResolves.clear();
+
     this.notify();
 
     if (Platform.OS === 'web') {
@@ -234,6 +260,13 @@ class EphemeralLocationStore {
 
   private requestWebPosition(expectedGenId: string): Promise<LocationSession> {
     return new Promise<LocationSession>((resolve) => {
+      this.pendingResolves.add(resolve);
+
+      const safeResolve = (session: LocationSession) => {
+        this.pendingResolves.delete(resolve);
+        resolve(session);
+      };
+
       if (typeof window === 'undefined' || !navigator?.geolocation) {
         this.currentSession = {
           generationId: expectedGenId,
@@ -242,30 +275,14 @@ class EphemeralLocationStore {
           errorMessage: 'Geolocalização não é suportada neste navegador.',
         };
         this.notify();
-        return resolve(this.currentSession);
+        return safeResolve(this.currentSession);
       }
-
-      let timedOut = false;
-      const timer = setTimeout(() => {
-        timedOut = true;
-        if (this.currentSession.generationId === expectedGenId) {
-          this.currentSession = {
-            generationId: expectedGenId,
-            state: 'timeout',
-            coords: null,
-            errorMessage: 'Tempo esgotado ao tentar obter a localização.',
-          };
-          this.notify();
-          resolve(this.currentSession);
-        }
-      }, GPS_REQUEST_TIMEOUT_MS);
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          if (timedOut) return;
-          clearTimeout(timer);
-
-          if (this.currentSession.generationId !== expectedGenId) return;
+          if (this.currentSession.generationId !== expectedGenId) {
+            return safeResolve(this.currentSession);
+          }
 
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
@@ -288,16 +305,15 @@ class EphemeralLocationStore {
           };
           void setCachedRaw(JSON.stringify(coords));
           this.notify();
-          resolve(this.currentSession);
+          safeResolve(this.currentSession);
         },
         (err) => {
-          if (timedOut) return;
-          clearTimeout(timer);
-
-          if (this.currentSession.generationId !== expectedGenId) return;
+          if (this.currentSession.generationId !== expectedGenId) {
+            return safeResolve(this.currentSession);
+          }
 
           let state: LocationPermissionState = 'unavailable';
-          let message = 'Não foi possível obter sua localização.';
+          let message = 'Sinal de GPS indisponível no dispositivo.';
 
           if (err.code === err.PERMISSION_DENIED) {
             state = 'denied';
@@ -314,7 +330,7 @@ class EphemeralLocationStore {
             errorMessage: message,
           };
           this.notify();
-          resolve(this.currentSession);
+          safeResolve(this.currentSession);
         },
         {
           enableHighAccuracy: true,

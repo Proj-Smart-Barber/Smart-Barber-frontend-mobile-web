@@ -17,6 +17,12 @@ import { Alert } from '@/shared/ui/Alert';
 import { BrandMark } from '@/shared/brand';
 import { useAvatarUpload } from '../model/use-media-upload';
 
+export interface AvatarUploaderHandle {
+  pickPhoto: () => void;
+  removePhoto: () => void;
+  isBusy: boolean;
+}
+
 export interface AvatarUploaderProps {
   currentAvatarUrl?: string | null;
   onAvatarUpdated: (newAvatarUrl: string | null) => void;
@@ -27,19 +33,25 @@ export interface AvatarUploaderProps {
   allowsEditing?: boolean;
   aspect?: [number, number];
   shape?: 'circle' | 'rounded';
+  variant?: 'standard' | 'compact' | 'avatar-only';
 }
 
-export function AvatarUploader({
-  currentAvatarUrl,
-  onAvatarUpdated,
-  size = 96,
-  label = 'Foto de Perfil',
-  customUpload,
-  customRemove,
-  allowsEditing = true,
-  aspect = [1, 1],
-  shape = 'circle',
-}: AvatarUploaderProps) {
+export const AvatarUploader = React.forwardRef<AvatarUploaderHandle, AvatarUploaderProps>(
+  function AvatarUploader(
+    {
+      currentAvatarUrl,
+      onAvatarUpdated,
+      size = 96,
+      label = 'Foto de Perfil',
+      customUpload,
+      customRemove,
+      allowsEditing = true,
+      aspect = [1, 1],
+      shape = 'circle',
+      variant = 'standard',
+    },
+    ref,
+  ) {
   const { colors, radius, isDark } = useTheme();
   const { isUploading, error: hookError, uploadAvatar, removeAvatar } = useAvatarUpload();
   const [localError, setLocalError] = React.useState<string | null>(null);
@@ -135,6 +147,16 @@ export function AvatarUploader({
     }
   };
 
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      pickPhoto: handlePickPhoto,
+      removePhoto: handleRemovePhoto,
+      isBusy,
+    }),
+    [handlePickPhoto, handleRemovePhoto, isBusy],
+  );
+
   const borderRadius = shape === 'circle' ? size / 2 : radius.md;
   const imageResizeMode = shape === 'circle' ? 'cover' : 'contain';
 
@@ -150,7 +172,7 @@ export function AvatarUploader({
         </Text>
       ) : null}
 
-      <View style={styles.avatarRow}>
+      {variant === 'avatar-only' ? (
         <View
           style={[
             styles.avatarWrapper,
@@ -196,27 +218,75 @@ export function AvatarUploader({
             <Ionicons name="camera" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
+      ) : (
+        <View style={styles.avatarRow}>
+          <View
+            style={[
+              styles.avatarWrapper,
+              {
+                width: size,
+                height: size,
+                borderRadius,
+                backgroundColor: colors.surface.input,
+                borderColor: colors.border.subtle,
+              },
+            ]}
+          >
+            {isBusy ? (
+              <ActivityIndicator size="small" color={colors.brand.primary} />
+            ) : currentAvatarUrl ? (
+              <Image
+                source={{ uri: currentAvatarUrl }}
+                style={{ width: size, height: size, borderRadius }}
+                resizeMode={imageResizeMode}
+              />
+            ) : (
+              <BrandMark
+                variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+                size={size * 0.4}
+                decorative
+              />
+            )}
 
-        <View style={styles.actionsCol}>
-          <Button
-            title={currentAvatarUrl ? 'Alterar foto' : 'Enviar foto'}
-            variant="outline"
-            onPress={handlePickPhoto}
-            loading={isBusy}
-            disabled={isBusy}
-          />
-
-          {currentAvatarUrl ? (
-            <Button
-              title="Remover foto"
-              variant="ghost"
-              onPress={handleRemovePhoto}
+            {/* Botão de sobreposição para alterar foto */}
+            <TouchableOpacity
+              style={[
+                styles.cameraOverlay,
+                {
+                  backgroundColor: colors.brand.primary,
+                  borderColor: colors.surface.elevated,
+                },
+              ]}
+              onPress={handlePickPhoto}
               disabled={isBusy}
-              style={{ marginTop: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Selecionar nova foto"
+            >
+              <Ionicons name="camera" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.actionsCol}>
+            <Button
+              title={currentAvatarUrl ? 'Alterar foto' : 'Enviar foto'}
+              variant="outline"
+              onPress={handlePickPhoto}
+              loading={isBusy}
+              disabled={isBusy}
             />
-          ) : null}
+
+            {currentAvatarUrl ? (
+              <Button
+                title="Remover foto"
+                variant="ghost"
+                onPress={handleRemovePhoto}
+                disabled={isBusy}
+                style={{ marginTop: 4 }}
+              />
+            ) : null}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Input de arquivo invisível para Web */}
       {Platform.OS === 'web' ? (
@@ -234,7 +304,7 @@ export function AvatarUploader({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

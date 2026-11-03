@@ -3,19 +3,18 @@ import { View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { useTheme } from '../../../shared/theme';
 import { Text, Card, Badge, Button, type BadgeTone } from '../../../shared/ui';
 import type { BookingDto } from '../api/bookings.dto';
+import {
+  formatBookingCalendarDate,
+  formatBookingTimeRange,
+  formatCentsToCurrency,
+} from '../lib/booking-time';
 import { BookingReviewAction } from '../../reviews';
 
 interface BookingCardProps {
   booking: BookingDto;
   onPress?: () => void;
   professionalName?: string | null;
-}
-
-function formatCentsToCurrency(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
+  isFeatured?: boolean;
 }
 
 function getStatusBadgeConfig(status?: string | null): { label: string; tone: BadgeTone } {
@@ -46,7 +45,12 @@ function extractValidPhone(phone?: string | null): string | null {
   return digits.length >= 10 ? digits : null;
 }
 
-export function BookingCard({ booking, onPress, professionalName }: BookingCardProps) {
+export function BookingCard({
+  booking,
+  onPress,
+  professionalName,
+  isFeatured = false,
+}: BookingCardProps) {
   const { colors, spacing } = useTheme();
 
   const totalMinutes =
@@ -61,28 +65,47 @@ export function BookingCard({ booking, onPress, professionalName }: BookingCardP
       ? booking.services.reduce((acc, s) => acc + (s.priceInCents || 0), 0)
       : null);
 
-  const durationLabel = totalMinutes != null && totalMinutes > 0 ? `${totalMinutes} min` : 'Duração sob consulta';
-  const priceLabel = totalPriceInCents != null ? formatCentsToCurrency(totalPriceInCents) : 'A confirmar';
+  const durationLabel =
+    totalMinutes != null && totalMinutes > 0 ? `${totalMinutes} min` : 'Duração sob consulta';
+  const priceLabel =
+    totalPriceInCents != null ? formatCentsToCurrency(totalPriceInCents) : 'A confirmar';
 
-  const dateLabel =
-    booking.date instanceof Date
-      ? booking.date.toISOString().split('T')[0]
-      : String(booking.date ?? (booking.startsAt ? booking.startsAt.split('T')[0] : 'Data a confirmar'));
+  const dateLabel = formatBookingCalendarDate(
+    booking.date ?? booking.startsAt,
+    isFeatured ? { format: 'long' } : { format: 'short' },
+  );
 
-  const timeLabel =
-    booking.startTime && booking.endTime
-      ? `${booking.startTime} - ${booking.endTime}`
-      : booking.startTime
-      ? booking.startTime
-      : booking.startsAt
-      ? new Date(booking.startsAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      : 'Horário a confirmar';
+  const timeLabel = formatBookingTimeRange(
+    booking.startTime,
+    booking.endTime,
+    booking.startsAt,
+    booking.endsAt,
+  );
 
   const statusConfig = getStatusBadgeConfig(booking.status);
-  const validCustomerPhone = extractValidPhone(booking.customer?.phoneNumber);
+  const resolvedProfessionalName = booking.barbermanName || professionalName;
+  const validBarbershopPhone = extractValidPhone(booking.barbershopPhone);
+  const isSingleService = booking.services.length === 1;
 
   const content = (
-    <Card style={styles.card}>
+    <Card
+      style={[
+        styles.card,
+        isFeatured && {
+          borderColor: colors.brand.primary,
+          borderWidth: 1.5,
+        },
+      ]}
+    >
+      {isFeatured ? (
+        <View style={[styles.featuredHeader, { marginBottom: spacing.xs }]}>
+          <Text variant="caption" style={{ color: colors.brand.primary, fontWeight: '700' }}>
+            PRÓXIMO ATENDIMENTO
+          </Text>
+          <Badge label="Destaque" tone="brand" />
+        </View>
+      ) : null}
+
       <View style={styles.headerRow}>
         <View style={styles.dateBlock}>
           <Text variant="h3" style={{ color: colors.text.primary, fontWeight: '700' }}>
@@ -96,10 +119,18 @@ export function BookingCard({ booking, onPress, professionalName }: BookingCardP
         <Badge label={statusConfig.label} tone={statusConfig.tone} />
       </View>
 
-      {professionalName ? (
+      {booking.barbershopName ? (
         <View style={{ marginTop: spacing.xs }}>
+          <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
+            {booking.barbershopName}
+          </Text>
+        </View>
+      ) : null}
+
+      {resolvedProfessionalName ? (
+        <View style={{ marginTop: 2 }}>
           <Text variant="caption" style={{ color: colors.text.brand, fontWeight: '600' }}>
-            Profissional: {professionalName}
+            Profissional: {resolvedProfessionalName}
           </Text>
         </View>
       ) : null}
@@ -107,28 +138,36 @@ export function BookingCard({ booking, onPress, professionalName }: BookingCardP
       <View style={[styles.divider, { backgroundColor: colors.border.subtle, marginVertical: spacing.sm }]} />
 
       <View style={styles.servicesContainer}>
-        {booking.services.map((svc) => (
-          <View key={svc.id ?? svc.serviceId ?? svc.title} style={styles.serviceRow}>
-            <Text variant="body" style={{ color: colors.text.primary, flex: 1 }}>
-              {svc.title}
-            </Text>
-            {svc.durationInMinutes != null ? (
-              <Text variant="caption" style={{ color: colors.text.secondary, marginRight: spacing.sm }}>
-                {svc.durationInMinutes} min
-              </Text>
-            ) : null}
-            <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
-              {svc.priceInCents != null ? formatCentsToCurrency(svc.priceInCents) : 'A confirmar'}
+        {isSingleService ? (
+          <View style={styles.serviceRow}>
+            <Text variant="body" style={{ color: colors.text.primary, fontWeight: '500', flex: 1 }}>
+              {booking.services[0].title}
             </Text>
           </View>
-        ))}
+        ) : (
+          booking.services.map((svc) => (
+            <View key={svc.id ?? svc.serviceId ?? svc.title} style={styles.serviceRow}>
+              <Text variant="body" style={{ color: colors.text.primary, flex: 1 }}>
+                {svc.title}
+              </Text>
+              {svc.durationInMinutes != null ? (
+                <Text variant="caption" style={{ color: colors.text.secondary, marginRight: spacing.sm }}>
+                  {svc.durationInMinutes} min
+                </Text>
+              ) : null}
+              <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
+                {svc.priceInCents != null ? formatCentsToCurrency(svc.priceInCents) : 'A confirmar'}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
 
       <View style={[styles.divider, { backgroundColor: colors.border.subtle, marginVertical: spacing.sm }]} />
 
       <View style={styles.footerRow}>
         <Text variant="caption" style={{ color: colors.text.secondary }}>
-          {durationLabel}
+          {isSingleService ? durationLabel : `${durationLabel} total`}
         </Text>
         <Text variant="h3" style={{ color: colors.brand.primary, fontWeight: '700' }}>
           {priceLabel}
@@ -141,16 +180,24 @@ export function BookingCard({ booking, onPress, professionalName }: BookingCardP
         </View>
       ) : null}
 
-      {validCustomerPhone ? (
+      {validBarbershopPhone ? (
         <View style={[styles.actionRow, { marginTop: spacing.sm }]}>
           <Button
-            title="Contato WhatsApp"
+            title="WhatsApp da barbearia"
             variant="outline"
             onPress={() => {
-              const fullNumber = validCustomerPhone.startsWith('55') ? validCustomerPhone : `55${validCustomerPhone}`;
+              const fullNumber = validBarbershopPhone.startsWith('55')
+                ? validBarbershopPhone
+                : `55${validBarbershopPhone}`;
               void Linking.openURL(`https://wa.me/${fullNumber}`);
             }}
           />
+        </View>
+      ) : null}
+
+      {isFeatured && onPress ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Button title="Ver detalhes" variant="outline" onPress={onPress} />
         </View>
       ) : null}
     </Card>
@@ -170,6 +217,11 @@ export function BookingCard({ booking, onPress, professionalName }: BookingCardP
 const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
+  },
+  featuredHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerRow: {
     flexDirection: 'row',

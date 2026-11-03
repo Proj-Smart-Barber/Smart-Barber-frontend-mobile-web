@@ -7,6 +7,11 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../../shared/theme';
 import { Text, Card, Badge, Button, Spinner, Alert, type BadgeTone } from '../../../shared/ui';
 import { useBookingDetail } from '../model/use-booking-detail';
+import {
+  formatBookingCalendarDate,
+  formatBookingTimeRange,
+  formatCentsToCurrency,
+} from '../lib/booking-time';
 import { BookingActionConfirm } from './BookingActionConfirm';
 import { BookingHistory } from './BookingHistory';
 import type { BookingActionType } from './BookingActionConfirm';
@@ -17,11 +22,10 @@ interface BookingDetailViewProps {
   onBack?: () => void;
 }
 
-function formatCentsToCurrency(cents: number): string {
-  return (cents / 100).toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  });
+function extractValidPhone(phone?: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10 ? digits : null;
 }
 
 function getStatusBadgeConfig(status?: string | null): { label: string; tone: BadgeTone } {
@@ -115,15 +119,17 @@ export function BookingDetailView({
   const priceLabel =
     totalPriceInCents != null ? formatCentsToCurrency(totalPriceInCents) : 'A confirmar';
 
-  const dateLabel =
-    booking.date instanceof Date
-      ? booking.date.toISOString().split('T')[0]
-      : String(booking.date ?? (booking.startsAt ? booking.startsAt.split('T')[0] : 'Data sob consulta'));
+  const dateLabel = formatBookingCalendarDate(
+    booking.date ?? booking.startsAt,
+    { format: 'long' },
+  );
 
-  const timeLabel =
-    booking.startTime && booking.endTime
-      ? `${booking.startTime} - ${booking.endTime}`
-      : booking.startTime ?? 'Horário sob consulta';
+  const timeLabel = formatBookingTimeRange(
+    booking.startTime,
+    booking.endTime,
+    booking.startsAt,
+    booking.endsAt,
+  );
 
   const canCancel =
     booking.canCancel ?? booking.capabilities?.cancel?.allowed ?? false;
@@ -151,8 +157,8 @@ export function BookingDetailView({
     }
   };
 
-  const customerPhoneDigits = booking.customer?.phoneNumber?.replace(/\D/g, '');
-  const hasValidPhone = customerPhoneDigits && customerPhoneDigits.length >= 10;
+  const validCustomerPhone = extractValidPhone(booking.customer?.phoneNumber);
+  const validBarbershopPhone = extractValidPhone(booking.barbershopPhone);
 
   return (
     <ScrollView
@@ -222,33 +228,74 @@ export function BookingDetailView({
           </View>
         </View>
 
-        {booking.customer ? (
+        {scope === 'UNIT' ? (
+          booking.customer ? (
+            <View style={{ marginTop: spacing.md }}>
+              <Text variant="caption" style={{ color: colors.text.secondary }}>
+                Cliente
+              </Text>
+              <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
+                {booking.customer.name}
+              </Text>
+              {validCustomerPhone ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: spacing.sm }}>
+                  <Text variant="caption" style={{ color: colors.text.muted }}>
+                    {booking.customer.phoneNumber}
+                  </Text>
+                  <Button
+                    title="WhatsApp do cliente"
+                    variant="outline"
+                    onPress={() => {
+                      const full = validCustomerPhone.startsWith('55')
+                        ? validCustomerPhone
+                        : `55${validCustomerPhone}`;
+                      void Linking.openURL(`https://wa.me/${full}`);
+                    }}
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : null
+        ) : (
           <View style={{ marginTop: spacing.md }}>
-            <Text variant="caption" style={{ color: colors.text.secondary }}>
-              Cliente
-            </Text>
-            <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
-              {booking.customer.name}
-            </Text>
-            {hasValidPhone ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: spacing.sm }}>
-                <Text variant="caption" style={{ color: colors.text.muted }}>
-                  {booking.customer.phoneNumber}
+            {booking.barbershopName ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text variant="caption" style={{ color: colors.text.secondary }}>
+                  Barbearia
                 </Text>
+                <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
+                  {booking.barbershopName}
+                </Text>
+              </View>
+            ) : null}
+
+            {booking.barbermanName ? (
+              <View style={{ marginBottom: 4 }}>
+                <Text variant="caption" style={{ color: colors.text.secondary }}>
+                  Profissional
+                </Text>
+                <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
+                  {booking.barbermanName}
+                </Text>
+              </View>
+            ) : null}
+
+            {validBarbershopPhone ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: spacing.sm }}>
                 <Button
-                  title="WhatsApp"
+                  title="WhatsApp da barbearia"
                   variant="outline"
                   onPress={() => {
-                    const full = customerPhoneDigits.startsWith('55')
-                      ? customerPhoneDigits
-                      : `55${customerPhoneDigits}`;
+                    const full = validBarbershopPhone.startsWith('55')
+                      ? validBarbershopPhone
+                      : `55${validBarbershopPhone}`;
                     void Linking.openURL(`https://wa.me/${full}`);
                   }}
                 />
               </View>
             ) : null}
           </View>
-        ) : null}
+        )}
       </Card>
 
       {/* Services Breakdown */}

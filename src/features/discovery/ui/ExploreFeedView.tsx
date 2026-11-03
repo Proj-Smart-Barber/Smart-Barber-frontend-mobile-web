@@ -60,6 +60,7 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
     regionKey,
     setRegionKey,
     locationSession,
+    isProximityUnavailable,
     fetchNextPage,
     refetch,
     setMode,
@@ -309,6 +310,42 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
           />
         </View>
       )}
+
+      {isProximityUnavailable && (
+        <View
+          style={{
+            position: 'absolute',
+            top: Math.max(topInset, 16) + 16,
+            left: 16,
+            right: 16,
+            backgroundColor: 'rgba(23, 23, 25, 0.95)',
+            borderColor: 'rgba(255, 255, 255, 0.15)',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 12,
+            zIndex: 25,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
+              Busca por proximidade indisponível
+            </Text>
+            <Text style={{ color: '#aaa', fontSize: 11, marginTop: 2 }}>
+              Exibindo catálogo geral sem ordenação por distância.
+            </Text>
+          </View>
+          <Button
+            variant="outline"
+            title="Tentar GPS"
+            style={{ paddingHorizontal: 12, paddingVertical: 6, minHeight: 32 }}
+            onPress={() => setMode('NEARBY')}
+          />
+        </View>
+      )}
+
       {/* Sheets Interativos */}
       <ExploreServiceSheet
         visible={activeSheet === 'service'}
