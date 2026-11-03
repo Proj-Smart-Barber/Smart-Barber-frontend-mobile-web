@@ -166,9 +166,6 @@ export function ExploreFeedSlide({
               {locationLabel}
             </Text>
           </View>
-          <View style={styles.demoBadge}>
-            <Text style={styles.demoBadgeText}>Demonstração</Text>
-          </View>
         </View>
 
         <Pressable
@@ -401,22 +398,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.85)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
-  },
-  demoBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(18, 18, 22, 0.72)',
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 4,
-  },
-  demoBadgeText: {
-    color: '#ffffff',
-    fontSize: 10.5,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
   filterButtonContainer: {
     alignItems: 'center',
