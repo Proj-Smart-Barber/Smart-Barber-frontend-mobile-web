@@ -158,4 +158,10 @@ describe('AuthApi', () => {
       })
     );
   });
+  it('sends the numeric code and email without ambient authentication', async()=>{
+    global.fetch=vi.fn().mockResolvedValue({ok:true,status:200,headers:new Headers({'content-type':'application/json'}),json:async()=>({verified:true})} as Response);
+    await authApi.confirmEmailVerification({email:'cliente@exemplo.com',code:'001234'});
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/verification-email/confirm'),expect.objectContaining({method:'POST',body:JSON.stringify({email:'cliente@exemplo.com',code:'001234'}),credentials:'omit'}));
+  });
+
 });
