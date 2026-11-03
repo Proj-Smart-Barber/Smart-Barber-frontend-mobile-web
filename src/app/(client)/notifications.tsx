@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Platform, View, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Text } from '@/shared/ui/Text';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Spinner } from '@/shared/ui/Spinner';
@@ -19,7 +19,7 @@ export default function ClientNotificationsScreen() {
   const router = useRouter();
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const { identity } = useSession();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -82,7 +82,7 @@ export default function ClientNotificationsScreen() {
         style={[
           styles.header,
           {
-            paddingTop: Math.max(insets.top, 16),
+            paddingTop: insets.top > 0 ? insets.top + 8 : 16,
             paddingHorizontal: isCompact ? 16 : 32,
           },
         ]}

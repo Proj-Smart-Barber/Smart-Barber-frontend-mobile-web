@@ -8,10 +8,10 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { useOptionalNavigation, LiquidGlassView } from '@/shared/navigation';
 import { ClientNavbarMetricsContext } from '@/shared/navigation/ClientNavbarMetrics';
 import { Text } from '@/shared/ui/Text';
@@ -33,7 +33,7 @@ import {
 export default function ClientHomeScreen() {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const router = useRouter();
   const navigation = useOptionalNavigation();
@@ -96,7 +96,7 @@ export default function ClientHomeScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: Math.max(insets.top, 16),
+            paddingTop: insets.top > 0 ? insets.top + 8 : 16,
             paddingBottom: !isExpanded
               ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
               : 40,

@@ -8,8 +8,8 @@ interface ViewToken {
   index?: number | null;
   isViewable: boolean;
 }
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
@@ -34,7 +34,7 @@ export interface ExploreFeedViewProps {
 export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewProps) {
   const { colors, isDark } = useTheme();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
 
   const measuredNavbar=useContext(ClientNavbarMetricsContext);
   const [containerWidth,setContainerWidth]=useState(windowWidth);
@@ -43,8 +43,8 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
   const [containerHeight, setContainerHeight] = useState(windowHeight);
 
   // Bottom inset consideration for floating capsule bar (approx 64px) + safe area
-  const bottomInset = Math.max(measuredNavbar,insets.bottom+12);
-  const topInset = insets.top;
+  const bottomInset = Math.max(measuredNavbar, (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8);
+  const topInset = insets.top > 0 ? insets.top + 8 : 16;
 
   const stageHeight = containerHeight > 0 ? containerHeight : windowHeight;
 

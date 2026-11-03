@@ -43,10 +43,28 @@ export default function Root({ children, pathname }: PropsWithChildren<{ pathnam
           id="smart-barber-base-theme"
           dangerouslySetInnerHTML={{
             __html: `
-              html, body, #root {
+              :root {
+                --sat: env(safe-area-inset-top, 0px);
+                --sab: env(safe-area-inset-bottom, 0px);
+                --sal: env(safe-area-inset-left, 0px);
+                --sar: env(safe-area-inset-right, 0px);
+              }
+              html, body {
                 height: 100%;
+                height: 100dvh;
+                width: 100%;
                 margin: 0;
                 padding: 0;
+                overflow: hidden;
+                -webkit-text-size-adjust: 100%;
+              }
+              #root {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                height: 100dvh;
+                width: 100%;
+                overflow: hidden;
               }
               body {
                 background-color: #0B0B0B;
