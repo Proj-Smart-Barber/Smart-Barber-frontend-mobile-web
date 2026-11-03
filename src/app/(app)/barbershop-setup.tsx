@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +18,13 @@ import {
   CreateBarbershopFormValues,
   formatCnpj,
 } from '@/features/barbershop/model/barbershop.schema';
+import {
+  formatCep,
+  normalizeCep,
+} from '@/features/barbershop/lib/cep';
+import { buildCanonicalLocation } from '@/features/barbershop/lib/address-formatter';
+import { resolveCommercialTimezone } from '@/features/barbershop/lib/commercial-timezone';
+import { useAddressByCep } from '@/features/barbershop/model/use-address-by-cep';
 import {
   barbershopLocationApi,
   calculateGeoDistanceMeters,
@@ -49,29 +56,62 @@ export default function BarbershopSetupScreen() {
   const [adjustedPoint, setAdjustedPoint] = useState<GeoPoint | null>(null);
 
   // Redireciona quem já acessou a rota com barbearia previamente cadastrada
-  const creationInitiatedRef = React.useRef(false);
+  const creationInitiatedRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!creationInitiatedRef.current && barbershop && !loading) {
       router.replace('/(app)');
     }
   }, [barbershop, loading, router]);
 
-  // Form de Criação
+  // Form de Criação com campos de endereço desacoplados
   const createForm = useForm<CreateBarbershopFormValues>({
     resolver: zodResolver(createBarbershopFormSchema),
     defaultValues: {
       name: '',
       cnpj: '',
-      location: '',
-      timezone: 'America/Sao_Paulo',
+      cep: '',
+      street: '',
+      number: '',
+      withoutNumber: false,
+      complement: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+    },
+  });
+
+  const invalidateGeocoding = () => {
+    if (selectedCandidate || adjustedPoint || candidates.length > 0) {
+      setSelectedCandidate(null);
+      setAdjustedPoint(null);
+      setCandidates([]);
+    }
+  };
+
+  // Integração com provedor ViaCEP
+  const {
+    status: cepStatus,
+    isLoading: isSearchingCep,
+    errorMessage: cepErrorMessage,
+    onCepChange,
+    retry: retryCep,
+  } = useAddressByCep({
+    onAddressResolved: (data) => {
+      createForm.setValue('street', data.street, { shouldValidate: true });
+      createForm.setValue('neighborhood', data.neighborhood, { shouldValidate: true });
+      createForm.setValue('city', data.city, { shouldValidate: true });
+      createForm.setValue('state', data.state, { shouldValidate: true });
+      invalidateGeocoding();
     },
   });
 
   const handleSearchGeocoding = async () => {
-    const rawAddress = (createForm.getValues('location') || '').trim();
-    if (rawAddress.length < 3) {
-      setErrorMessage('Informe ao menos 3 caracteres no endereço para buscar no Google Maps.');
+    const values = createForm.getValues();
+    const canonicalAddress = buildCanonicalLocation(values);
+
+    if (canonicalAddress.length < 3) {
+      setErrorMessage('Informe os dados de endereço antes de buscar no mapa.');
       return;
     }
 
@@ -79,7 +119,7 @@ export default function BarbershopSetupScreen() {
     setErrorMessage(null);
     try {
       const res = await barbershopLocationApi.searchAddress({
-        address: rawAddress,
+        address: canonicalAddress,
         shopId: null,
         token,
       });
@@ -88,9 +128,6 @@ export default function BarbershopSetupScreen() {
         const first = res.candidates[0];
         setSelectedCandidate(first);
         setAdjustedPoint({ ...first.point });
-        createForm.setValue('location', first.displayAddress, {
-          shouldValidate: true,
-        });
       } else {
         setSelectedCandidate(null);
         setAdjustedPoint(null);
@@ -116,9 +153,6 @@ export default function BarbershopSetupScreen() {
     }
     setSelectedCandidate(candidate);
     setAdjustedPoint({ ...candidate.point });
-    createForm.setValue('location', candidate.displayAddress, {
-      shouldValidate: true,
-    });
     setErrorMessage(null);
   };
 
@@ -140,9 +174,21 @@ export default function BarbershopSetupScreen() {
     setLoading(true);
     setErrorMessage(null);
     try {
+      const canonicalLocation = buildCanonicalLocation(values);
+      const resolvedTimezone = resolveCommercialTimezone({
+        state: values.state,
+        city: values.city,
+        cep: values.cep,
+      });
+
       let shopId = createdShopId;
       if (!shopId) {
-        const created = await registerBarbershop(values);
+        const created = await registerBarbershop({
+          name: values.name.trim(),
+          cnpj: values.cnpj,
+          location: canonicalLocation,
+          timezone: resolvedTimezone,
+        });
         shopId = created?.id ?? null;
         setCreatedShopId(shopId);
       }
@@ -233,7 +279,7 @@ export default function BarbershopSetupScreen() {
         try {
           await barbershopLocationApi.updateLocation({
             shopId,
-            address: values.location.trim(),
+            address: canonicalLocation,
             candidateId: selectedCandidate.candidateId,
             latitude: adjustedPoint.latitude,
             longitude: adjustedPoint.longitude,
@@ -293,6 +339,14 @@ export default function BarbershopSetupScreen() {
             : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
         }
       : {};
+
+  const cepHelperText = isSearchingCep
+    ? 'Consultando CEP...'
+    : cepStatus === 'not_found'
+    ? 'CEP não encontrado. Preencha manualmente abaixo.'
+    : cepStatus === 'error'
+    ? cepErrorMessage || 'Serviço de CEP indisponível. Preencha manualmente.'
+    : 'Preenchimento automático ao completar 8 dígitos';
 
   return (
     <KeyboardAvoidingView
@@ -355,172 +409,343 @@ export default function BarbershopSetupScreen() {
           contentStyle={{ padding: spacing[6] }}
         >
           <View style={{ gap: spacing[4] }}>
-              <Controller
-                control={createForm.control}
-                name="name"
-                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                  <FormField label="Nome da Barbearia" error={error?.message} required>
-                    <TextInput
-                      placeholder="Ex: Barbearia Elite"
-                      value={value}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      error={!!error}
-                      leftIcon={<Feather name="scissors" size={18} color={colors.text.muted} />}
-                    />
-                  </FormField>
-                )}
-              />
+            <Controller
+              control={createForm.control}
+              name="name"
+              render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                <FormField label="Nome da Barbearia" error={error?.message} required>
+                  <TextInput
+                    placeholder="Ex: Barbearia Elite"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    error={!!error}
+                    leftIcon={<Feather name="scissors" size={18} color={colors.text.muted} />}
+                  />
+                </FormField>
+              )}
+            />
+
+            <Controller
+              control={createForm.control}
+              name="cnpj"
+              render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                <FormField
+                  label="CNPJ"
+                  error={error?.message}
+                  helperText="Apenas números ou formato com pontuação"
+                  required
+                >
+                  <TextInput
+                    placeholder="00.000.000/0000-00"
+                    value={formatCnpj(value || '')}
+                    onChangeText={(txt) => onChange(txt.replace(/\D/g, ''))}
+                    onBlur={onBlur}
+                    keyboardType="numeric"
+                    maxLength={18}
+                    error={!!error}
+                    leftIcon={<Feather name="file-text" size={18} color={colors.text.muted} />}
+                  />
+                </FormField>
+              )}
+            />
+
+            {/* Seção Endereço */}
+            <View style={{ gap: spacing[3], marginTop: spacing[2] }}>
+              <Text variant="subhead" weight="semibold" color={colors.text.primary}>
+                Endereço
+              </Text>
 
               <Controller
                 control={createForm.control}
-                name="cnpj"
+                name="cep"
                 render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                   <FormField
-                    label="CNPJ"
+                    label="CEP"
                     error={error?.message}
-                    helperText="Apenas números ou formato com pontuação"
+                    helperText={cepHelperText}
                     required
                   >
-                    <TextInput
-                      placeholder="00.000.000/0000-00"
-                      value={formatCnpj(value || '')}
-                      onChangeText={(txt) => onChange(txt.replace(/\D/g, ''))}
-                      onBlur={onBlur}
-                      keyboardType="numeric"
-                      maxLength={18}
-                      error={!!error}
-                      leftIcon={<Feather name="file-text" size={18} color={colors.text.muted} />}
-                    />
-                  </FormField>
-                )}
-              />
-
-              <Controller
-                control={createForm.control}
-                name="location"
-                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                  <FormField label="Localização / Endereço" error={error?.message} required>
                     <View style={{ gap: spacing[2] }}>
                       <TextInput
-                        placeholder="Ex: Av. Paulista, 1000 - São Paulo, SP"
-                        value={value}
+                        placeholder="00000-000"
+                        value={formatCep(value || '')}
                         onChangeText={(txt) => {
-                          onChange(txt);
-                          if (
-                            selectedCandidate &&
-                            txt.trim() !== selectedCandidate.displayAddress.trim()
-                          ) {
-                            setSelectedCandidate(null);
-                          }
+                          const digits = normalizeCep(txt);
+                          onChange(digits);
+                          invalidateGeocoding();
+                          onCepChange(digits);
                         }}
                         onBlur={onBlur}
-                        error={!!error}
+                        keyboardType="numeric"
+                        maxLength={9}
+                        error={!!error || cepStatus === 'not_found' || cepStatus === 'error'}
                         leftIcon={<Feather name="map-pin" size={18} color={colors.text.muted} />}
                       />
-                      <Button
-                        title="Validar endereço no Google Maps"
-                        variant="outline"
-                        loading={searchingGeo}
-                        disabled={searchingGeo || loading}
-                        onPress={() => void handleSearchGeocoding()}
-                      />
+                      {cepStatus === 'error' ? (
+                        <Button
+                          title="Tentar novamente"
+                          variant="outline"
+                          onPress={retryCep}
+                        />
+                      ) : null}
                     </View>
                   </FormField>
                 )}
               />
 
-              {candidates.length > 0 ? (
-                <View style={{ gap: spacing[2] }}>
-                  <Text variant="caption" weight="semibold" color={colors.text.secondary}>
-                    Candidatos Google Maps ({candidates.length})
-                  </Text>
-                  {candidates.map((cand) => {
-                    const isSelected =
-                      selectedCandidate?.candidateId === cand.candidateId;
-                    return (
-                      <Pressable
-                        key={cand.candidateId}
-                        accessibilityRole="radio"
-                        accessibilityLabel={`Selecionar endereço ${cand.displayAddress}`}
-                        accessibilityState={{ checked: isSelected }}
-                        onPress={() => handleSelectCandidate(cand)}
-                        style={{
-                          minHeight: 48,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: 10,
-                          borderRadius: radius.md,
-                          borderWidth: 1,
-                          borderColor: isSelected
-                            ? colors.brand.primary
-                            : colors.border.subtle,
-                          backgroundColor: isSelected
-                            ? colors.surface.selected
-                            : colors.surface.default,
-                        }}
-                      >
-                        <Ionicons
-                          name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                          size={18}
-                          color={isSelected ? colors.brand.primary : colors.text.secondary}
-                        />
-                        <View style={{ flex: 1 }}>
-                          <Text variant="caption" weight="bold" color={colors.text.primary}>
-                            {cand.displayAddress}
-                          </Text>
-                          <Text variant="caption" color={colors.text.secondary}>
-                            {cand.attribution}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-
-              {selectedCandidate && adjustedPoint ? (
-                <GoogleMapCanvas
-                  markers={[
-                    {
-                      id: selectedCandidate.candidateId,
-                      title: selectedCandidate.displayAddress,
-                      coordinates: adjustedPoint,
-                    },
-                  ]}
-                  draggablePin={adjustedPoint}
-                  onPinDragEnd={handleAdjustPin}
-                  height={180}
-                  testID="setup-location-google-map"
-                />
-              ) : null}
-
               <Controller
                 control={createForm.control}
-                name="timezone"
+                name="street"
                 render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                  <FormField label="Fuso Horário" error={error?.message}>
+                  <FormField label="Rua / logradouro" error={error?.message} required>
                     <TextInput
-                      placeholder="America/Sao_Paulo"
+                      placeholder="Ex: Av. Paulista"
                       value={value}
-                      onChangeText={onChange}
+                      onChangeText={(txt) => {
+                        onChange(txt);
+                        invalidateGeocoding();
+                      }}
                       onBlur={onBlur}
                       error={!!error}
-                      leftIcon={<Feather name="clock" size={18} color={colors.text.muted} />}
+                      leftIcon={<Feather name="navigation" size={18} color={colors.text.muted} />}
                     />
                   </FormField>
                 )}
               />
 
+              <View style={{ gap: spacing[2] }}>
+                <Controller
+                  control={createForm.control}
+                  name="number"
+                  render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                    <FormField
+                      label="Número"
+                      error={error?.message}
+                      required={!createForm.watch('withoutNumber')}
+                    >
+                      <TextInput
+                        placeholder="Ex: 1000"
+                        value={value}
+                        onChangeText={(txt) => {
+                          onChange(txt);
+                          invalidateGeocoding();
+                        }}
+                        onBlur={onBlur}
+                        error={!!error}
+                        editable={!createForm.watch('withoutNumber')}
+                        leftIcon={<Feather name="hash" size={18} color={colors.text.muted} />}
+                      />
+                    </FormField>
+                  )}
+                />
+
+                <Controller
+                  control={createForm.control}
+                  name="withoutNumber"
+                  render={({ field: { onChange, value } }) => (
+                    <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityLabel="Sem número"
+                      accessibilityState={{ checked: Boolean(value) }}
+                      onPress={() => {
+                        const next = !value;
+                        onChange(next);
+                        invalidateGeocoding();
+                        if (next) {
+                          createForm.setValue('number', '');
+                        }
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        minHeight: 44,
+                        gap: spacing[2],
+                      }}
+                    >
+                      <Ionicons
+                        name={value ? 'checkbox' : 'square-outline'}
+                        size={22}
+                        color={value ? colors.brand.primary : colors.text.secondary}
+                      />
+                      <Text variant="body" color={colors.text.primary}>
+                        Sem número
+                      </Text>
+                    </Pressable>
+                  )}
+                />
+              </View>
+
+              <Controller
+                control={createForm.control}
+                name="complement"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                  <FormField label="Complemento (opcional)" error={error?.message}>
+                    <TextInput
+                      placeholder="Ex: Sala 42"
+                      value={value}
+                      onChangeText={(txt) => {
+                        onChange(txt);
+                        invalidateGeocoding();
+                      }}
+                      onBlur={onBlur}
+                      error={!!error}
+                      leftIcon={<Feather name="info" size={18} color={colors.text.muted} />}
+                    />
+                  </FormField>
+                )}
+              />
+
+              <Controller
+                control={createForm.control}
+                name="neighborhood"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                  <FormField label="Bairro" error={error?.message}>
+                    <TextInput
+                      placeholder="Ex: Bela Vista"
+                      value={value}
+                      onChangeText={(txt) => {
+                        onChange(txt);
+                        invalidateGeocoding();
+                      }}
+                      onBlur={onBlur}
+                      error={!!error}
+                      leftIcon={<Feather name="map" size={18} color={colors.text.muted} />}
+                    />
+                  </FormField>
+                )}
+              />
+
+              <View style={{ flexDirection: 'row', gap: spacing[3] }}>
+                <View style={{ flex: 3 }}>
+                  <Controller
+                    control={createForm.control}
+                    name="city"
+                    render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                      <FormField label="Cidade" error={error?.message} required>
+                        <TextInput
+                          placeholder="Ex: São Paulo"
+                          value={value}
+                          onChangeText={(txt) => {
+                            onChange(txt);
+                            invalidateGeocoding();
+                          }}
+                          onBlur={onBlur}
+                          error={!!error}
+                          leftIcon={<Feather name="compass" size={18} color={colors.text.muted} />}
+                        />
+                      </FormField>
+                    )}
+                  />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Controller
+                    control={createForm.control}
+                    name="state"
+                    render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                      <FormField label="UF" error={error?.message} required>
+                        <TextInput
+                          placeholder="SP"
+                          value={value}
+                          onChangeText={(txt) => {
+                            const uf = txt.toUpperCase().slice(0, 2);
+                            onChange(uf);
+                            invalidateGeocoding();
+                          }}
+                          onBlur={onBlur}
+                          maxLength={2}
+                          error={!!error}
+                        />
+                      </FormField>
+                    )}
+                  />
+                </View>
+              </View>
+
               <Button
-                title="Cadastrar Barbearia"
-                loading={loading}
-                disabled={loading}
-                onPress={() => { void createForm.handleSubmit(handleCreate)(); }}
-                style={{ marginTop: spacing[2] }}
+                title="Confirmar localização no mapa"
+                variant="outline"
+                loading={searchingGeo}
+                disabled={searchingGeo || loading}
+                onPress={() => void handleSearchGeocoding()}
               />
             </View>
+
+            {candidates.length > 0 ? (
+              <View style={{ gap: spacing[2] }}>
+                <Text variant="caption" weight="semibold" color={colors.text.secondary}>
+                  Candidatos Google Maps ({candidates.length})
+                </Text>
+                {candidates.map((cand) => {
+                  const isSelected =
+                    selectedCandidate?.candidateId === cand.candidateId;
+                  return (
+                    <Pressable
+                      key={cand.candidateId}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`Selecionar endereço ${cand.displayAddress}`}
+                      accessibilityState={{ checked: isSelected }}
+                      onPress={() => handleSelectCandidate(cand)}
+                      style={{
+                        minHeight: 48,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: 10,
+                        borderRadius: radius.md,
+                        borderWidth: 1,
+                        borderColor: isSelected
+                          ? colors.brand.primary
+                          : colors.border.subtle,
+                        backgroundColor: isSelected
+                          ? colors.surface.selected
+                          : colors.surface.default,
+                      }}
+                    >
+                      <Ionicons
+                        name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                        size={18}
+                        color={isSelected ? colors.brand.primary : colors.text.secondary}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text variant="caption" weight="bold" color={colors.text.primary}>
+                          {cand.displayAddress}
+                        </Text>
+                        <Text variant="caption" color={colors.text.secondary}>
+                          {cand.attribution}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {selectedCandidate && adjustedPoint ? (
+              <GoogleMapCanvas
+                markers={[
+                  {
+                    id: selectedCandidate.candidateId,
+                    title: selectedCandidate.displayAddress,
+                    coordinates: adjustedPoint,
+                  },
+                ]}
+                draggablePin={adjustedPoint}
+                onPinDragEnd={handleAdjustPin}
+                height={180}
+                testID="setup-location-google-map"
+              />
+            ) : null}
+
+            <Button
+              title="Cadastrar Barbearia"
+              loading={loading}
+              disabled={loading}
+              onPress={() => { void createForm.handleSubmit(handleCreate)(); }}
+              style={{ marginTop: spacing[2] }}
+            />
+          </View>
         </LiquidGlassView>
 
         {/* Footer logout */}
