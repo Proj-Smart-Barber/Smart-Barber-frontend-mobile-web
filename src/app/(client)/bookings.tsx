@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '../../shared/theme';
 import { Text, EmptyState, Spinner, Button, Card, Badge, SegmentedFilter } from '../../shared/ui';
 import { useNavigation } from '../../shared/navigation';
+import { ClientNavbarMetricsContext } from '../../shared/navigation/ClientNavbarMetrics';
 import { useSession } from '../../features/auth';
 import { useMyBookings } from '../../features/bookings/model/use-my-bookings';
 import { BookingCard } from '../../features/bookings/ui/BookingCard';
@@ -17,6 +18,7 @@ export default function ClientBookingsScreen() {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
+  const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const router = useRouter();
   const { status, identity } = useSession();
   const isAuthenticated = status === 'authenticated';
@@ -98,54 +100,42 @@ export default function ClientBookingsScreen() {
         ]}
       >
         <View style={styles.contentConstraint}>
-          <View style={styles.titleRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
-                  Meus Agendamentos
-                </Text>
-                <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
-                  Acompanhe seus horários agendados e consulte seu histórico.
-                </Text>
+          {isCompact ? (
+            <View style={styles.compactHeader}>
+              <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
+                Meus agendamentos
+              </Text>
+              <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
+                Seus próximos horários e histórico
+              </Text>
+              <View style={{ marginTop: spacing.sm }}>
+                <Button
+                  title="Nova reserva"
+                  variant="primary"
+                  leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+                  onPress={() => router.push('/(client)/explore')}
+                />
               </View>
             </View>
+          ) : (
+            <View style={styles.titleRow}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
+                  Meus agendamentos
+                </Text>
+                <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
+                  Seus próximos horários e histórico
+                </Text>
+              </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
               <Button
                 title="Nova reserva"
                 variant="primary"
                 leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
                 onPress={() => router.push('/(client)/explore')}
               />
-              <Pressable
-                onPress={() => router.push('/(client)/profile')}
-                accessibilityRole="button"
-                accessibilityLabel="Acessar Minha Conta"
-                style={({ pressed }) => [
-                  styles.explicitAccountButton,
-                  {
-                    backgroundColor: pressed
-                      ? colors.surface.selected
-                      : isDark
-                        ? 'rgba(255, 255, 255, 0.04)'
-                        : colors.surface.input,
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.border.default,
-                    borderRadius: radius.full,
-                  },
-                ]}
-              >
-                <Ionicons name="person-circle-outline" size={20} color={colors.brand.primary} />
-                <Text
-                  variant="caption"
-                  weight="bold"
-                  color={colors.text.primary}
-                  style={styles.accountButtonText}
-                >
-                  Conta
-                </Text>
-              </Pressable>
             </View>
-          </View>
+          )}
 
           {/* Filtro Segmentado Canônico (Padrão Owner) */}
           <SegmentedFilter<TabFilter>
@@ -192,39 +182,15 @@ export default function ClientBookingsScreen() {
           keyExtractor={(item) => item.id}
           onScroll={onContentScroll}
           scrollEventThrottle={16}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View style={styles.contentConstraint}>
               <BookingCard
                 booking={item}
+                isFeatured={activeTab === 'upcoming' && index === 0 && item.id === nextBooking?.id}
                 onPress={() => handleOpenDetail(item)}
               />
             </View>
           )}
-          ListHeaderComponent={
-            activeTab === 'upcoming' && nextBooking ? (
-              <View style={styles.contentConstraint}>
-                <Card
-                  style={[
-                    styles.nextBookingBanner,
-                    { borderColor: colors.brand.primary, borderWidth: 1, marginBottom: spacing.md },
-                  ]}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-                    <Text variant="caption" style={{ color: colors.brand.primary, fontWeight: '700' }}>
-                      PRÓXIMO ATENDIMENTO
-                    </Text>
-                    <Badge label="Destaque" tone="brand" />
-                  </View>
-                  <Text variant="body" style={{ color: colors.text.primary, fontWeight: '600' }}>
-                    {nextBooking.services.map((s) => s.title).join(', ')}
-                  </Text>
-                  <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
-                    Data: {String(nextBooking.date ?? nextBooking.startsAt?.split('T')[0] ?? '')} às {nextBooking.startTime ?? ''}
-                  </Text>
-                </Card>
-              </View>
-            ) : undefined
-          }
           ListFooterComponent={
             <View style={[styles.contentConstraint, { paddingVertical: spacing.md, alignItems: 'center' }]}>
               <Text variant="caption" style={{ color: colors.text.muted, textAlign: 'center', marginBottom: spacing.xs }}>
@@ -243,7 +209,9 @@ export default function ClientBookingsScreen() {
           contentContainerStyle={{
             paddingHorizontal: isCompact ? 16 : 32,
             paddingTop: 8,
-            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
+            paddingBottom: !isExpanded
+              ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+              : 40,
           }}
           refreshControl={
             <RefreshControl
@@ -270,28 +238,14 @@ const styles = StyleSheet.create({
     maxWidth: 960,
     alignSelf: 'center',
   },
+  compactHeader: {
+    gap: 4,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-  },
-  explicitAccountButton: {
-    height: 44,
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    gap: 6,
-  },
-  accountButtonText: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '700',
-  },
-  nextBookingBanner: {
-    padding: 14,
   },
   center: {
     flex: 1,

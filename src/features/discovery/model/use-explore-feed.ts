@@ -23,6 +23,7 @@ export interface UseExploreFeedViewModel {
   regionKey: string;
   setRegionKey: (region: string) => void;
   locationSession: LocationSession;
+  isProximityUnavailable: boolean;
   fetchNextPage: () => void;
   refetch: () => void;
   setMode: (mode: DiscoveryMode) => void;
@@ -41,6 +42,7 @@ export function useExploreFeed(params?: UseExploreFeedParams): UseExploreFeedVie
   });
 
   const [regionKey, setRegionKey] = useState('');
+  const [proximityUnavailable, setProximityUnavailable] = useState(false);
   const [radiusKm, setRadiusState] = useState<DiscoveryRadius>(params?.initialRadius ?? 10);
   const [searchQuery, setSearchQuery] = useState(params?.initialQuery ?? '');
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
@@ -81,34 +83,84 @@ export function useExploreFeed(params?: UseExploreFeedParams): UseExploreFeedVie
     return locationSession.coords.longitude;
   }, [locationSession.coords]);
 
-  const queryKey = useMemo(
-    () => ['explore-feed', mode, radiusKm, debouncedQuery, regionKey, latBucket, lngBucket],
-    [mode, radiusKm, debouncedQuery, regionKey, latBucket, lngBucket],
-  );
-
   const isNearbyValid =
     mode === 'NEARBY' &&
+    !proximityUnavailable &&
     !regionKey &&
     locationSession.state === 'granted' &&
     locationSession.coords !== null;
 
   const effectiveMode = isNearbyValid ? 'NEARBY' : 'ALL';
 
+  const queryKey = useMemo(
+    () => [
+      'explore-feed',
+      effectiveMode,
+      radiusKm,
+      debouncedQuery,
+      regionKey,
+      latBucket,
+      lngBucket,
+      proximityUnavailable,
+    ],
+    [
+      effectiveMode,
+      radiusKm,
+      debouncedQuery,
+      regionKey,
+      latBucket,
+      lngBucket,
+      proximityUnavailable,
+    ],
+  );
+
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, refetch, error } =
     useInfiniteQuery({
       queryKey,
       queryFn: async ({ pageParam, signal }) => {
+        if (isNearbyValid && locationSession.coords) {
+          try {
+            return await exploreFeedApi.getFeed(
+              {
+                mode: 'NEARBY',
+                point: {
+                  latitude: locationSession.coords.latitude,
+                  longitude: locationSession.coords.longitude,
+                },
+                radiusKm,
+                q: debouncedQuery || undefined,
+                regionKey: regionKey.trim() || undefined,
+                limit: 10,
+                cursor: pageParam as string | undefined,
+              },
+              signal,
+            );
+          } catch (err: unknown) {
+            const is503 =
+              (err as any)?.isServiceUnavailable === true ||
+              (err as any)?.statusCode === 503 ||
+              (err as any)?.status === 503 ||
+              (err as any)?.response?.status === 503;
+            if (is503) {
+              setProximityUnavailable(true);
+              return exploreFeedApi.getFeed(
+                {
+                  mode: 'ALL',
+                  q: debouncedQuery || undefined,
+                  regionKey: regionKey.trim() || undefined,
+                  limit: 10,
+                  cursor: pageParam as string | undefined,
+                },
+                signal,
+              );
+            }
+            throw err;
+          }
+        }
+
         return exploreFeedApi.getFeed(
           {
-            mode: effectiveMode,
-            point:
-              isNearbyValid && locationSession.coords
-                ? {
-                    latitude: locationSession.coords.latitude,
-                    longitude: locationSession.coords.longitude,
-                  }
-                : undefined,
-            radiusKm: isNearbyValid ? radiusKm : undefined,
+            mode: 'ALL',
             q: debouncedQuery || undefined,
             regionKey: regionKey.trim() || undefined,
             limit: 10,
@@ -129,6 +181,9 @@ export function useExploreFeed(params?: UseExploreFeedParams): UseExploreFeedVie
   }, [data]);
 
   const setMode = useCallback((newMode: DiscoveryMode) => {
+    if (newMode === 'NEARBY') {
+      setProximityUnavailable(false);
+    }
     setModeState(newMode);
   }, []);
 
@@ -148,6 +203,7 @@ export function useExploreFeed(params?: UseExploreFeedParams): UseExploreFeedVie
     regionKey,
     setRegionKey,
     locationSession,
+    isProximityUnavailable: proximityUnavailable,
     fetchNextPage,
     refetch: () => {
       void queryClient.resetQueries({ queryKey, exact: true });

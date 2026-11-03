@@ -15,6 +15,8 @@ import {
   ConfirmEmailVerificationResponseDto,
   ResetPasswordRequestDto,
   ChangePasswordRequestDto,
+  UpdateProfileRequestDto,
+  UpdateProfileResponseDto,
 } from './auth.dto';
 import { mapSessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
 
@@ -82,6 +84,18 @@ export class AuthApi {
    */
   async changePassword(data: ChangePasswordRequestDto, accessToken?: string | null): Promise<void> {
     await httpClient.patch<void>('/api/users/me/password', data, { token: accessToken });
+  }
+
+  /**
+   * Atualiza dados de perfil do usuário autenticado: PATCH /api/users/me
+   */
+  async updateProfile(
+    data: UpdateProfileRequestDto,
+    accessToken?: string | null,
+  ): Promise<UpdateProfileResponseDto> {
+    return await httpClient.patch<UpdateProfileResponseDto>('/api/users/me', data, {
+      token: accessToken,
+    });
   }
 
   /**

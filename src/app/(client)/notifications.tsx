@@ -10,6 +10,7 @@ import { Spinner } from '@/shared/ui/Spinner';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
 import { useNavigation } from '@/shared/navigation';
+import { ClientNavbarMetricsContext } from '@/shared/navigation/ClientNavbarMetrics';
 import { useSession } from '@/features/auth';
 import { useNotificationsFeed } from '@/features/notifications/model/notification-queries';
 import { NotificationCard } from '@/features/notifications/ui/NotificationCard';
@@ -19,6 +20,7 @@ export default function ClientNotificationsScreen() {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
+  const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const { identity } = useSession();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
 
@@ -173,7 +175,9 @@ export default function ClientNotificationsScreen() {
             styles.listContent,
             {
               paddingHorizontal: isCompact ? 16 : 32,
-              paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
+              paddingBottom: !isExpanded
+                ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+                : 40,
             },
           ]}
           refreshControl={

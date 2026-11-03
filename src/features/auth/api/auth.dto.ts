@@ -89,3 +89,24 @@ export interface ChangePasswordRequestDto {
   currentPassword: string;
   newPassword: string;
 }
+
+export interface UpdateProfileRequestDto {
+  name?: string;
+  phoneNumber?: string | null;
+}
+
+export interface UpdateProfileResponseDto {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    accountType: AccountType;
+    emailVerifiedAt: string | null;
+    phoneNumber?: string | null;
+    avatarUrl?: string | null;
+    onboardingIntent?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+  serverTime?: string;
+}

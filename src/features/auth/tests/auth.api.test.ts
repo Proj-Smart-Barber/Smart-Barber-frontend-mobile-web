@@ -164,4 +164,42 @@ describe('AuthApi', () => {
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/verification-email/confirm'),expect.objectContaining({method:'POST',body:JSON.stringify({email:'cliente@exemplo.com',code:'001234'}),credentials:'omit'}));
   });
 
+  it('deve atualizar perfil chamando PATCH /api/users/me com dados de contato', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        user: {
+          id: 'user-123',
+          name: 'Lucas Andrade Atualizado',
+          email: 'lucas@exemplo.com',
+          phoneNumber: '11999998888',
+          accountType: 'CLIENT',
+          emailVerifiedAt: '2026-10-13T12:00:00.000Z',
+        },
+      }),
+    } as Response);
+
+    const result = await authApi.updateProfile(
+      { name: 'Lucas Andrade Atualizado', phoneNumber: '11999998888' },
+      'test-token'
+    );
+
+    expect(result.user.name).toBe('Lucas Andrade Atualizado');
+    expect(result.user.phoneNumber).toBe('11999998888');
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/users/me'),
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.any(Headers),
+        body: JSON.stringify({
+          name: 'Lucas Andrade Atualizado',
+          phoneNumber: '11999998888',
+        }),
+      })
+    );
+    const callHeaders = (global.fetch as any).mock.calls[0][1].headers as Headers;
+    expect(callHeaders.get('Authorization')).toBe('Bearer test-token');
+  });
 });

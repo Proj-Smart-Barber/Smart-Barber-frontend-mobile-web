@@ -9,7 +9,12 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { NextBookingItem } from '../api/discovery.contract';
 
-export interface ClientNextBookingCardProps {
+import {
+  formatBookingCalendarDate,
+  formatBookingTimeRange,
+} from '@/features/bookings/lib/booking-time';
+
+interface ClientNextBookingCardProps {
   booking: NextBookingItem | null;
   serverTime: string | null;
   isLoading: boolean;
@@ -22,23 +27,12 @@ export function formatBookingDateTime(startsAt: string | Date): {
   dateStr: string;
   timeStr: string;
 } {
-  const d = new Date(startsAt);
-  if (Number.isNaN(d.getTime())) {
-    return { dateStr: 'Data a confirmar', timeStr: '--:--' };
-  }
-
-  const dateStr = d.toLocaleDateString('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  });
-
-  const timeStr = d.toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
+  const dateStr = formatBookingCalendarDate(startsAt, { format: 'short' });
+  const timeStr = formatBookingTimeRange(
+    null,
+    null,
+    typeof startsAt === 'string' ? startsAt : startsAt.toISOString(),
+  );
   return { dateStr, timeStr };
 }
 

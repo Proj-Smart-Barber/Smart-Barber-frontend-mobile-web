@@ -3,6 +3,7 @@ export * from './ui/RegisterForm';
 export * from './ui/AuthLayout';
 export * from './ui/AuthError';
 export * from './ui/SessionRecoveryScreen';
+export * from './ui/EditProfileModal';
 
 export * from './model/use-session';
 export * from './model/auth-state';

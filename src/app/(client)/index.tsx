@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { useOptionalNavigation, LiquidGlassView } from '@/shared/navigation';
+import { ClientNavbarMetricsContext } from '@/shared/navigation/ClientNavbarMetrics';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import {
@@ -33,6 +34,7 @@ export default function ClientHomeScreen() {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
+  const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const router = useRouter();
   const navigation = useOptionalNavigation();
   const onContentScroll = navigation?.onContentScroll;
@@ -95,7 +97,9 @@ export default function ClientHomeScreen() {
           styles.scrollContent,
           {
             paddingTop: Math.max(insets.top, 16),
-            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
+            paddingBottom: !isExpanded
+              ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+              : 40,
             paddingHorizontal: isCompact ? 16 : 32,
           },
         ]}

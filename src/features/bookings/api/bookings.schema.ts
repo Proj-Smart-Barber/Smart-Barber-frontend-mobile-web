@@ -31,6 +31,8 @@ export const bookingCustomerSchema = z.object({
 export const bookingDtoSchema = z.object({
   id: z.string(),
   barbershopId: z.string(),
+  barbershopName: z.string().nullable().optional(),
+  barbershopPhone: z.string().nullable().optional(),
   barbermanId: z.string(),
   barbermanName: z.string().nullable().optional(),
   customerId: z.string().nullable().optional(),

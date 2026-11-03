@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Platform, View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,9 +7,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { Badge, Button, Text } from '@/shared/ui';
 import { useNavigation } from '@/shared/navigation';
+import { ClientNavbarMetricsContext } from '@/shared/navigation/ClientNavbarMetrics';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
-import { useSession } from '@/features/auth';
-import { AvatarUploader } from '@/features/media';
+import { useSession, EditProfileModal } from '@/features/auth';
+import { AvatarUploader, AvatarUploaderHandle } from '@/features/media';
+import { formatPhoneNumber } from '@/shared/lib/phone-format';
 
 export default function ClientProfileScreen() {
   const router = useRouter();
@@ -17,7 +19,11 @@ export default function ClientProfileScreen() {
   const { colors, spacing, radius, mode, setMode, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
+  const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const { identity, signOut, refreshIdentity } = useSession();
+
+  const avatarUploaderRef = useRef<AvatarUploaderHandle>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   let openDrawer: (() => void) | undefined;
   let onContentScroll: ((event: any) => void) | undefined;
@@ -41,14 +47,12 @@ export default function ClientProfileScreen() {
 
   const userName = identity?.name || 'Cliente';
   const userEmail = identity?.email || 'cliente@smartbarber.com';
-  const initials = userName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join('') || 'CL';
 
-  const themeOptions: Array<{ mode: 'system' | 'light' | 'dark'; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
+  const themeOptions: Array<{
+    mode: 'system' | 'light' | 'dark';
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+  }> = [
     { mode: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
     { mode: 'light', label: 'Claro', icon: 'sunny-outline' },
     { mode: 'dark', label: 'Escuro', icon: 'moon-outline' },
@@ -69,7 +73,9 @@ export default function ClientProfileScreen() {
           styles.scrollContent,
           {
             paddingTop: Math.max(insets.top, 16),
-            paddingBottom: !isExpanded ? Math.max(insets.bottom, 16) + 96 : 40,
+            paddingBottom: !isExpanded
+              ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+              : 40,
             paddingHorizontal: isCompact ? 16 : 32,
           },
         ]}
@@ -90,38 +96,147 @@ export default function ClientProfileScreen() {
             </View>
           </View>
 
-          {/* Card de Identificação (Padrão Owner com contentStyle em linha) */}
+          {/* Card de Identificação */}
           <LiquidGlassView
             variant="card"
             borderRadius={radius.xl}
             contentStyle={styles.profileCardContent}
           >
-            <AvatarUploader
-              currentAvatarUrl={identity?.avatarUrl}
-              onAvatarUpdated={async () => {
-                await refreshIdentity?.().catch(() => {});
-                queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
-              }}
-              size={72}
-              label=""
-            />
+            <View style={styles.profileHeaderRow}>
+              <AvatarUploader
+                ref={avatarUploaderRef}
+                variant="avatar-only"
+                currentAvatarUrl={identity?.avatarUrl}
+                onAvatarUpdated={async () => {
+                  await refreshIdentity?.().catch(() => {});
+                  queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+                }}
+                size={68}
+                label=""
+              />
 
-            <View style={styles.profileInfo}>
-              <Text variant="body" weight="bold" style={{ color: colors.text.primary }}>
-                {userName}
-              </Text>
-              <Text variant="caption" color={colors.text.secondary}>
-                {userEmail}
-              </Text>
-              <View style={{ marginTop: 4, alignSelf: 'flex-start' }}>
-                <Badge label="Cliente" tone="brand" size="sm" />
+              <View style={styles.profileInfo}>
+                <Text
+                  variant="h3"
+                  weight="bold"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={{ color: colors.text.primary }}
+                >
+                  {userName}
+                </Text>
+                <Text
+                  variant="caption"
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  color={colors.text.secondary}
+                >
+                  {userEmail}
+                </Text>
+                <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                  <Badge label="Cliente" tone="brand" size="sm" />
+                </View>
               </View>
+            </View>
+
+            {/* Ações do Perfil */}
+            <View style={styles.profileActionsRow}>
+              <Button
+                title="Alterar foto"
+                variant="outline"
+                leftIcon={<Ionicons name="camera-outline" size={16} color={colors.text.primary} />}
+                onPress={() => avatarUploaderRef.current?.pickPhoto()}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Editar perfil"
+                variant="outline"
+                leftIcon={<Ionicons name="create-outline" size={16} color={colors.text.primary} />}
+                onPress={() => setIsEditModalOpen(true)}
+                style={{ flex: 1 }}
+              />
             </View>
           </LiquidGlassView>
 
+          {/* Meus Dados */}
+          <View style={styles.section}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={colors.text.muted}
+              style={styles.sectionTitle}
+            >
+              MEUS DADOS
+            </Text>
+
+            <LiquidGlassView
+              variant="card"
+              borderRadius={radius.xl}
+              contentStyle={styles.optionsListContent}
+            >
+              <View style={styles.dataRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="caption" color={colors.text.muted}>
+                    Nome completo
+                  </Text>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    color={colors.text.primary}
+                    style={{ marginTop: 2 }}
+                  >
+                    {identity?.name || 'Cliente'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
+
+              <View style={styles.dataRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="caption" color={colors.text.muted}>
+                    Telefone de contato
+                  </Text>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    color={colors.text.primary}
+                    style={{ marginTop: 2 }}
+                  >
+                    {identity?.phoneNumber ? formatPhoneNumber(identity.phoneNumber) : 'Não informado'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
+
+              <View style={styles.dataRow}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="caption" color={colors.text.muted}>
+                    E-mail
+                  </Text>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    color={colors.text.primary}
+                    style={{ marginTop: 2 }}
+                  >
+                    {userEmail}
+                  </Text>
+                </View>
+                <Badge label="Somente leitura" tone="neutral" size="sm" />
+              </View>
+            </LiquidGlassView>
+          </View>
+
           {/* Preferências de Aparência */}
           <View style={styles.section}>
-            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.sectionTitle}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={colors.text.muted}
+              style={styles.sectionTitle}
+            >
               APARÊNCIA DO APLICATIVO
             </Text>
 
@@ -169,7 +284,12 @@ export default function ClientProfileScreen() {
 
           {/* Atalhos rápidos */}
           <View style={styles.section}>
-            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.sectionTitle}>
+            <Text
+              variant="caption"
+              weight="bold"
+              color={colors.text.muted}
+              style={styles.sectionTitle}
+            >
               MEUS DADOS & ATIVIDADE
             </Text>
 
@@ -187,7 +307,11 @@ export default function ClientProfileScreen() {
                 ]}
               >
                 <Ionicons name="calendar-outline" size={20} color={colors.brand.primary} />
-                <Text variant="bodySm" weight="medium" style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}>
+                <Text
+                  variant="bodySm"
+                  weight="medium"
+                  style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}
+                >
                   Histórico de agendamentos
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
@@ -204,7 +328,11 @@ export default function ClientProfileScreen() {
                 ]}
               >
                 <Ionicons name="notifications-outline" size={20} color={colors.brand.primary} />
-                <Text variant="bodySm" weight="medium" style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}>
+                <Text
+                  variant="bodySm"
+                  weight="medium"
+                  style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}
+                >
                   Notificações e avisos
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
@@ -223,6 +351,12 @@ export default function ClientProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal de Edição de Perfil */}
+      <EditProfileModal
+        visible={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+      />
     </View>
   );
 }
@@ -251,21 +385,23 @@ const styles = StyleSheet.create({
   },
   profileCardContent: {
     padding: 20,
+    gap: 16,
+  },
+  profileHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-  },
-  avatarLarge: {
-    width: 60,
-    height: 60,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   profileInfo: {
     flex: 1,
     minWidth: 0,
     gap: 2,
+    justifyContent: 'center',
+  },
+  profileActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   section: {
     gap: 8,
@@ -274,6 +410,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 0.8,
     paddingHorizontal: 4,
+  },
+  dataRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   themeOptionsRow: {
     flexDirection: 'row',
@@ -305,4 +449,3 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
-
