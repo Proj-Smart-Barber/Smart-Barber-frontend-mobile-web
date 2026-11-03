@@ -8,10 +8,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useAdaptiveLayout, useReducedMotion, useTheme } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { getOperationalContext, useSession } from '@/features/auth';
 import { BottomCapsuleBar } from './BottomCapsuleBar';
 import { FloatingBookingAction } from './FloatingBookingAction';
@@ -27,7 +27,7 @@ function NavigationShellContent({ children }: NavigationShellProps) {
   const { colors, radius, isDark } = useTheme();
   const { isExpanded, isCompact } = useAdaptiveLayout();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const pathname = usePathname();
   const isBookingCreation = pathname === '/new-booking';
   const router = useRouter();

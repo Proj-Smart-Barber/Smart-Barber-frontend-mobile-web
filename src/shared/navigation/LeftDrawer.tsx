@@ -10,13 +10,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '@/shared/brand';
 import { useSession } from '@/features/auth';
 import { getBarberScheduleContext } from '@/features/availability/model/barber-schedule-access';
 import { useTheme } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Badge, Text, useToast } from '@/shared/ui';
 import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
 import { useNavigation } from './navigation-context';
@@ -30,7 +30,7 @@ export function LeftDrawer() {
   const isOwnerActive = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
     m.state === 'ACTIVE' && m.role === 'OWNER');
   const { colors, spacing, radius, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { staff, barbershop, isOwner, signOut } = useSession();
@@ -159,7 +159,7 @@ export function LeftDrawer() {
           style={styles.drawerGlass}
           contentStyle={{
             height: '100%',
-            paddingTop: Math.max(insets.top, spacing[4]),
+            paddingTop: insets.top > 0 ? insets.top + 8 : spacing[4],
             paddingBottom: Math.max(insets.bottom, spacing[4]),
           }}
         >

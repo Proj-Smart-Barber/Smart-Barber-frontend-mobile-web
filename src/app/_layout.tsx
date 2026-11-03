@@ -293,7 +293,7 @@ export default function RootLayout() {
   );
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ flex: 1, width: '100%', height: '100%' }}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ToastProvider>

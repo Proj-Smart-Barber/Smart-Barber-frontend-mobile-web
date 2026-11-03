@@ -1,9 +1,9 @@
 import React from 'react';
 import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAdaptiveLayout, useReducedMotion, useTheme } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { useSession } from '@/features/auth';
 import { Text } from '@/shared/ui';
 import { LiquidGlassView } from './LiquidGlassView';
@@ -59,7 +59,7 @@ export function BottomCapsuleBar() {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const { isOwner } = useSession();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const router = useRouter();
   const { activeDestination, isDrawerOpen, drawerProgress, scrollCollapseProgress, openDrawer, closeDrawer } = useNavigation();
   const reducedMotion = useReducedMotion();
@@ -73,7 +73,7 @@ export function BottomCapsuleBar() {
     router.push(route as any);
   };
 
-  const bottomInset = Math.max(insets.bottom, 12) + 8;
+  const bottomInset = (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8;
 
   // Atenua e desabilita a barra durante o drawer aberto
   const capsuleOpacity = reducedMotion

@@ -1,10 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Platform, View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Badge, Button, Text } from '@/shared/ui';
 import { useNavigation } from '@/shared/navigation';
 import { ClientNavbarMetricsContext } from '@/shared/navigation/ClientNavbarMetrics';
@@ -18,7 +18,7 @@ export default function ClientProfileScreen() {
   const queryClient = useQueryClient();
   const { colors, spacing, radius, mode, setMode, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const { identity, signOut, refreshIdentity } = useSession();
 
@@ -72,7 +72,7 @@ export default function ClientProfileScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: Math.max(insets.top, 16),
+            paddingTop: insets.top > 0 ? insets.top + 8 : 16,
             paddingBottom: !isExpanded
               ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
               : 40,

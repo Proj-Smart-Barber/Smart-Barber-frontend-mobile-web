@@ -11,10 +11,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout, useReducedMotion } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Badge, Text } from '@/shared/ui';
 import { BrandMark } from '@/shared/brand';
 import { useSession } from '@/features/auth';
@@ -112,7 +112,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
   const { colors, spacing, radius, isDark } = useTheme();
   const { isExpanded, isCompact } = useAdaptiveLayout();
   const { width } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const router = useRouter();
   const pathname = usePathname();
   const { identity, signOut } = useSession();
@@ -383,7 +383,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
     outputRange: [0, 0.65],
   });
 
-  const bottomInset = Math.max(insets.bottom, 12) + 8;
+  const bottomInset = (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8;
 
   const capsuleOpacity = reducedMotion
     ? isDrawerOpen
@@ -461,7 +461,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
               style={styles.drawerGlass}
               contentStyle={{
                 height: '100%',
-                paddingTop: Math.max(insets.top, spacing[4]),
+                paddingTop: insets.top > 0 ? insets.top + 8 : spacing[4],
                 paddingBottom: Math.max(insets.bottom, spacing[4]),
               }}
             >
