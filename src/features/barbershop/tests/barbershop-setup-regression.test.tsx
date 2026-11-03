@@ -13,20 +13,22 @@ vi.mock('@/shared/ui', () => ({
       {title}
     </button>
   ),
-  FormField: ({ label, error, children }: any) => (
+  FormField: ({ label, error, children, helperText }: any) => (
     <div>
       <label>{label}</label>
+      {helperText ? <div>{helperText}</div> : null}
       {children}
       {error ? <span>{error}</span> : null}
     </div>
   ),
   Text: ({ children }: any) => <span>{children}</span>,
-  TextInput: ({ placeholder, value, onChangeText, onBlur }: any) => (
+  TextInput: ({ placeholder, value, onChangeText, onBlur, editable }: any) => (
     <input
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChangeText?.(e.target.value)}
       onBlur={onBlur}
+      disabled={editable === false}
     />
   ),
 }));
@@ -155,7 +157,7 @@ import {
 } from '../api/barbershop-location.api';
 import { serverClock } from '@/features/bookings/lib/server-clock';
 
-describe('BarbershopSetupScreen - Regressões de Segurança de Onboarding', () => {
+describe('BarbershopSetupScreen - Regressões e Novo Cadastro por CEP', () => {
   const createdShop = {
     id: '22222222-2222-4222-8222-222222222222',
     name: 'Barbearia Modelo',
@@ -224,14 +226,22 @@ describe('BarbershopSetupScreen - Regressões de Segurança de Onboarding', () =
     // Preenche campos obrigatórios
     const nameInput = screen.getByPlaceholderText('Ex: Barbearia Elite');
     const cnpjInput = screen.getByPlaceholderText('00.000.000/0000-00');
-    const locationInput = screen.getByPlaceholderText('Ex: Av. Paulista, 1000 - São Paulo, SP');
+    const cepInput = screen.getByPlaceholderText('00000-000');
+    const streetInput = screen.getByPlaceholderText('Ex: Av. Paulista');
+    const numberInput = screen.getByPlaceholderText('Ex: 1000');
+    const cityInput = screen.getByPlaceholderText('Ex: São Paulo');
+    const stateInput = screen.getByPlaceholderText('SP');
 
     fireEvent.change(nameInput, { target: { value: 'Barbearia Modelo' } });
     fireEvent.change(cnpjInput, { target: { value: '11.222.333/0001-81' } });
-    fireEvent.change(locationInput, { target: { value: 'Av. Paulista, 1000' } });
+    fireEvent.change(cepInput, { target: { value: '01310-100' } });
+    fireEvent.change(streetInput, { target: { value: 'Av. Paulista' } });
+    fireEvent.change(numberInput, { target: { value: '1000' } });
+    fireEvent.change(cityInput, { target: { value: 'São Paulo' } });
+    fireEvent.change(stateInput, { target: { value: 'SP' } });
 
     // Busca no mapa
-    const searchBtn = screen.getByText('Validar endereço no Google Maps');
+    const searchBtn = screen.getByText('Confirmar localização no mapa');
     await act(async () => {
       fireEvent.click(searchBtn);
     });
@@ -240,6 +250,13 @@ describe('BarbershopSetupScreen - Regressões de Segurança de Onboarding', () =
       expect(barbershopLocationApi.searchAddress).toHaveBeenCalled();
     });
   }
+
+  it('não exibe campo visual de Fuso Horário nem identificador técnico IANA na tela', () => {
+    render(<BarbershopSetupScreen />);
+
+    expect(screen.queryByText('Fuso Horário')).toBeNull();
+    expect(screen.queryByPlaceholderText('America/Sao_Paulo')).toBeNull();
+  });
 
   it('unidade criada com storage de tentativas indisponível: não envia PATCH, mantém aviso visível e não redireciona', async () => {
     fixture.store.listReferences.mockRejectedValueOnce(new Error('Storage indisponível'));
