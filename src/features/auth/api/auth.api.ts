@@ -140,7 +140,7 @@ export class AuthApi {
   }
 
   /**
-   * Envia link de verificação de e-mail
+   * Envia código de verificação de e-mail
    */
   async sendEmailVerification(email: string): Promise<void> {
     await httpClient.post<void>('/api/users/verification-email', { email }, PUBLIC_AUTH_OPTIONS);
@@ -149,10 +149,11 @@ export class AuthApi {
   /**
    * Confirma verificação de e-mail por token
    */
-  async confirmEmailVerification(token: string): Promise<ConfirmEmailVerificationResponseDto> {
+  async confirmEmailVerification(input: string | { email: string; code: string }): Promise<ConfirmEmailVerificationResponseDto> {
     return await httpClient.post<ConfirmEmailVerificationResponseDto>(
       '/api/users/verification-email/confirm',
-      { token },
+      typeof input === 'string' ? { token: input } : input,
+      PUBLIC_AUTH_OPTIONS,
     );
   }
 

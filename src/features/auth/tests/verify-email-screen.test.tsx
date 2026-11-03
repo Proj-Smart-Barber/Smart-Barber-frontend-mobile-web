@@ -235,13 +235,47 @@ describe('VerifyEmailScreen — Renderização, Limpeza de URL, Concorrência e 
     });
   });
 
+  it('submits a numeric code with its email and preserves leading zeroes', async () => {
+    currentParams = { email: 'cliente@exemplo.com' };
+    const confirm = vi.spyOn(authApi, 'confirmEmailVerification').mockResolvedValue({ verified:true, alreadyVerified:false,userId:'fixture',email:'cliente@exemplo.com',emailVerifiedAt:'2026-11-03T00:00:00Z' });
+    render(<VerifyEmailScreen />);
+    fireEvent.change(screen.getByPlaceholderText('Cole o código recebido por e-mail'), { target: { value:'001234' } });
+    fireEvent.click(screen.getByText('Confirmar E-mail'));
+    await waitFor(()=>expect(confirm).toHaveBeenCalledWith({email:'cliente@exemplo.com',code:'001234'}));
+    expect(await screen.findByText('Ir para o Login')).toBeDefined();
+  });
+
+  it('does not submit incomplete codes and explains the numeric-code flow', () => {
+    currentParams = { email:'cliente@exemplo.com', sent:'1' };
+    const confirm = vi.spyOn(authApi,'confirmEmailVerification');
+    render(<VerifyEmailScreen />);
+    expect(screen.getByText(/Enviamos um código de seis dígitos/)).toBeDefined();
+    expect(screen.queryByText(/Enviamos um link/)).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText('Cole o código recebido por e-mail'),{target:{value:'123'}});
+    fireEvent.click(screen.getByText('Confirmar E-mail'));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.getByText('Aguarde 60s para reenviar')).toBeDefined();
+  });
+
+  it('clears the previous code after a successful resend', async () => {
+    currentParams = {email:'cliente@exemplo.com'};
+    vi.spyOn(authApi,'sendEmailVerification').mockResolvedValue();
+    render(<VerifyEmailScreen />);
+    const input=screen.getByPlaceholderText('Cole o código recebido por e-mail') as HTMLInputElement;
+    fireEvent.change(input,{target:{value:'123456'}});
+    fireEvent.click(screen.getByText('Reenviar Verificação'));
+    await waitFor(()=>expect(input.value).toBe(''));
+    expect(screen.getByText(/Se a conta precisar de confirmação/)).toBeDefined();
+  });
+
   describe('Bloqueador 2 — Regressões de Concorrência, Gerações de Tokens e Retry', () => {
     it('blocks repeated manual confirmations before React renders the loading state', async () => {
       let finish: (value: any) => void = () => {};
       const pending = new Promise<any>((resolve) => { finish = resolve; });
       const confirm = vi.spyOn(authApi, 'confirmEmailVerification').mockReturnValue(pending);
+      currentParams = { email: 'fixture@example.com' };
       render(<VerifyEmailScreen />);
-      fireEvent.change(screen.getByPlaceholderText('Cole o código recebido por e-mail'), { target: { value: 'manual-synthetic-token' } });
+      fireEvent.change(screen.getByPlaceholderText('Cole o código recebido por e-mail'), { target: { value: '001234' } });
       const button = screen.getByText('Confirmar E-mail');
       act(() => { fireEvent.click(button); fireEvent.click(button); });
       expect(confirm).toHaveBeenCalledTimes(1);

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -6,6 +7,8 @@ import { useTheme } from '@/shared/theme';
 import { Button, TextInput, FormField, Text } from '@/shared/ui';
 import { AuthLayout } from '@/features/auth';
 import { authApi } from '@/features/auth/api/auth.api';
+
+const verificationEmailSchema = z.string().email();
 
 function removeTokenFromWebUrl() {
   if (Platform.OS !== 'web' || typeof window === 'undefined' || !/^https?:$/.test(window.location.protocol)) return;
@@ -25,7 +28,7 @@ export default function VerifyEmailScreen() {
     sendFailed?: string;
   }>();
 
-  const [token, setToken] = useState<string>(params.token ? String(params.token).trim() : '');
+  const [token, setToken] = useState<string>('');
   const [email, setEmail] = useState<string>(params.email ? String(params.email).trim() : '');
   const [isConfirming, setIsConfirming] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
@@ -33,13 +36,14 @@ export default function VerifyEmailScreen() {
   const [confirmedMessage, setConfirmedMessage] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const [resendCooldown, setResendCooldown] = useState<number>(params.sent === '1' ? 60 : 0);
 
   // Trava síncrona e rastreamento de geração para corrida de tokens e descarte de requisições antigas
   const activeAttemptIdRef = useRef<number>(0);
   const confirmingRef = useRef(false);
   const resendingRef = useRef(false);
   const currentAttemptingTokenRef = useRef<string | null>(null);
+  const transientLegacyRef = useRef(false);
   const transientTokenRef = useRef<string | null>(null);
   const hasAttemptedTokenRef = useRef<string | null>(null);
 
@@ -52,10 +56,11 @@ export default function VerifyEmailScreen() {
     return () => clearInterval(interval);
   }, [resendCooldown]);
 
-  const handleConfirm = async (tokenToUse: string) => {
+  const handleConfirm = async (tokenToUse: string, legacy = false) => {
+    const cleanEmail = email.trim().toLowerCase();
     const cleanToken = tokenToUse.trim();
-    if (!cleanToken) {
-      setErrorMessage('Por favor, informe o token de confirmação.');
+    if (!cleanToken || (!legacy && (!/^\d{6}$/.test(cleanToken) || !verificationEmailSchema.safeParse(cleanEmail).success))) {
+      setErrorMessage('Informe o e-mail da conta e o código de seis dígitos.');
       return;
     }
 
@@ -68,6 +73,7 @@ export default function VerifyEmailScreen() {
     confirmingRef.current = true;
     currentAttemptingTokenRef.current = cleanToken;
     transientTokenRef.current = cleanToken;
+    transientLegacyRef.current = legacy;
 
     // Reinicializa estados anteriores para a nova tentativa
     setIsConfirmed(false);
@@ -76,7 +82,7 @@ export default function VerifyEmailScreen() {
     setIsConfirming(true);
 
     try {
-      const res = await authApi.confirmEmailVerification(cleanToken);
+      const res = await authApi.confirmEmailVerification(legacy ? cleanToken : { email: cleanEmail, code: cleanToken });
       // Se uma nova tentativa foi iniciada enquanto esta estava em voo, descarta a resposta antiga
       if (activeAttemptIdRef.current !== attemptId) {
         return;
@@ -98,7 +104,7 @@ export default function VerifyEmailScreen() {
 
       const msg =
         err?.message ||
-        'Token de verificação inválido ou expirado. Solicite um novo link abaixo.';
+        'Código inválido, expirado ou já utilizado. Solicite um novo código abaixo.';
       setErrorMessage(msg);
       if (err?.status && err.status < 500 && err.status !== 429) {
         transientTokenRef.current = null;
@@ -129,10 +135,11 @@ export default function VerifyEmailScreen() {
     try {
       await authApi.sendEmailVerification(cleanEmail);
       setResendMessage(
-        'E-mail de verificação enviado! Verifique sua caixa de entrada e pasta de spam.',
+        'Se a conta precisar de confirmação, você receberá um código. Verifique sua caixa de entrada e spam.',
       );
       setResendCooldown(60);
       transientTokenRef.current = null;
+      setToken('');
     } catch (err: any) {
       setErrorMessage(
         err?.message || 'Falha ao reenviar e-mail de verificação. Tente novamente.',
@@ -154,7 +161,7 @@ export default function VerifyEmailScreen() {
       router.setParams({ token: undefined, email: currentEmail || undefined, sent: undefined, sendFailed: undefined });
       removeTokenFromWebUrl();
 
-      void handleConfirm(rawToken);
+      void handleConfirm(rawToken, true);
     }
   }, [params.token]);
 
@@ -162,9 +169,9 @@ export default function VerifyEmailScreen() {
   const initialBanner =
     !isConfirmed && !resendMessage
       ? params.sent === '1'
-        ? 'Enviamos um link de confirmação para o seu e-mail. Verifique sua caixa de entrada.'
+        ? 'Enviamos um código de seis dígitos para seu e-mail. Digite-o abaixo para ativar sua conta.'
         : params.sendFailed === '1'
-        ? 'Sua conta foi criada! No entanto, o envio do e-mail inicial falhou. Solicite o reenvio abaixo para receber seu link de ativação.'
+        ? 'Sua conta foi criada! No entanto, o envio do e-mail inicial falhou. Solicite o reenvio abaixo para receber um novo código.'
         : null
       : null;
 
@@ -196,7 +203,7 @@ export default function VerifyEmailScreen() {
             variant="outline"
             loading={isConfirming}
             disabled={isConfirming || isResending}
-            onPress={() => handleConfirm(transientTokenRef.current!)}
+            onPress={() => handleConfirm(transientTokenRef.current!, transientLegacyRef.current)}
             style={{ marginBottom: spacing.md }}
           />
         ) : null}
@@ -258,10 +265,35 @@ export default function VerifyEmailScreen() {
           </View>
         ) : (
           <>
-            <FormField label="Token de verificação">
+            <FormField label="E-mail da conta">
+              <TextInput
+                value={email}
+                onChangeText={(value) => { setEmail(value); setToken(''); transientTokenRef.current = null; setErrorMessage(null); }}
+                autoCorrect={false}
+                placeholder="seu.email@exemplo.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                disabled={isConfirming || isResending}
+                leftIcon={
+                  <Ionicons
+                    name="mail-outline"
+                    size={18}
+                    color={colors.brand.silver}
+                  />
+                }
+              />
+            </FormField>
+
+            <FormField label="Código de confirmação">
               <TextInput
                 value={token}
-                onChangeText={setToken}
+                onChangeText={(value) => setToken(value.replace(/\D/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={6}
+                autoCapitalize="none"
+                accessibilityLabel="Código de confirmação"
                 placeholder="Cole o código recebido por e-mail"
                 disabled={isConfirming || isResending}
                 leftIcon={
@@ -279,28 +311,12 @@ export default function VerifyEmailScreen() {
               loadingTitle="Confirmando…"
               variant="primary"
               loading={isConfirming}
-              disabled={isConfirming || isResending || !token.trim()}
+              disabled={isConfirming || isResending || !/^\d{6}$/.test(token) || !email.trim()}
               onPress={() => handleConfirm(token)}
               style={{ marginTop: spacing.md, marginBottom: spacing.lg }}
             />
 
-            <FormField label="Não recebeu o código? Reenviar por e-mail">
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="seu.email@exemplo.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                disabled={isConfirming || isResending}
-                leftIcon={
-                  <Ionicons
-                    name="mail-outline"
-                    size={18}
-                    color={colors.brand.silver}
-                  />
-                }
-              />
-            </FormField>
+
 
             <Button
               title={
