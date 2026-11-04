@@ -53,7 +53,7 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
         <View style={styles.info}>
           <View style={styles.badgeRow}>
             <Badge
-              label={isClosedDay ? 'Unidade fechada' : 'Horário especial'}
+              label={isClosedDay ? (exception.barbermanId ? 'Folga' : 'Unidade fechada') : 'Horário especial'}
               tone={isClosedDay ? 'error' : 'warning'}
             />
           </View>

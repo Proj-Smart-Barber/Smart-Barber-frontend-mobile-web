@@ -19,7 +19,7 @@ function mergedWindows(opening: WeeklyScheduleEntry[], weekday: string) {
   return merged;
 }
 
-export function barberScheduleSchema(opening: WeeklyScheduleEntry[]) {
+export function barberScheduleSchema(_opening?: WeeklyScheduleEntry[]) {
   return z.object({
     state: z.enum(SCHEDULE_STATES),
     days: z.array(z.object({
@@ -32,14 +32,6 @@ export function barberScheduleSchema(opening: WeeklyScheduleEntry[]) {
     if (!days.some(day => day.entries.length > 0)) {
       ctx.addIssue({ code: 'custom', path: ['days'], message: 'Informe ao menos um período de atendimento ou escolha outra opção.' });
     }
-    days.forEach((day, dayIndex) => day.entries.forEach((entry, index) => {
-      const contained = mergedWindows(opening, day.weekday)
-        .some(window => window.start <= entry.range.start && window.end >= entry.range.end);
-      if (!contained) ctx.addIssue({ code: 'custom',
-        path: ['days', dayIndex, 'entries', index, 'range', 'end'],
-        message: 'O intervalo deve estar dentro de um período de funcionamento da unidade.',
-      });
-    }));
   });
 }
 

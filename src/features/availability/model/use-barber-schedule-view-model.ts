@@ -252,12 +252,13 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
   }
 
   const document = personal.data ?? baseline.current;
-  const loadError = shop.error ?? general.error ?? personal.error;
+  const currentState = methods.watch('state');
+  const loadError = shop.error ?? (currentState === 'INHERIT' ? general.error : null) ?? personal.error;
   return { methods, shop: shop.data, opening, general: general.data ?? null, document,
     busy, pending, feedback, conflict, versionReview, accessLost,
     generalClosed: general.data ? general.data.state === 'CLOSED' || general.data.schedules.length === 0 : false,
     needsReview: Boolean(personal.data?.needsReview),
     save, reconcile, abandonAttempt, keepMyEdit, useSavedSchedule, chooseState, discard, retry, isDirty,
-    loading: shop.isPending || general.isPending || personal.isPending,
+    loading: shop.isPending || personal.isPending || (currentState === 'INHERIT' && general.isPending),
     error: loadError ? normalizeBarberScheduleError(loadError).message : null };
 }
