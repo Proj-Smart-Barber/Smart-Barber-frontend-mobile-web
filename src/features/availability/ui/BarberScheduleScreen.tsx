@@ -17,6 +17,15 @@ import { buildScheduleDayViews } from '../model/availability.types';
 import type { ScheduleScopeState } from '../api/availability.contract';
 import { useBarberScheduleViewModel } from '../model/use-barber-schedule-view-model';
 import { confirmScheduleDiscard, useUnsavedScheduleGuard } from '../model/use-unsaved-schedule-guard';
+import {
+  useExceptionsQuery,
+  useCreateExceptionMutation,
+  useUpdateExceptionMutation,
+  useRemoveExceptionMutation,
+} from '../api/availability.api';
+import { ExceptionCard } from './ExceptionCard';
+import { ExceptionForm } from './ExceptionForm';
+import type { AvailabilityExceptionFormValues } from '../model/availability.schema';
 
 const STATE_OPTIONS: { value: ScheduleScopeState; label: string }[] = [
   { value: 'INHERIT', label: 'Da unidade' },
@@ -26,7 +35,7 @@ const STATE_OPTIONS: { value: ScheduleScopeState; label: string }[] = [
 
 const STATE_COPY: Record<ScheduleScopeState, string> = {
   INHERIT: 'Você atende nos mesmos horários da unidade. Mudanças no expediente geral passam a valer para você.',
-  CUSTOM: 'Defina seus dias e períodos. Eles precisam estar dentro do expediente da unidade.',
+  CUSTOM: 'Defina seus dias e períodos próprios de atendimento de forma independente.',
   CLOSED: 'Você não recebe novas reservas em nenhum dia da semana até escolher outra opção.',
 };
 
@@ -68,10 +77,61 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
   const locked = vm.busy || changedShop || Boolean(vm.pending) || vm.accessLost || Boolean(vm.versionReview);
   const days = buildScheduleDayViews([]);
   const operatingDays = days.filter(day => vm.opening.some(entry => entry.weekday === day.weekday)).length;
-  const canSave = !locked && !vm.error && (vm.isDirty || vm.needsReview) && !(vm.generalClosed && watchedState === 'CUSTOM');
+  const canSave = !locked && !vm.error && (vm.isDirty || vm.needsReview);
   const submit = vm.methods.handleSubmit(vm.save);
   const stickyTranslateY = scrollCollapseProgress.interpolate({ inputRange: [0, 1], outputRange: [0, -76] });
   const stickyOpacity = scrollCollapseProgress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 0.15, 0] });
+
+  const exceptionsQuery = useExceptionsQuery(shopId, barbermanId);
+  const createExceptionMutation = useCreateExceptionMutation(shopId, barbermanId);
+  const updateExceptionMutation = useUpdateExceptionMutation(shopId, barbermanId);
+  const removeExceptionMutation = useRemoveExceptionMutation(shopId, barbermanId);
+  const [editingExceptionId, setEditingExceptionId] = useState<string | null>(null);
+
+  const exceptions = exceptionsQuery.data ?? [];
+  const editingException = exceptions.find(e => e.id === editingExceptionId) ?? null;
+
+  async function handleCreateException(values: AvailabilityExceptionFormValues) {
+    try {
+      await createExceptionMutation.mutateAsync({
+        date: values.date,
+        barbermanId,
+        openTime: values.openTime ?? null,
+        closeTime: values.closeTime ?? null,
+        reason: values.reason ?? null,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function handleUpdateException(values: AvailabilityExceptionFormValues) {
+    if (!editingException) return false;
+    try {
+      await updateExceptionMutation.mutateAsync({
+        exceptionId: editingException.id,
+        exception: {
+          date: values.date,
+          openTime: values.openTime ?? null,
+          closeTime: values.closeTime ?? null,
+          reason: values.reason ?? null,
+        },
+      });
+      setEditingExceptionId(null);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function handleRemoveException(exceptionId: string) {
+    try {
+      await removeExceptionMutation.mutateAsync(exceptionId);
+    } catch {
+      // Erro gerenciado pela mutação
+    }
+  }
 
   function openMenu() {
     // O rascunho permanece nesta tela (push), mas o menu é um ponto de saída: confirma antes.
@@ -80,7 +140,6 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
   }
 
   function chooseState(state: ScheduleScopeState) {
-    if (state === 'CUSTOM' && vm.generalClosed) return;
     vm.chooseState(state);
   }
 
@@ -158,9 +217,9 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                         <Notice tone="info" icon="alert-circle-outline"
                           text="Sua jornada ainda não foi revisada. Até confirmar uma opção, você aparece fechado. Escolha e toque em Confirmar jornada." />
                       )}
-                      {vm.generalClosed && (
+                      {vm.generalClosed && watchedState === 'INHERIT' && (
                         <Notice tone="error" icon="business-outline"
-                          text="A unidade está fechada. A jornada geral prevalece: nenhum horário seu é ofertado e horários próprios não podem ser definidos." />
+                          text="A unidade está com o expediente geral fechado. Ao herdar a unidade, você aparece sem horários ofertados." />
                       )}
                       {vm.feedback && <Notice tone="info" icon="information-circle-outline" text={vm.feedback} live />}
 
@@ -288,6 +347,77 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           {String(vm.methods.formState.errors.days.message)}
                         </Text>
                       )}
+
+                      {/* ── Folgas e datas especiais individuais ── */}
+                      <View style={[styles.sectionIntro, { backgroundColor: colors.background.secondary, borderRadius: radius.lg, marginTop: spacing[4] }]}>
+                        <View style={styles.sectionHeading}>
+                          <View style={[styles.sectionIcon, { backgroundColor: colors.surface.selected, borderRadius: radius.md }]}>
+                            <Ionicons name="calendar-clear-outline" size={20} color={colors.brand.primary} />
+                          </View>
+                          <View style={{ flex: 1, gap: spacing[1] }}>
+                            <Text variant="badge" color={colors.text.brand}>FOLGAS E EXCEÇÕES</Text>
+                            <Text variant="h2" color={colors.text.primary}>Minhas datas especiais</Text>
+                          </View>
+                        </View>
+                        <Text variant="bodySm" color={colors.text.secondary}>
+                          Gerencie suas folgas ou horários especiais de atendimento.
+                        </Text>
+                      </View>
+
+                      <View style={{ gap: spacing[3] }}>
+                        {exceptions.length === 0 ? (
+                          <LiquidGlassView variant="card" contentStyle={{ padding: spacing[4], alignItems: 'center', gap: spacing[2] }}>
+                            <Ionicons name="calendar-outline" size={24} color={colors.text.muted} />
+                            <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+                              Nenhuma folga ou exceção cadastrada
+                            </Text>
+                            <Text variant="caption" color={colors.text.secondary}>
+                              Sua jornada semanal será utilizada normalmente em todas as datas.
+                            </Text>
+                          </LiquidGlassView>
+                        ) : (
+                          exceptions.map(exc => (
+                            <ExceptionCard
+                              key={exc.id}
+                              exception={exc}
+                              onEdit={e => setEditingExceptionId(e.id)}
+                              onRemove={handleRemoveException}
+                              disabled={locked || createExceptionMutation.isPending || updateExceptionMutation.isPending || removeExceptionMutation.isPending}
+                            />
+                          ))
+                        )}
+
+                        {editingException ? (
+                          <ExceptionForm
+                            key={`edit-${editingException.id}`}
+                            mode="edit"
+                            initialValues={{
+                              date: editingException.date,
+                              barbermanId,
+                              openTime: editingException.openTime,
+                              closeTime: editingException.closeTime,
+                              reason: editingException.reason,
+                            }}
+                            onSubmit={handleUpdateException}
+                            onCancelEdit={() => setEditingExceptionId(null)}
+                            disabled={locked || updateExceptionMutation.isPending}
+                          />
+                        ) : (
+                          <ExceptionForm
+                            key="create-new"
+                            mode="create"
+                            initialValues={{
+                              date: '',
+                              barbermanId,
+                              openTime: null,
+                              closeTime: null,
+                              reason: null,
+                            }}
+                            onSubmit={handleCreateException}
+                            disabled={locked || createExceptionMutation.isPending}
+                          />
+                        )}
+                      </View>
                     </View>
 
                     <View style={[styles.sideColumn, showSideColumn && styles.sideColumnExpanded, { gap: spacing[3] }]}>
@@ -325,7 +455,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           Em horários próprios, use períodos separados para criar pausas. Dias sem período são folgas.
                         </Text>
                         <Text variant="bodySm" color={colors.text.secondary}>
-                          Datas especiais e exceções continuam sendo gerenciadas pelo proprietário.
+                          Suas folgas e horários especiais podem ser cadastrados e gerenciados na seção de exceções.
                         </Text>
                       </LiquidGlassView>
 

@@ -18,10 +18,14 @@ describe('Minha jornada — formulário', () => {
     expect(barberScheduleSchema(opening).safeParse(form).success).toBe(true);
   });
   it.each([['12:00', '09:00'], ['09:00', '09:00'], ['25:00', '26:00'],
-    ['23:00', '02:00'], ['09:00', '17:00'], ['07:00', '10:00']])(
-    'rejeita %s–%s, incluindo intervalo que atravessa fechamento', (start, end) => {
+    ['23:00', '02:00']])(
+    'rejeita %s–%s por formato ou início maior/igual ao fim', (start, end) => {
       expect(barberScheduleSchema(opening).safeParse(custom(entry(start, end))).success).toBe(false);
     });
+  it('permite períodos próprios fora ou atravessando os horários da unidade', () => {
+    expect(barberScheduleSchema(opening).safeParse(custom(entry('09:00', '17:00'))).success).toBe(true);
+    expect(barberScheduleSchema(opening).safeParse(custom(entry('07:00', '10:00'))).success).toBe(true);
+  });
   it('rejeita sobreposição e permite períodos adjacentes', () => {
     expect(barberScheduleSchema(opening).safeParse(custom(entry(), entry('11:00', '12:00'))).success).toBe(false);
     expect(barberScheduleSchema(opening).safeParse(custom(entry('08:00', '09:00'), entry())).success).toBe(true);
@@ -37,16 +41,16 @@ describe('Minha jornada — formulário', () => {
       expect(personalEntries(form, 'A')).toEqual([]);
     }
   });
-  it('sem expediente da unidade não aceita períodos próprios', () => {
-    expect(barberScheduleSchema([]).safeParse(custom(entry())).success).toBe(false);
+  it('permite períodos próprios mesmo sem expediente geral da unidade', () => {
+    expect(barberScheduleSchema([]).safeParse(custom(entry())).success).toBe(true);
     expect(barberScheduleSchema([]).safeParse(scheduleForm({ schedules: [], state: 'CLOSED' })).success).toBe(true);
   });
-  it('aceita a união de períodos gerais contíguos sem inventar uma pausa', () => {
+  it('aceita a união de períodos contíguos sem inventar uma pausa', () => {
     const contiguous = [entry('08:00', '12:00', null), entry('12:00', '18:00', null)];
     expect(barberScheduleSchema(contiguous).safeParse(custom(entry('09:00', '17:00'))).success).toBe(true);
   });
-  it('ignora horários de outro profissional ao validar abertura', () => {
-    expect(barberScheduleSchema([entry()]).safeParse(custom(entry())).success).toBe(false);
+  it('grade própria independe de horários gerais ou de outros profissionais', () => {
+    expect(barberScheduleSchema([entry()]).safeParse(custom(entry())).success).toBe(true);
   });
   it('deriva identidade exclusivamente da sessão', () => {
     expect(personalEntries(custom(entry('09:00', '12:00', 'B')), 'A')[0].barbermanId).toBe('A');
