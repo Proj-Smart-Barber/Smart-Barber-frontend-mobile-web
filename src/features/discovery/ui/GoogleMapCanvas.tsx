@@ -43,9 +43,80 @@ if (Platform.OS !== 'web') {
 
 let googleMapsLoaderPromise: Promise<any> | null = null;
 
+type AuthFailureListener = (reason?: string) => void;
+const authFailureListeners = new Set<AuthFailureListener>();
+let hasAuthFailed = false;
+let authFailureReason: string | null = null;
+
+export function getGoogleMapsAuthFailureState(): {
+  hasAuthFailed: boolean;
+  reason: string | null;
+} {
+  return { hasAuthFailed, reason: authFailureReason };
+}
+
+export function registerGmAuthFailureListener(
+  listener: AuthFailureListener,
+): () => void {
+  authFailureListeners.add(listener);
+  return () => {
+    authFailureListeners.delete(listener);
+  };
+}
+
+export function notifyGmAuthFailure(reason?: string) {
+  hasAuthFailed = true;
+  authFailureReason =
+    reason ||
+    'Autorização da chave do Google Maps não permitida para este domínio ou origem (Referer). Exibindo mapa de contingência.';
+  googleMapsLoaderPromise = null;
+  authFailureListeners.forEach((listener) => {
+    try {
+      listener(authFailureReason!);
+    } catch (err) {
+      console.error('[GoogleMapCanvas] Error in auth failure listener:', err);
+    }
+  });
+}
+
+function ensureGlobalGmAuthFailureHandler() {
+  if (typeof window === 'undefined') return;
+  const win = window as any;
+  if (win.__smartBarberGmAuthHandlerInstalled) return;
+  win.__smartBarberGmAuthHandlerInstalled = true;
+
+  const previousHandler =
+    typeof win.gm_authFailure === 'function' ? win.gm_authFailure : null;
+
+  win.gm_authFailure = () => {
+    notifyGmAuthFailure();
+    if (previousHandler) {
+      try {
+        previousHandler();
+      } catch (err) {
+        console.error(
+          '[GoogleMapCanvas] Error in previous gm_authFailure handler:',
+          err,
+        );
+      }
+    }
+  };
+}
+
 export function loadGoogleMapsWebSdk(apiKey: string): Promise<any> {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return Promise.reject(new Error('Ambiente navegador indisponível.'));
+  }
+
+  ensureGlobalGmAuthFailureHandler();
+
+  if (hasAuthFailed) {
+    return Promise.reject(
+      new Error(
+        authFailureReason ||
+          'Google Maps SDK indisponível: autorização recusada para este domínio.',
+      ),
+    );
   }
 
   const win = window as any;
@@ -66,12 +137,26 @@ export function loadGoogleMapsWebSdk(apiKey: string): Promise<any> {
   googleMapsLoaderPromise = new Promise((resolve, reject) => {
     const existing = document.getElementById('smart-barber-google-maps-sdk');
     if (existing) {
+      if (hasAuthFailed) {
+        googleMapsLoaderPromise = null;
+        reject(
+          new Error(authFailureReason || 'Autorização do Google Maps recusada.'),
+        );
+        return;
+      }
       if (win.google?.maps?.Map) {
         resolve(win.google.maps);
         return;
       }
       existing.addEventListener('load', () => {
-        if (win.google?.maps?.Map) {
+        if (hasAuthFailed) {
+          googleMapsLoaderPromise = null;
+          reject(
+            new Error(
+              authFailureReason || 'Autorização do Google Maps recusada.',
+            ),
+          );
+        } else if (win.google?.maps?.Map) {
           resolve(win.google.maps);
         } else {
           googleMapsLoaderPromise = null;
@@ -91,7 +176,12 @@ export function loadGoogleMapsWebSdk(apiKey: string): Promise<any> {
     script.async = true;
     script.defer = true;
     script.onload = () => {
-      if (win.google?.maps?.Map) {
+      if (hasAuthFailed) {
+        googleMapsLoaderPromise = null;
+        reject(
+          new Error(authFailureReason || 'Autorização do Google Maps recusada.'),
+        );
+      } else if (win.google?.maps?.Map) {
         resolve(win.google.maps);
       } else {
         googleMapsLoaderPromise = null;
@@ -110,6 +200,20 @@ export function loadGoogleMapsWebSdk(apiKey: string): Promise<any> {
 
 export function resetGoogleMapsLoaderForTests() {
   googleMapsLoaderPromise = null;
+  hasAuthFailed = false;
+  authFailureReason = null;
+  authFailureListeners.clear();
+  if (typeof window !== 'undefined') {
+    const win = window as any;
+    delete win.gm_authFailure;
+    delete win.__smartBarberGmAuthHandlerInstalled;
+    if (typeof document !== 'undefined') {
+      const existing = document.getElementById('smart-barber-google-maps-sdk');
+      if (existing) {
+        existing.remove();
+      }
+    }
+  }
 }
 
 export function GoogleMapCanvas({
@@ -128,8 +232,11 @@ export function GoogleMapCanvas({
   const markerRefs = useRef<any[]>([]);
   const draggableMarkerRef = useRef<any>(null);
 
-  const [sdkState, setSdkState] = useState<'idle' | 'loading' | 'ready' | 'fallback'>(() => {
+  const [sdkState, setSdkState] = useState<
+    'idle' | 'loading' | 'ready' | 'fallback'
+  >(() => {
     if (Platform.OS !== 'web') return 'fallback';
+    if (hasAuthFailed) return 'fallback';
     const win = typeof window !== 'undefined' ? (window as any) : undefined;
     if (win?.google?.maps?.Map) return 'ready';
     return ENV.GOOGLE_MAPS_WEB_API_KEY ? 'loading' : 'fallback';
@@ -139,6 +246,12 @@ export function GoogleMapCanvas({
     if (Platform.OS !== 'web') {
       return 'Pré-visualização nativa em modo esquemático (Google Maps SDK nativo requer build com chave nativa).';
     }
+    if (hasAuthFailed) {
+      return (
+        authFailureReason ||
+        'Autorização da chave do Google Maps não permitida para este domínio ou origem (Referer). Exibindo mapa de contingência.'
+      );
+    }
     if (!ENV.GOOGLE_MAPS_WEB_API_KEY) {
       return 'Chave EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ausente no ambiente local. Exibindo mapa interativo de contingência.';
     }
@@ -146,8 +259,62 @@ export function GoogleMapCanvas({
   });
 
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    ensureGlobalGmAuthFailureHandler();
+
+    if (hasAuthFailed) {
+      setSdkState('fallback');
+      setSdkErrorReason(
+        authFailureReason ||
+          'Autorização da chave do Google Maps não permitida para este domínio ou origem (Referer). Exibindo mapa de contingência.',
+      );
+      if (mapInstanceRef.current) {
+        markerRefs.current.forEach((m) => m?.setMap?.(null));
+        markerRefs.current = [];
+        if (draggableMarkerRef.current) {
+          draggableMarkerRef.current?.setMap?.(null);
+          draggableMarkerRef.current = null;
+        }
+        mapInstanceRef.current = null;
+      }
+      return;
+    }
+
+    const unregister = registerGmAuthFailureListener((reason) => {
+      setSdkState('fallback');
+      setSdkErrorReason(
+        reason ||
+          'Autorização da chave do Google Maps não permitida para este domínio ou origem (Referer). Exibindo mapa de contingência.',
+      );
+      if (mapInstanceRef.current) {
+        markerRefs.current.forEach((m) => m?.setMap?.(null));
+        markerRefs.current = [];
+        if (draggableMarkerRef.current) {
+          draggableMarkerRef.current?.setMap?.(null);
+          draggableMarkerRef.current = null;
+        }
+        mapInstanceRef.current = null;
+      }
+    });
+
+    return () => {
+      unregister();
+    };
+  }, []);
+
+  useEffect(() => {
     if (Platform.OS !== 'web') {
       setSdkState('fallback');
+      return;
+    }
+
+    if (hasAuthFailed) {
+      setSdkState('fallback');
+      setSdkErrorReason(
+        authFailureReason ||
+          'Autorização da chave do Google Maps não permitida para este domínio ou origem (Referer). Exibindo mapa de contingência.',
+      );
       return;
     }
 
@@ -172,8 +339,16 @@ export function GoogleMapCanvas({
     loadGoogleMapsWebSdk(ENV.GOOGLE_MAPS_WEB_API_KEY)
       .then(() => {
         if (!cancelled) {
-          setSdkState('ready');
-          setSdkErrorReason(null);
+          if (hasAuthFailed) {
+            setSdkState('fallback');
+            setSdkErrorReason(
+              authFailureReason ||
+                'Autorização da chave do Google Maps não permitida para este domínio ou origem (Referer). Exibindo mapa de contingência.',
+            );
+          } else {
+            setSdkState('ready');
+            setSdkErrorReason(null);
+          }
         }
       })
       .catch((err: unknown) => {
@@ -271,6 +446,15 @@ export function GoogleMapCanvas({
 
       markerRefs.current.push(marker);
     });
+
+    return () => {
+      markerRefs.current.forEach((m) => m?.setMap?.(null));
+      markerRefs.current = [];
+      if (draggableMarkerRef.current) {
+        draggableMarkerRef.current.setMap?.(null);
+        draggableMarkerRef.current = null;
+      }
+    };
   }, [sdkState, markers, userCoordinates, draggablePin, onSelectMarker, onPinDragEnd]);
 
   const nudgePin = (dLat: number, dLng: number) => {
