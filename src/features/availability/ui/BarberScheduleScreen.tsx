@@ -11,6 +11,8 @@ import { Button, ErrorState, SegmentedFilter, Spinner, Text } from '@/shared/ui'
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { useNavigation } from '@/shared/navigation/navigation-context';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
+import { useSession } from '@/features/auth';
+import { getBarberScheduleContext } from '../model/barber-schedule-access';
 import { AvailabilityDay } from './AvailabilityDay';
 import { AvailabilityMenuButton } from './AvailabilityScreen';
 import { buildScheduleDayViews } from '../model/availability.types';
@@ -50,20 +52,24 @@ function useKeyboardVisible() {
   return visible;
 }
 
-export function BarberScheduleScreen({ barbershopId, barbermanId, barberName, hideTopBar = false }: {
-  barbershopId: string; barbermanId: string; barberName: string; hideTopBar?: boolean;
+export function BarberScheduleScreen({ barbershopId, barbermanId, barberName, hideTopBar = false, actorId }: {
+  barbershopId: string; barbermanId: string; barberName: string; hideTopBar?: boolean; actorId?: string;
 }) {
   // Keep the previous scope until a changed session unit is explicitly acknowledged.
   const [editingShop, setEditingShop] = useState(barbershopId);
   const changedShop = editingShop !== barbershopId;
-  return <ScheduleEditor key={editingShop} shopId={editingShop} barbermanId={barbermanId}
-    barberName={barberName} changedShop={changedShop} onChangeShop={() => setEditingShop(barbershopId)} hideTopBar={hideTopBar} />;
+  return <ScheduleEditor key={`${editingShop}:${barbermanId}`} shopId={editingShop} barbermanId={barbermanId}
+    barberName={barberName} changedShop={changedShop} onChangeShop={() => setEditingShop(barbershopId)} hideTopBar={hideTopBar} actorId={actorId} />;
 }
 
-function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChangeShop, hideTopBar = false }: {
-  shopId: string; barbermanId: string; barberName: string; changedShop: boolean; onChangeShop: () => void; hideTopBar?: boolean;
+function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChangeShop, hideTopBar = false, actorId }: {
+  shopId: string; barbermanId: string; barberName: string; changedShop: boolean; onChangeShop: () => void; hideTopBar?: boolean; actorId?: string;
 }) {
-  const vm = useBarberScheduleViewModel(shopId, barbermanId);
+  const vm = useBarberScheduleViewModel(shopId, barbermanId, actorId);
+  const session = useSession();
+  const context = getBarberScheduleContext(session);
+  const currentActorId = actorId ?? context?.userId ?? '';
+  const isSelf = currentActorId === barbermanId;
   const { colors, spacing, radius } = useTheme();
   const { isExpanded, contentMaxWidth } = useAdaptiveLayout();
   const { openDrawer, onContentScroll, scrollCollapseProgress } = useNavigation();
@@ -72,7 +78,17 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const keyboardVisible = useKeyboardVisible();
-  const watchedState = vm.methods.watch('state');
+  const stateCopy = useMemo<Record<ScheduleScopeState, string>>(() => ({
+    INHERIT: isSelf
+      ? 'Você atende nos mesmos horários da unidade. Mudanças no expediente geral passam a valer para você.'
+      : `${barberName} atende nos mesmos horários da unidade. Mudanças no expediente geral passam a valer para este profissional.`,
+    CUSTOM: isSelf
+      ? 'Defina seus dias e períodos próprios de atendimento de forma independente.'
+      : `Defina os dias e períodos próprios de atendimento de ${barberName} de forma independente.`,
+    CLOSED: isSelf
+      ? 'Você não recebe novas reservas em nenhum dia da semana até escolher outra opção.'
+      : `${barberName} não recebe novas reservas em nenhum dia da semana até escolher outra opção.`,
+  }), [isSelf, barberName]);
   useUnsavedScheduleGuard(vm.isDirty || Boolean(vm.pending), vm.busy);
   const locked = vm.busy || changedShop || Boolean(vm.pending) || vm.accessLost || Boolean(vm.versionReview);
   const days = buildScheduleDayViews([]);
@@ -164,12 +180,18 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
           <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[6] }}>
             <View style={styles.hero}>
               <View style={[styles.heroAccent, { backgroundColor: colors.brand.primary, borderRadius: radius.full }]} />
-              <Text variant="badge" color={colors.text.brand}>SEU TEMPO, SUA JORNADA</Text>
+              <Text variant="badge" color={colors.text.brand}>
+                {isSelf ? 'SEU TEMPO, SUA JORNADA' : 'JORNADA DO PROFISSIONAL'}
+              </Text>
               <Text variant="display" color={colors.text.primary}>
-                Configure seus horários{isExpanded ? ' de atendimento.' : '\nde atendimento.'}
+                {isSelf
+                  ? `Configure seus horários${isExpanded ? ' de atendimento.' : '\nde atendimento.'}`
+                  : `Horários de ${barberName}`}
               </Text>
               <Text variant="body" color={colors.text.secondary} style={styles.heroDescription}>
-                Escolha entre seguir a unidade, definir horários próprios ou ficar fechado.
+                {isSelf
+                  ? 'Escolha entre seguir a unidade, definir horários próprios ou ficar fechado.'
+                  : `Configure a jornada de trabalho e folgas de ${barberName}.`}
               </Text>
             </View>
 
@@ -210,7 +232,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           onChange={chooseState}
                           disabled={locked || Boolean(vm.error)}
                         />
-                        <Text variant="bodySm" color={colors.text.secondary}>{STATE_COPY[watchedState]}</Text>
+                        <Text variant="bodySm" color={colors.text.secondary}>{stateCopy[watchedState]}</Text>
                       </View>
 
                       {vm.needsReview && (
@@ -356,11 +378,15 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           </View>
                           <View style={{ flex: 1, gap: spacing[1] }}>
                             <Text variant="badge" color={colors.text.brand}>FOLGAS E EXCEÇÕES</Text>
-                            <Text variant="h2" color={colors.text.primary}>Minhas datas especiais</Text>
+                            <Text variant="h2" color={colors.text.primary}>
+                              {isSelf ? 'Minhas datas especiais' : `Datas especiais de ${barberName}`}
+                            </Text>
                           </View>
                         </View>
                         <Text variant="bodySm" color={colors.text.secondary}>
-                          Gerencie suas folgas ou horários especiais de atendimento.
+                          {isSelf
+                            ? 'Gerencie suas folgas ou horários especiais de atendimento.'
+                            : `Gerencie as folgas e horários especiais de atendimento de ${barberName}.`}
                         </Text>
                       </View>
 
@@ -427,7 +453,9 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                             <Ionicons name="person-outline" size={20} color={colors.brand.primary} />
                           </View>
                           <View style={{ flex: 1, gap: spacing[1] }}>
-                            <Text variant="badge" color={colors.text.brand}>SEU PERFIL</Text>
+                            <Text variant="badge" color={colors.text.brand}>
+                              {isSelf ? 'SEU PERFIL' : 'PROFISSIONAL'}
+                            </Text>
                             <Text variant="subhead" color={colors.text.primary} numberOfLines={2}>{barberName}</Text>
                           </View>
                         </View>
@@ -468,7 +496,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           <Text variant="bodySm" color={colors.text.secondary}>
                             {vm.isDirty ? 'Você possui alterações não salvas.' : vm.needsReview ? 'Confirme sua jornada.' : 'Sua jornada está atualizada.'}
                           </Text>
-                          <Button title={vm.needsReview ? 'Confirmar jornada' : 'Salvar minha jornada'} loading={vm.busy}
+                          <Button title={vm.needsReview ? 'Confirmar jornada' : isSelf ? 'Salvar minha jornada' : 'Salvar horários'} loading={vm.busy}
                             disabled={!canSave} onPress={() => { void submit(); }} />
                           <Button title="Descartar alterações" variant="outline"
                             disabled={locked || !vm.isDirty} onPress={() => confirmScheduleDiscard(vm.discard)} />
@@ -485,7 +513,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
         {!isExpanded && !keyboardVisible && vm.shop && vm.document && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={vm.needsReview ? 'Confirmar jornada' : 'Salvar jornada'}
+            accessibilityLabel={vm.needsReview ? 'Confirmar jornada' : isSelf ? 'Salvar jornada' : 'Salvar horários'}
             accessibilityState={{ disabled: !canSave, busy: vm.busy }}
             disabled={!canSave}
             onPress={() => { void submit(); }}

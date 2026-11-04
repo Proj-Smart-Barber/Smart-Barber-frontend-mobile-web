@@ -274,11 +274,11 @@ export function UnifiedAvailabilityContainer({
                   </View>
                 </View>
 
-                <AvailabilityScreen
+                <BarberScheduleScreen
                   key={`team-${context.shopId}-${selectedTeamMemberId}`}
                   barbershopId={context.shopId}
                   barbermanId={selectedTeamMemberId}
-                  professionalName={selectedMember?.name ?? propProfessionalName}
+                  barberName={selectedMember?.name ?? propProfessionalName ?? 'Profissional'}
                   hideTopBar
                 />
               </View>

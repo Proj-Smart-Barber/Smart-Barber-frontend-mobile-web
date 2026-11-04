@@ -142,7 +142,7 @@ describe('Fase 2 — Entrada Única e Contêiner de Escopos', () => {
       expect(screen.getByText(/configuração desta jornada é opcional/i)).toBeTruthy();
     });
 
-    it('abre o contexto da equipe com o membro selecionado quando link da equipe é acionado', () => {
+    it('abre o contexto da equipe com o membro selecionado no editor canônico', () => {
       renderContainer(
         <UnifiedAvailabilityContainer
           barbershopId="shop-1"
@@ -151,9 +151,9 @@ describe('Fase 2 — Entrada Única e Contêiner de Escopos', () => {
         />,
       );
 
-      const teamMemberMock = screen.getByTestId('availability-screen-mock');
+      const teamMemberMock = screen.getByTestId('barber-schedule-screen-mock');
       expect(teamMemberMock).toBeTruthy();
-      expect(screen.getByText('Horários de Carlos Barbeiro')).toBeTruthy();
+      expect(screen.getByText('Jornada de Carlos Barbeiro')).toBeTruthy();
       expect(screen.getByText('Voltar para a lista da equipe')).toBeTruthy();
     });
 
