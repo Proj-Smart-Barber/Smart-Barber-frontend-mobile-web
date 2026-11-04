@@ -1,5 +1,5 @@
 import { Platform as ShadowPlatform } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Animated, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View,
 } from 'react-native';
@@ -16,7 +16,7 @@ import { getBarberScheduleContext } from '../model/barber-schedule-access';
 import { AvailabilityDay } from './AvailabilityDay';
 import { AvailabilityMenuButton } from './AvailabilityScreen';
 import { buildScheduleDayViews } from '../model/availability.types';
-import type { ScheduleScopeState } from '../api/availability.contract';
+import type { ScheduleScopeState, AvailabilityException } from '../api/availability.contract';
 import { useBarberScheduleViewModel } from '../model/use-barber-schedule-view-model';
 import { confirmScheduleDiscard, useUnsavedScheduleGuard } from '../model/use-unsaved-schedule-guard';
 import {
@@ -27,6 +27,7 @@ import {
 } from '../api/availability.api';
 import { ExceptionCard } from './ExceptionCard';
 import { ExceptionForm } from './ExceptionForm';
+import { normalizeBarberScheduleError } from '../api/barber-schedule-error';
 import type { AvailabilityExceptionFormValues } from '../model/availability.schema';
 
 const STATE_OPTIONS: { value: ScheduleScopeState; label: string }[] = [
@@ -78,6 +79,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const keyboardVisible = useKeyboardVisible();
+  const watchedState = vm.methods.watch('state');
   const stateCopy = useMemo<Record<ScheduleScopeState, string>>(() => ({
     INHERIT: isSelf
       ? 'Você atende nos mesmos horários da unidade. Mudanças no expediente geral passam a valer para você.'
@@ -99,15 +101,31 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
   const stickyOpacity = scrollCollapseProgress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 0.15, 0] });
 
   const exceptionsQuery = useExceptionsQuery(shopId, barbermanId);
+  const unitExceptionsQuery = useExceptionsQuery(shopId, undefined);
+  const unitClosures = useMemo(
+    () => (unitExceptionsQuery.data ?? []).filter(e => !e.barbermanId),
+    [unitExceptionsQuery.data],
+  );
+
   const createExceptionMutation = useCreateExceptionMutation(shopId, barbermanId);
   const updateExceptionMutation = useUpdateExceptionMutation(shopId, barbermanId);
   const removeExceptionMutation = useRemoveExceptionMutation(shopId, barbermanId);
   const [editingExceptionId, setEditingExceptionId] = useState<string | null>(null);
+  const [exceptionError, setExceptionError] = useState<string | null>(null);
+  const [exceptionSuccess, setExceptionSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!exceptionSuccess) return;
+    const timer = setTimeout(() => setExceptionSuccess(null), 4000);
+    return () => clearTimeout(timer);
+  }, [exceptionSuccess]);
 
   const exceptions = exceptionsQuery.data ?? [];
   const editingException = exceptions.find(e => e.id === editingExceptionId) ?? null;
 
   async function handleCreateException(values: AvailabilityExceptionFormValues) {
+    setExceptionError(null);
+    setExceptionSuccess(null);
     try {
       await createExceptionMutation.mutateAsync({
         date: values.date,
@@ -116,14 +134,21 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
         closeTime: values.closeTime ?? null,
         reason: values.reason ?? null,
       });
+      setExceptionSuccess(
+        values.openTime ? 'Bloqueio parcial registrado com sucesso.' : 'Folga de dia inteiro registrada com sucesso.',
+      );
       return true;
-    } catch {
+    } catch (err) {
+      const norm = normalizeBarberScheduleError(err);
+      setExceptionError(norm.message);
       return false;
     }
   }
 
   async function handleUpdateException(values: AvailabilityExceptionFormValues) {
     if (!editingException) return false;
+    setExceptionError(null);
+    setExceptionSuccess(null);
     try {
       await updateExceptionMutation.mutateAsync({
         exceptionId: editingException.id,
@@ -135,17 +160,24 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
         },
       });
       setEditingExceptionId(null);
+      setExceptionSuccess('Exceção atualizada com sucesso.');
       return true;
-    } catch {
+    } catch (err) {
+      const norm = normalizeBarberScheduleError(err);
+      setExceptionError(norm.message);
       return false;
     }
   }
 
   async function handleRemoveException(exceptionId: string) {
+    setExceptionError(null);
+    setExceptionSuccess(null);
     try {
       await removeExceptionMutation.mutateAsync(exceptionId);
-    } catch {
-      // Erro gerenciado pela mutação
+      setExceptionSuccess('Exceção removida com sucesso.');
+    } catch (err) {
+      const norm = normalizeBarberScheduleError(err);
+      setExceptionError(norm.message);
     }
   }
 
@@ -391,7 +423,44 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                       </View>
 
                       <View style={{ gap: spacing[3] }}>
-                        {exceptions.length === 0 ? (
+                        {exceptionError && (
+                          <Notice tone="error" icon="alert-circle-outline" text={exceptionError} live />
+                        )}
+                        {exceptionSuccess && (
+                          <Notice tone="info" icon="checkmark-circle-outline" text={exceptionSuccess} live />
+                        )}
+
+                        {/* Fechamentos gerais da unidade — somente leitura */}
+                        {unitClosures.length > 0 && (
+                          <View style={{ gap: spacing[2], marginBottom: spacing[2] }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="business-outline" size={16} color={colors.text.secondary} />
+                              <Text variant="caption" weight="bold" color={colors.text.secondary}>
+                                FECHAMENTOS GERAIS DA UNIDADE (SOMENTE LEITURA)
+                              </Text>
+                            </View>
+                            {unitClosures.map((closure: AvailabilityException) => (
+                              <ExceptionCard
+                                key={`unit-closure-${closure.id}`}
+                                exception={closure}
+                                readOnly
+                              />
+                            ))}
+                          </View>
+                        )}
+
+                        {exceptionsQuery.isLoading ? (
+                          <View style={styles.loadingState}>
+                            <Spinner />
+                            <Text color={colors.text.secondary}>Carregando folgas e datas especiais…</Text>
+                          </View>
+                        ) : exceptionsQuery.isError ? (
+                          <ErrorState
+                            title="Não foi possível carregar as exceções"
+                            description="Ocorreu uma falha ao consultar suas datas especiais."
+                            onRetry={() => void exceptionsQuery.refetch()}
+                          />
+                        ) : exceptions.length === 0 ? (
                           <LiquidGlassView variant="card" contentStyle={{ padding: spacing[4], alignItems: 'center', gap: spacing[2] }}>
                             <Ionicons name="calendar-outline" size={24} color={colors.text.muted} />
                             <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
@@ -417,6 +486,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           <ExceptionForm
                             key={`edit-${editingException.id}`}
                             mode="edit"
+                            scope="individual"
                             initialValues={{
                               date: editingException.date,
                               barbermanId,
@@ -432,6 +502,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                           <ExceptionForm
                             key="create-new"
                             mode="create"
+                            scope="individual"
                             initialValues={{
                               date: '',
                               barbermanId,
@@ -548,7 +619,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
 }
 
 function Notice({ tone, icon, text, live }: {
-  tone: 'info' | 'error'; icon: keyof typeof Ionicons.glyphMap; text: string; live?: boolean;
+  tone: 'info' | 'error'; icon: any; text: string; live?: boolean;
 }) {
   const { colors, radius } = useTheme();
   return (

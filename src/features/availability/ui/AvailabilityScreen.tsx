@@ -270,7 +270,7 @@ export function AvailabilityScreen({
   function toExceptionPayload(values: AvailabilityExceptionFormValues) {
     return {
       date: values.date,
-      barbermanId: barbermanId ?? values.barbermanId ?? null,
+      barbermanId: null,
       openTime: values.openTime ?? null,
       closeTime: values.closeTime ?? null,
       reason: values.reason ?? null,
@@ -518,9 +518,10 @@ export function AvailabilityScreen({
                       <ExceptionForm
                         key={`edit-${editingException.id}`}
                         mode="edit"
+                        scope="unit"
                         initialValues={{
                           date: editingException.date,
-                          barbermanId: editingException.barbermanId,
+                          barbermanId: null,
                           openTime: editingException.openTime,
                           closeTime: editingException.closeTime,
                           reason: editingException.reason,
@@ -533,17 +534,14 @@ export function AvailabilityScreen({
                       <ExceptionForm
                         onSubmit={onSubmitException}
                         disabled={vm.isSaving}
-                        initialValues={
-                          barbermanId
-                            ? {
-                                date: '',
-                                barbermanId,
-                                openTime: null,
-                                closeTime: null,
-                                reason: null,
-                              }
-                            : undefined
-                        }
+                        scope="unit"
+                        initialValues={{
+                          date: '',
+                          barbermanId: null,
+                          openTime: null,
+                          closeTime: null,
+                          reason: null,
+                        }}
                       />
                     )}
                   </View>

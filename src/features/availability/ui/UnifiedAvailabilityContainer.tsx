@@ -116,7 +116,7 @@ export function UnifiedAvailabilityContainer({
         edges={['top', 'bottom']}
       >
         <View style={[styles.stateContent, { paddingHorizontal: spacing[5] }]}>
-          <ErrorState
+          <EmptyState
             title="Horários indisponíveis"
             description="Entre com sua conta e selecione uma unidade com vínculo operacional ativo para configurar horários."
             actionLabel="Ir para o início"

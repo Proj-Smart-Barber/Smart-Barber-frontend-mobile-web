@@ -108,7 +108,6 @@ describe('Fase 3 — Editor Individual Canônico e Contrato de Escrita', () => {
           'days.0.entries',
           [
             {
-              id: 'mon-entry',
               weekday: 'MONDAY',
               barbermanId: BARBER_A_ID,
               range: { start: '10:00', end: '16:00' },
@@ -218,6 +217,7 @@ describe('Fase 3 — Editor Individual Canônico e Contrato de Escrita', () => {
       // Força unidade geral como CLOSED
       const generalDoc = await repo.getScheduleScope(SHOP);
       await repo.saveScheduleScope(SHOP, {
+        barbermanId: null,
         state: 'CLOSED',
         entries: [],
         expectedVersion: generalDoc.version,
@@ -236,7 +236,6 @@ describe('Fase 3 — Editor Individual Canônico e Contrato de Escrita', () => {
           'days.1.entries',
           [
             {
-              id: 'tue-entry',
               weekday: 'TUESDAY',
               barbermanId: BARBER_A_ID,
               range: { start: '08:00', end: '12:00' },

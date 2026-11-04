@@ -40,7 +40,10 @@ export function buildScheduleDayViews(entries: WeeklyScheduleEntry[]): ScheduleD
 
 export function formatExceptionLabel(exception: AvailabilityException): string {
   if (exception.openTime && exception.closeTime) {
-    return `${exception.openTime} – ${exception.closeTime}`;
+    if (exception.barbermanId) {
+      return `Bloqueio: ${exception.openTime} – ${exception.closeTime}`;
+    }
+    return `Horário especial: ${exception.openTime} – ${exception.closeTime}`;
   }
-  return 'Dia fechado';
+  return exception.barbermanId ? 'Folga de dia inteiro' : 'Unidade fechada';
 }

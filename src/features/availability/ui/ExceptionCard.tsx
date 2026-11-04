@@ -8,19 +8,37 @@ import type { AvailabilityException } from '../api/availability.contract';
 
 interface ExceptionCardProps {
   exception: AvailabilityException;
-  onEdit: (exception: AvailabilityException) => void;
-  onRemove: (id: string) => void;
+  onEdit?: (exception: AvailabilityException) => void;
+  onRemove?: (id: string) => void;
   disabled?: boolean;
+  readOnly?: boolean;
 }
 
 const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-export function ExceptionCard({ exception, onEdit, onRemove, disabled }: ExceptionCardProps) {
+export function ExceptionCard({
+  exception,
+  onEdit,
+  onRemove,
+  disabled,
+  readOnly = false,
+}: ExceptionCardProps) {
   const { colors, spacing, radius } = useTheme();
   const [year, month, day] = exception.date.split('-');
   const monthLabel = MONTHS[Math.max(0, Number(month) - 1)] ?? month;
   const hoursLabel = formatExceptionLabel(exception);
   const isClosedDay = !exception.openTime;
+  const isIndividual = Boolean(exception.barbermanId);
+
+  const badgeLabel = isClosedDay
+    ? isIndividual
+      ? 'Folga'
+      : readOnly
+        ? 'Unidade fechada (Geral)'
+        : 'Unidade fechada'
+    : isIndividual
+      ? 'Bloqueio parcial'
+      : 'Horário especial';
 
   return (
     <LiquidGlassView
@@ -53,7 +71,7 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
         <View style={styles.info}>
           <View style={styles.badgeRow}>
             <Badge
-              label={isClosedDay ? (exception.barbermanId ? 'Folga' : 'Unidade fechada') : 'Horário especial'}
+              label={badgeLabel}
               tone={isClosedDay ? 'error' : 'warning'}
             />
           </View>
@@ -80,43 +98,49 @@ export function ExceptionCard({ exception, onEdit, onRemove, disabled }: Excepti
           )}
         </View>
 
-        <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Editar exceção de ${day}/${month}/${year}`}
-            disabled={disabled}
-            hitSlop={6}
-            onPress={() => onEdit(exception)}
-            style={({ pressed }) => [
-              styles.actionButton,
-              {
-                backgroundColor: pressed ? colors.surface.selected : colors.surface.elevated,
-                borderRadius: radius.md,
-                opacity: disabled ? 0.5 : 1,
-              },
-            ]}
-          >
-            <Ionicons name="create-outline" size={18} color={colors.brand.primary} />
-          </Pressable>
+        {!readOnly && (
+          <View style={styles.actions}>
+            {onEdit && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Editar exceção de ${day}/${month}/${year}`}
+                disabled={disabled}
+                hitSlop={6}
+                onPress={() => onEdit(exception)}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: pressed ? colors.surface.selected : colors.surface.elevated,
+                    borderRadius: radius.md,
+                    opacity: disabled ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.brand.primary} />
+              </Pressable>
+            )}
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Remover exceção de ${day}/${month}/${year}`}
-            disabled={disabled}
-            hitSlop={6}
-            onPress={() => onRemove(exception.id)}
-            style={({ pressed }) => [
-              styles.actionButton,
-              {
-                backgroundColor: pressed ? colors.feedback.errorBackground : colors.surface.elevated,
-                borderRadius: radius.md,
-                opacity: disabled ? 0.5 : 1,
-              },
-            ]}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.feedback.error} />
-          </Pressable>
-        </View>
+            {onRemove && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Remover exceção de ${day}/${month}/${year}`}
+                disabled={disabled}
+                hitSlop={6}
+                onPress={() => onRemove(exception.id)}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: pressed ? colors.feedback.errorBackground : colors.surface.elevated,
+                    borderRadius: radius.md,
+                    opacity: disabled ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.feedback.error} />
+              </Pressable>
+            )}
+          </View>
+        )}
       </View>
     </LiquidGlassView>
   );
