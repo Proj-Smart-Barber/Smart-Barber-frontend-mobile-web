@@ -319,7 +319,7 @@ export function AvailabilityScreen({
     <FormProvider {...methods}>
       <SafeAreaView
         style={[styles.screen, { backgroundColor: colors.background.primary }, webBackgroundStyle]}
-        edges={['top', 'bottom']}
+        edges={hideTopBar ? ['bottom'] : ['top', 'bottom']}
       >
         <KeyboardAvoidingView
           style={styles.screen}
@@ -331,7 +331,7 @@ export function AvailabilityScreen({
               styles.content,
               {
                 paddingHorizontal: spacing[isExpanded ? 8 : 5],
-                paddingTop: spacing[isExpanded ? 4 : 10],
+                paddingTop: hideTopBar ? spacing[4] : (isExpanded ? spacing[4] : 80),
                 paddingBottom: Math.max(insets.bottom, 16) + (isExpanded ? 40 : 88),
               },
             ]}
@@ -609,45 +609,46 @@ export function AvailabilityScreen({
           </Pressable>
         </KeyboardAvoidingView>
 
-        <Animated.View
-
-          style={[[
-            styles.stickyHeaderOverlay,
-            {
-              paddingHorizontal: spacing[isExpanded ? 8 : 5],
-              opacity: stickyHeaderOpacity,
-              transform: [{ translateY: stickyHeaderTranslateY }],
-            },
-          ], { pointerEvents: "box-none" }]}
-        >
-          <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
-            <LiquidGlassView
-              variant="navigation"
-              borderRadius={radius.xl}
-              intensity={60}
-              elevated
-              style={{ width: '100%' }}
-              contentStyle={{
-                minHeight: 60,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing[3],
-                paddingHorizontal: spacing[3],
-                paddingVertical: spacing[2],
-              }}
-            >
-              {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
-                  Disponibilidade
-                </Text>
-                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
-                  Configuração operacional
-                </Text>
-              </View>
-            </LiquidGlassView>
-          </View>
-        </Animated.View>
+        {!hideTopBar && (
+          <Animated.View
+            style={[[
+              styles.stickyHeaderOverlay,
+              {
+                paddingHorizontal: spacing[isExpanded ? 8 : 5],
+                opacity: stickyHeaderOpacity,
+                transform: [{ translateY: stickyHeaderTranslateY }],
+              },
+            ], { pointerEvents: "box-none" }]}
+          >
+            <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
+              <LiquidGlassView
+                variant="navigation"
+                borderRadius={radius.xl}
+                intensity={60}
+                elevated
+                style={{ width: '100%' }}
+                contentStyle={{
+                  minHeight: 60,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing[3],
+                  paddingHorizontal: spacing[3],
+                  paddingVertical: spacing[2],
+                }}
+              >
+                {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
+                    Horários
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+                    {professionalName ? `Jornada de ${professionalName}` : 'Expediente da barbearia'}
+                  </Text>
+                </View>
+              </LiquidGlassView>
+            </View>
+          </Animated.View>
+        )}
 
         <Modal
           visible={Boolean(saveFeedback)}

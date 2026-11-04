@@ -196,7 +196,7 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
     .map(entry => `${entry.range.start}–${entry.range.end}`).join(' / ') || 'Fechada';
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} onLayout={event => setScreenWidth(event.nativeEvent.layout.width)}
+    <SafeAreaView edges={hideTopBar ? ['bottom'] : ['top', 'bottom']} onLayout={event => setScreenWidth(event.nativeEvent.layout.width)}
       style={[styles.screen, { backgroundColor: colors.background.primary }]}>
       <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -205,9 +205,12 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
           contentInsetAdjustmentBehavior="automatic"
           onScroll={onContentScroll}
           scrollEventThrottle={16}
-          contentContainerStyle={{ alignItems: 'center', paddingHorizontal: spacing[isExpanded ? 8 : 5],
-            paddingTop: spacing[isExpanded ? 4 : 10],
-            paddingBottom: Math.max(insets.bottom, 16) + (isExpanded ? 40 : 188) }}
+          contentContainerStyle={{
+            alignItems: 'center',
+            paddingHorizontal: spacing[isExpanded ? 8 : 5],
+            paddingTop: hideTopBar ? spacing[4] : (isExpanded ? spacing[4] : 80),
+            paddingBottom: Math.max(insets.bottom, 16) + (isExpanded ? 40 : 188),
+          }}
         >
           <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[6] }}>
             <View style={styles.hero}>
@@ -607,8 +610,10 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
                 paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
               {!isExpanded ? <AvailabilityMenuButton onPress={openMenu} /> : null}
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>Minha jornada</Text>
-                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>Disponibilidade do profissional</Text>
+                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>Horários</Text>
+                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+                  {isSelf ? 'Sua jornada de atendimento' : `Jornada de ${barberName}`}
+                </Text>
               </View>
             </LiquidGlassView>
           </View>

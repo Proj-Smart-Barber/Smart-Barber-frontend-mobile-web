@@ -164,7 +164,7 @@ export function UnifiedAvailabilityContainer({
           styles.headerWrapper,
           {
             paddingHorizontal: spacing[isExpanded ? 8 : 5],
-            paddingTop: insets.top > 0 ? insets.top + spacing[2] : spacing[4],
+            paddingTop: Platform.OS === 'web' ? spacing[4] : spacing[2],
             paddingBottom: spacing[3],
             borderBottomColor: colors.border.subtle,
           },
