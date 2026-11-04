@@ -44,10 +44,12 @@ export function AvailabilityScreen({
   barbershopId,
   barbermanId,
   professionalName,
+  hideTopBar = false,
 }: {
   barbershopId?: string | null;
   barbermanId?: string | null;
   professionalName?: string | null;
+  hideTopBar?: boolean;
 }) {
   const vm = useAvailabilityViewModel(barbershopId, barbermanId);
   const { colors, spacing, radius, isDark } = useTheme();
@@ -133,17 +135,19 @@ export function AvailabilityScreen({
           scrollEventThrottle={16}
         >
           <View style={[styles.contentInner, { maxWidth: contentMaxWidth }]}>
-            <View style={styles.topBar}>
-              {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
-              <View style={styles.topBarTitle}>
-                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
-                  Disponibilidade
-                </Text>
-                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
-                  Configuração operacional
-                </Text>
+            {!hideTopBar && (
+              <View style={styles.topBar}>
+                {!isExpanded ? <AvailabilityMenuButton onPress={openDrawer} /> : null}
+                <View style={styles.topBarTitle}>
+                  <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>
+                    Disponibilidade
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+                    Configuração operacional
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
 
             <View style={styles.hero}>
               <View

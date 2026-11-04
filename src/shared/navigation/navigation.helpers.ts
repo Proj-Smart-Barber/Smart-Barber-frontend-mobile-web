@@ -8,8 +8,13 @@ export function getActiveDestinationFromPathname(
 
   const clean = pathname.toLowerCase();
 
-  if (clean.includes('my-schedule')) {
-    return 'my-schedule';
+  if (
+    clean.includes('availability') ||
+    clean.includes('my-schedule') ||
+    clean.includes('horarios') ||
+    clean.includes('horários')
+  ) {
+    return 'availability';
   }
 
   if (clean.includes('settings')) {
@@ -21,14 +26,6 @@ export function getActiveDestinationFromPathname(
     clean.includes('atendimentos')
   ) {
     return 'agenda';
-  }
-
-  if (
-    clean.includes('availability') ||
-    clean.includes('horarios') ||
-    clean.includes('horários')
-  ) {
-    return 'availability';
   }
 
   if (

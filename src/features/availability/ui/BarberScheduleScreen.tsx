@@ -50,18 +50,18 @@ function useKeyboardVisible() {
   return visible;
 }
 
-export function BarberScheduleScreen({ barbershopId, barbermanId, barberName }: {
-  barbershopId: string; barbermanId: string; barberName: string;
+export function BarberScheduleScreen({ barbershopId, barbermanId, barberName, hideTopBar = false }: {
+  barbershopId: string; barbermanId: string; barberName: string; hideTopBar?: boolean;
 }) {
   // Keep the previous scope until a changed session unit is explicitly acknowledged.
   const [editingShop, setEditingShop] = useState(barbershopId);
   const changedShop = editingShop !== barbershopId;
   return <ScheduleEditor key={editingShop} shopId={editingShop} barbermanId={barbermanId}
-    barberName={barberName} changedShop={changedShop} onChangeShop={() => setEditingShop(barbershopId)} />;
+    barberName={barberName} changedShop={changedShop} onChangeShop={() => setEditingShop(barbershopId)} hideTopBar={hideTopBar} />;
 }
 
-function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChangeShop }: {
-  shopId: string; barbermanId: string; barberName: string; changedShop: boolean; onChangeShop: () => void;
+function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChangeShop, hideTopBar = false }: {
+  shopId: string; barbermanId: string; barberName: string; changedShop: boolean; onChangeShop: () => void; hideTopBar?: boolean;
 }) {
   const vm = useBarberScheduleViewModel(shopId, barbermanId);
   const { colors, spacing, radius } = useTheme();
@@ -498,21 +498,23 @@ function ScheduleEditor({ shopId, barbermanId, barberName, changedShop, onChange
         )}
       </KeyboardAvoidingView>
 
-      <Animated.View
-        style={[[styles.stickyHeaderOverlay, { paddingHorizontal: spacing[isExpanded ? 8 : 5],
-          opacity: stickyOpacity, transform: [{ translateY: stickyTranslateY }] }], { pointerEvents: "box-none" }]}>
-        <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
-          <LiquidGlassView variant="navigation" borderRadius={radius.xl} intensity={60} elevated style={{ width: '100%' }}
-            contentStyle={{ minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing[3],
-              paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
-            {!isExpanded ? <AvailabilityMenuButton onPress={openMenu} /> : null}
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>Minha jornada</Text>
-              <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>Disponibilidade do profissional</Text>
-            </View>
-          </LiquidGlassView>
-        </View>
-      </Animated.View>
+      {!hideTopBar && (
+        <Animated.View
+          style={[[styles.stickyHeaderOverlay, { paddingHorizontal: spacing[isExpanded ? 8 : 5],
+            opacity: stickyOpacity, transform: [{ translateY: stickyTranslateY }] }], { pointerEvents: "box-none" }]}>
+          <View style={{ width: '100%', maxWidth: contentMaxWidth }}>
+            <LiquidGlassView variant="navigation" borderRadius={radius.xl} intensity={60} elevated style={{ width: '100%' }}
+              contentStyle={{ minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: spacing[3],
+                paddingHorizontal: spacing[3], paddingVertical: spacing[2] }}>
+              {!isExpanded ? <AvailabilityMenuButton onPress={openMenu} /> : null}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="bodySm" weight="semibold" color={colors.text.primary} numberOfLines={1}>Minha jornada</Text>
+                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>Disponibilidade do profissional</Text>
+              </View>
+            </LiquidGlassView>
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
