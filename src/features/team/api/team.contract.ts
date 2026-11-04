@@ -70,6 +70,8 @@ export type DeactivateMemberPayload = z.infer<typeof DeactivateMemberPayloadSche
 export interface CreateBarberRegistrationResponse {
   registrationId: string;
   invitationId?: string;
+  deliveryId?: string;
+  deliveryStatus?: 'PENDING' | 'ACCEPTED' | 'FAILED';
   email: string;
   status?: 'PENDING';
   requiresExistingAccountLogin: boolean;
