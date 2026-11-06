@@ -209,17 +209,14 @@ describe('Location Provider — Ciclo de Vida e Casos de Borda', () => {
   });
 
   it('deve lidar com duas chamadas concorrentes sem deixar Promises pendentes nem sobrescrever com resultado obsoleto', async () => {
-    let success1: any = null;
-    let success2: any = null;
+    let successCallback: any = null;
 
     const mockGeolocation = {
       getCurrentPosition: vi.fn((success) => {
-        if (!success1) {
-          success1 = success;
-        } else {
-          success2 = success;
-        }
+        successCallback = success;
       }),
+      watchPosition: vi.fn(),
+      clearWatch: vi.fn(),
     };
 
     Object.defineProperty(globalThis.navigator, 'geolocation', {
@@ -231,12 +228,10 @@ describe('Location Provider — Ciclo de Vida e Casos de Borda', () => {
     const p1 = locationStore.requestCurrentPosition();
     const p2 = locationStore.requestCurrentPosition();
 
-    // A primeira promise é substituída e resolvida sem vazamento de promise
-    const r1 = await p1;
-    expect(r1).toBeDefined();
+    // Chamadas simultâneas compartilham uma única solicitação real
+    expect(mockGeolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
 
-    // O retorno da segunda requisição (mais recente) define o estado final
-    success2({
+    successCallback({
       coords: {
         latitude: -23.50,
         longitude: -46.60,
@@ -244,21 +239,12 @@ describe('Location Provider — Ciclo de Vida e Casos de Borda', () => {
       },
     });
 
-    const r2 = await p2;
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    expect(r1.state).toBe('granted');
     expect(r2.state).toBe('granted');
+    expect(r1.coords?.latitude).toBe(-23.50);
     expect(r2.coords?.latitude).toBe(-23.50);
-
-    // Se a primeira chamada tardia responder agora, ela não sobrescreve
-    if (success1) {
-      success1({
-        coords: {
-          latitude: -22.00,
-          longitude: -44.00,
-          accuracy: 10,
-        },
-      });
-    }
-
     expect(locationStore.getSession().coords?.latitude).toBe(-23.50);
   });
 

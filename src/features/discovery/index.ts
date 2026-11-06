@@ -3,6 +3,7 @@ export * from './api/discovery.api';
 export * from './api/explore-feed.contract';
 export * from './api/explore-feed.api';
 export * from './model/location-provider';
+export * from './model/location-permission';
 export type {
   DiscoveryMode,
   DiscoveryRadius,
