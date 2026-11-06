@@ -28,13 +28,18 @@ describe('G1 — Governança de Sessão, Guards e Recursos de Conta', () => {
 
     // Destino padrão de entrada
     expect(resolveEntryDestination(clientSnapshot)).toBe('/(client)');
+    expect(resolveEntryDestination(clientSnapshot, null, { clientEntry: 'explore' })).toBe('/(client)/explore');
+    expect(resolveEntryDestination(clientSnapshot, null, { clientEntry: 'home' })).toBe('/(client)');
 
-    // Destinos de conta são permitidos
+    // Destinos de conta são permitidos e links diretos são preservados
     expect(resolveAccountDestination('/notifications')).toBe('/(account)/notifications');
     expect(resolveAccountDestination('/invitations')).toBe('/(account)/invitations');
     expect(resolveAccountDestination('/(account)/notifications/notif-123')).toBe(
       '/(account)/notifications/notif-123'
     );
+    expect(resolveAccountDestination('/(client)')).toBe('/(client)');
+    expect(resolveAccountDestination('/(client)/explore')).toBe('/(client)/explore');
+    expect(resolveAccountDestination('/(client)/bookings')).toBe('/(client)/bookings');
   });
 
   it('cliente com intenção OWNER e sem unidade é roteado para /(app)/barbershop-setup sem loop', () => {

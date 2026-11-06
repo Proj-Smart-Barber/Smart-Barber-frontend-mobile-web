@@ -56,6 +56,7 @@ export function getOperationalContext(snapshot: OperationalSessionSource | null 
 export function resolveEntryDestination(
   snapshot: SessionSnapshot,
   onboardingIntent?: string | null,
+  options?: { clientEntry?: 'home' | 'explore' },
 ): string {
   if (snapshot.status !== 'authenticated' || !snapshot.identity) {
     return '/(auth)/login';
@@ -91,6 +92,10 @@ export function resolveEntryDestination(
   }
 
   // CLIENT comum sem unidade
+  if (options?.clientEntry === 'explore') {
+    return '/(client)/explore';
+  }
+
   return '/(client)';
 }
 

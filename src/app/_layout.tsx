@@ -14,7 +14,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
-import { ThemeProvider, useTheme } from '@/shared/theme';
+import { ThemeProvider, useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { SessionProvider, useSession, SessionRecoveryScreen } from '@/features/auth';
 import { BootstrapScreen, ToastProvider } from '@/shared/ui';
 import { serverClock } from '@/features/bookings';
@@ -44,6 +44,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
   const segments = useSegments();
   const router = useRouter();
   const { isDark } = useTheme();
+  const { isCompact } = useAdaptiveLayout();
   const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
@@ -80,6 +81,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
             accessToken: token,
           },
           identity?.onboardingIntent,
+          { clientEntry: isCompact ? 'explore' : 'home' },
         );
         router.replace(dest as any);
       } else if (inApp) {
@@ -116,6 +118,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     token,
     segments,
     router,
+    isCompact,
   ]);
 
   const inPublic = (segments[0] as string) === '(public)';

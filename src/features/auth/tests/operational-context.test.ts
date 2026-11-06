@@ -84,6 +84,94 @@ describe('Operational Context & Gates', () => {
     expect(destination).toBe('/(client)');
   });
 
+  it('client_normal_compacto_com_opcao_explore_faz_fallback_para_explore', () => {
+    const snapshot: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-client-compact',
+        name: 'Cliente Mobile',
+        email: 'cliente.mobile@example.com',
+        accountType: 'CLIENT',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+        onboardingIntent: null,
+      },
+      memberships: [],
+      selectedShopId: null,
+      revocationPending: false,
+      accessToken: 'token',
+    };
+
+    expect(resolveEntryDestination(snapshot, null, { clientEntry: 'explore' })).toBe('/(client)/explore');
+    expect(resolveEntryDestination(snapshot, null, { clientEntry: 'home' })).toBe('/(client)');
+    expect(resolveEntryDestination(snapshot)).toBe('/(client)');
+  });
+
+  it('papeis_owner_barber_e_platform_preservam_destinos_mesmo_com_opcao_explore', () => {
+    const ownerWithoutShop: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-owner',
+        name: 'Dono',
+        email: 'dono@example.com',
+        accountType: 'OWNER',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+      },
+      memberships: [],
+      selectedShopId: null,
+      revocationPending: false,
+      accessToken: 'token',
+    };
+    expect(resolveEntryDestination(ownerWithoutShop, null, { clientEntry: 'explore' })).toBe('/(app)/barbershop-setup');
+
+    const barberWithoutShop: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-barber',
+        name: 'Barbeiro',
+        email: 'barbeiro@example.com',
+        accountType: 'BARBER',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+      },
+      memberships: [],
+      selectedShopId: null,
+      revocationPending: false,
+      accessToken: 'token',
+    };
+    expect(resolveEntryDestination(barberWithoutShop, null, { clientEntry: 'explore' })).toBe('/(account)/invitations');
+
+    const admin: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-admin',
+        name: 'Admin',
+        email: 'admin@example.com',
+        accountType: 'PLATFORM_ADMIN',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+      },
+      memberships: [],
+      selectedShopId: null,
+      revocationPending: false,
+      accessToken: 'token',
+    };
+    expect(resolveEntryDestination(admin, null, { clientEntry: 'explore' })).toBe('/(platform)');
+
+    const clientWithShop: SessionSnapshot = {
+      status: 'authenticated',
+      identity: {
+        id: 'u-client-shop',
+        name: 'Cliente Vinculado',
+        email: 'vinculado@example.com',
+        accountType: 'CLIENT',
+        emailVerifiedAt: '2026-10-11T12:00:00.000Z',
+      },
+      memberships: [{ id: 'shop-1', name: 'Barbearia 1', role: 'CLIENT', status: 'ACTIVE' } as any],
+      selectedShopId: 'shop-1',
+      revocationPending: false,
+      accessToken: 'token',
+    };
+    expect(resolveEntryDestination(clientWithShop, null, { clientEntry: 'explore' })).toBe('/(app)');
+  });
+
   it('barber_without_shop_has_no_operational_context', () => {
     const snapshot: SessionSnapshot = {
       status: 'authenticated',
