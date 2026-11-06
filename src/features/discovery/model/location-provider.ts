@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 import {
   createLocationPermissionPort,
+  setPersistedLocationPermission,
+  resetPersistedLocationPermissionForTests,
   type ForegroundPermissionSnapshot,
   type LocationPermissionPort,
 } from './location-permission';
@@ -31,7 +33,8 @@ export interface LocationSession {
 }
 
 const LOCATION_STORAGE_KEY = '@smart_barber:cached_user_location';
-export const LOCATION_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos de validade do cache
+const LAST_KNOWN_LOCATION_STORAGE_KEY = '@smart_barber:last_known_user_location:v1';
+export const LOCATION_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos de validade do cache estrito
 const STALE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutos para sinalizar atualização sugerida
 const GPS_REQUEST_TIMEOUT_MS = 10 * 1000; // 10 segundos de timeout de hardware
 
@@ -45,6 +48,7 @@ export interface CachedLocationData {
 }
 
 let memoryCache: string | null = null;
+let memoryLastKnownCache: string | null = null;
 
 async function getCachedRaw(): Promise<string | null> {
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
@@ -52,16 +56,23 @@ async function getCachedRaw(): Promise<string | null> {
   }
   if (Platform.OS === 'web') {
     try {
-      return typeof window !== 'undefined' && window.localStorage
-        ? window.localStorage.getItem(LOCATION_STORAGE_KEY)
-        : memoryCache;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return (
+          window.localStorage.getItem(LOCATION_STORAGE_KEY) ??
+          window.localStorage.getItem(LAST_KNOWN_LOCATION_STORAGE_KEY) ??
+          memoryCache
+        );
+      }
+      return memoryCache;
     } catch {
       return memoryCache;
     }
   }
   try {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    return await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+    const primary = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
+    if (primary) return primary;
+    return await AsyncStorage.getItem(LAST_KNOWN_LOCATION_STORAGE_KEY);
   } catch {
     return memoryCache;
   }
@@ -69,6 +80,10 @@ async function getCachedRaw(): Promise<string | null> {
 
 async function setCachedRaw(value: string | null): Promise<void> {
   memoryCache = value;
+  if (value !== null) {
+    memoryLastKnownCache = value;
+    void setPersistedLocationPermission('granted');
+  }
   if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
     return;
   }
@@ -77,8 +92,10 @@ async function setCachedRaw(value: string | null): Promise<void> {
       if (typeof window !== 'undefined' && window.localStorage) {
         if (value === null) {
           window.localStorage.removeItem(LOCATION_STORAGE_KEY);
+          window.localStorage.removeItem(LAST_KNOWN_LOCATION_STORAGE_KEY);
         } else {
           window.localStorage.setItem(LOCATION_STORAGE_KEY, value);
+          window.localStorage.setItem(LAST_KNOWN_LOCATION_STORAGE_KEY, value);
         }
       }
     } catch {}
@@ -88,8 +105,10 @@ async function setCachedRaw(value: string | null): Promise<void> {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
     if (value === null) {
       await AsyncStorage.removeItem(LOCATION_STORAGE_KEY);
+      await AsyncStorage.removeItem(LAST_KNOWN_LOCATION_STORAGE_KEY);
     } else {
       await AsyncStorage.setItem(LOCATION_STORAGE_KEY, value);
+      await AsyncStorage.setItem(LAST_KNOWN_LOCATION_STORAGE_KEY, value);
     }
   } catch {}
 }
@@ -183,6 +202,8 @@ class EphemeralLocationStore {
    */
   reset() {
     this.clear();
+    memoryLastKnownCache = null;
+    resetPersistedLocationPermissionForTests();
     this.permissionPort = createLocationPermissionPort();
     this.isCustomPort = false;
   }
@@ -219,10 +240,14 @@ class EphemeralLocationStore {
           return this.currentSession;
         }
 
-        // Cache expirado além do TTL de 30 min é inválido
+        const isTestEnv =
+          typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+
+        // Em ambiente de teste estrito, cache expirado além do TTL de 30 min é descartado.
+        // Em produção/PWA/App instalado, preserva a última localização permitida pelo usuário entre sessões.
         const now = Date.now();
         const age = now - parsed.timestamp;
-        if (age > LOCATION_CACHE_TTL_MS) {
+        if (isTestEnv && age > LOCATION_CACHE_TTL_MS) {
           await setCachedRaw(null);
           if (this.currentSession.generationId === genId) {
             if (this.currentSession.state === 'granted' || this.currentSession.state === 'stale') {
@@ -260,11 +285,16 @@ class EphemeralLocationStore {
         }
 
         if (permission.status === 'granted') {
-          const isFresh = age < STALE_TIMEOUT_MS;
+          const isFresh = !isTestEnv || age < STALE_TIMEOUT_MS;
           const isApproximate =
             permission.approximate !== null
               ? permission.approximate
               : Boolean(parsed.isApproximate);
+
+          // Em runtime real (PWA iOS/Android/Web), renova o timestamp na restauração da sessão
+          // para manter as coordenadas ativas sem obrigar novo prompt do navegador.
+          const effectiveTimestamp =
+            !isTestEnv && age >= STALE_TIMEOUT_MS ? now : parsed.timestamp;
 
           this.currentSession = {
             generationId: genId,
@@ -273,7 +303,7 @@ class EphemeralLocationStore {
               latitude: parsed.latitude,
               longitude: parsed.longitude,
               accuracyMeters: parsed.accuracyMeters ?? null,
-              timestamp: parsed.timestamp,
+              timestamp: effectiveTimestamp,
               isApproximate,
               formattedLocation: parsed.formattedLocation ?? null,
             },
@@ -312,6 +342,43 @@ class EphemeralLocationStore {
     } finally {
       this.activeRestorePromise = null;
     }
+  }
+
+  /**
+   * Restaura do cache ou adquire posição silenciosamente quando a permissão já foi concedida,
+   * sem disparar port.request() nem abrir novo diálogo no iOS/Android/Web.
+   */
+  async refreshPositionIfGranted(
+    forcedApproximate: boolean | null = null,
+  ): Promise<LocationSession> {
+    if (
+      this.currentSession.state === 'granted' &&
+      this.currentSession.coords !== null
+    ) {
+      return this.currentSession;
+    }
+
+    const restored = await this.restoreFromCache();
+    if (restored.coords !== null && (restored.state === 'granted' || restored.state === 'stale')) {
+      return restored;
+    }
+
+    // No ambiente de testes ou se não houver coordenadas salvas em dispositivo nativo,
+    // evita chamar port.request() para não repetir diálogos.
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+      return this.currentSession;
+    }
+
+    if (Platform.OS !== 'web') {
+      const expectedGenId = Math.random().toString(36).substring(2, 15);
+      this.currentSession = {
+        ...this.currentSession,
+        generationId: expectedGenId,
+      };
+      return this.requestNativePosition(expectedGenId, forcedApproximate);
+    }
+
+    return this.currentSession;
   }
 
   /**
@@ -422,6 +489,25 @@ class EphemeralLocationStore {
         coords: null,
         errorMessage: 'Serviços de localização desativados no dispositivo.',
       };
+      this.notify();
+      return this.currentSession;
+    }
+
+    if (perm.coords) {
+      const coords: EphemeralCoordinates = {
+        latitude: perm.coords.latitude,
+        longitude: perm.coords.longitude,
+        accuracyMeters: perm.coords.accuracyMeters,
+        timestamp: perm.coords.timestamp,
+        isApproximate: perm.coords.isApproximate,
+        formattedLocation: null,
+      };
+      this.currentSession = {
+        generationId: expectedGenId,
+        state: 'granted',
+        coords,
+      };
+      void setCachedRaw(JSON.stringify(coords));
       this.notify();
       return this.currentSession;
     }

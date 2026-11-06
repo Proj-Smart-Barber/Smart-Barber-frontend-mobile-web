@@ -20,13 +20,10 @@ function ClientLocationOnboardingCoordinator({
   actorId: string | null;
   onBlockedChange: (blocked: boolean) => void;
 }) {
-  const pathname = usePathname();
-  const { isCompact } = useAdaptiveLayout();
   const { isDrawerOpen } = useNavigation();
   const { bookingStart, publishLocationOnboarding } = useClientExperienceContext();
 
-  const isExplore = pathname === '/(client)/explore' || pathname === '/explore';
-  const enabled = isCompact && isExplore && !isDrawerOpen && !bookingStart;
+  const enabled = !isDrawerOpen && !bookingStart;
 
   const {
     stage,
@@ -62,10 +59,6 @@ function ClientLocationOnboardingCoordinator({
       onBlockedChange(false);
     };
   }, [isModalOpen, onBlockedChange]);
-
-  if (!isExplore && isModalOpen) {
-    return null;
-  }
 
   return (
     <LocationOnboardingModal

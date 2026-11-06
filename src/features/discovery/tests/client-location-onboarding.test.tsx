@@ -584,4 +584,54 @@ describe('Tarefa 4 — Modal Automático e Recuperação de Localização', () =
     fireEvent.click(manualBtn);
     expect(handleManual).toHaveBeenCalledTimes(1);
   });
+
+  it('13. No Web/PWA (iOS/Android), quando request() já entrega coordenadas, salva imediatamente no locationStore sem segunda chamada de GPS', async () => {
+    const mockPort: LocationPermissionPort = {
+      get: vi.fn().mockResolvedValue({
+        status: 'undetermined',
+        canAskAgain: true,
+        servicesEnabled: null,
+        approximate: null,
+      }),
+      request: vi.fn().mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        servicesEnabled: true,
+        approximate: false,
+        coords: {
+          latitude: -23.5505,
+          longitude: -46.6333,
+          accuracyMeters: 15,
+          timestamp: Date.now(),
+          isApproximate: false,
+        },
+      }),
+      openSettings: vi.fn().mockResolvedValue('manual'),
+    };
+
+    const requestCurrentPositionSpy = vi.spyOn(locationStore, 'requestCurrentPosition');
+
+    const { result } = renderHook(() =>
+      useClientLocationOnboarding({
+        actorId: 'client-1',
+        enabled: true,
+        permissionPort: mockPort,
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.stage).toBe('intro');
+
+    await act(async () => {
+      await result.current.continueRequest();
+    });
+
+    expect(result.current.stage).toBe('ready');
+    expect(locationStore.getSession().state).toBe('granted');
+    expect(locationStore.getSession().coords?.latitude).toBe(-23.5505);
+    expect(requestCurrentPositionSpy).not.toHaveBeenCalled();
+  });
 });

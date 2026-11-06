@@ -403,6 +403,13 @@ describe('Location Permission & Port — Tarefa 3', () => {
       const snap = await webPort.request();
       expect(snap.status).toBe('granted');
       expect(snap.servicesEnabled).toBe(true);
+      expect(snap.coords?.latitude).toBe(-23.55);
+      expect(snap.coords?.longitude).toBe(-46.63);
+
+      // No iOS PWA / Safari (sem Permissions API ou quando retorna prompt), chamadas posteriores a get()
+      // devem reconhecer a permissão já salva no dispositivo sem exigir novo pedido
+      const subsequentSnap = await webPort.get();
+      expect(subsequentSnap.status).toBe('granted');
     });
 
     it('deve obter resultado denied com canAskAgain false quando getCurrentPosition retorna PERMISSION_DENIED', async () => {

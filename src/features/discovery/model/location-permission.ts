@@ -1,10 +1,113 @@
 import { Platform } from 'react-native';
 
+export const LOCATION_PERMISSION_STORAGE_KEY =
+  '@smart_barber:location_permission_status:v1';
+const LEGACY_LOCATION_CACHE_KEY = '@smart_barber:cached_user_location';
+const LAST_KNOWN_LOCATION_KEY = '@smart_barber:last_known_user_location:v1';
+
+let memoryPermissionStatus: 'granted' | 'denied' | null = null;
+
+export function resetPersistedLocationPermissionForTests(): void {
+  memoryPermissionStatus = null;
+}
+
+export async function getPersistedLocationPermission(): Promise<
+  'granted' | 'denied' | null
+> {
+  if (memoryPermissionStatus !== null) {
+    return memoryPermissionStatus;
+  }
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return memoryPermissionStatus;
+  }
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = window.localStorage.getItem(
+          LOCATION_PERMISSION_STORAGE_KEY,
+        );
+        if (stored === 'granted' || stored === 'denied') {
+          memoryPermissionStatus = stored;
+          return stored;
+        }
+        // Migração automática caso já exista coordenada salva no dispositivo
+        const existingCoords =
+          window.localStorage.getItem(LAST_KNOWN_LOCATION_KEY) ||
+          window.localStorage.getItem(LEGACY_LOCATION_CACHE_KEY);
+        if (existingCoords) {
+          window.localStorage.setItem(
+            LOCATION_PERMISSION_STORAGE_KEY,
+            'granted',
+          );
+          memoryPermissionStatus = 'granted';
+          return 'granted';
+        }
+      }
+    } catch {}
+    return memoryPermissionStatus;
+  }
+  try {
+    const AsyncStorage =
+      require('@react-native-async-storage/async-storage').default;
+    const stored = await AsyncStorage.getItem(LOCATION_PERMISSION_STORAGE_KEY);
+    if (stored === 'granted' || stored === 'denied') {
+      memoryPermissionStatus = stored;
+      return stored;
+    }
+    const existingCoords =
+      (await AsyncStorage.getItem(LAST_KNOWN_LOCATION_KEY)) ||
+      (await AsyncStorage.getItem(LEGACY_LOCATION_CACHE_KEY));
+    if (existingCoords) {
+      await AsyncStorage.setItem(LOCATION_PERMISSION_STORAGE_KEY, 'granted');
+      memoryPermissionStatus = 'granted';
+      return 'granted';
+    }
+  } catch {}
+  return memoryPermissionStatus;
+}
+
+export async function setPersistedLocationPermission(
+  status: 'granted' | 'denied' | null,
+): Promise<void> {
+  memoryPermissionStatus = status;
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return;
+  }
+  if (Platform.OS === 'web') {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (status === null) {
+          window.localStorage.removeItem(LOCATION_PERMISSION_STORAGE_KEY);
+        } else {
+          window.localStorage.setItem(LOCATION_PERMISSION_STORAGE_KEY, status);
+        }
+      }
+    } catch {}
+    return;
+  }
+  try {
+    const AsyncStorage =
+      require('@react-native-async-storage/async-storage').default;
+    if (status === null) {
+      await AsyncStorage.removeItem(LOCATION_PERMISSION_STORAGE_KEY);
+    } else {
+      await AsyncStorage.setItem(LOCATION_PERMISSION_STORAGE_KEY, status);
+    }
+  } catch {}
+}
+
 export type ForegroundPermissionSnapshot = {
   status: 'undetermined' | 'granted' | 'denied' | 'unsupported';
   canAskAgain: boolean;
   servicesEnabled: boolean | null;
   approximate: boolean | null;
+  coords?: {
+    latitude: number;
+    longitude: number;
+    accuracyMeters: number | null;
+    timestamp: number;
+    isApproximate: boolean;
+  } | null;
 };
 
 export interface LocationPermissionPort {
@@ -115,7 +218,21 @@ function createNativeLocationPermissionPort(
       }
       try {
         const perm = await expoLocation.getForegroundPermissionsAsync();
-        return await mapNativeResponse(expoLocation, perm);
+        const mapped = await mapNativeResponse(expoLocation, perm);
+        if (mapped.status === 'granted') {
+          await setPersistedLocationPermission('granted');
+        } else if (mapped.status === 'denied') {
+          await setPersistedLocationPermission('denied');
+        } else if (mapped.status === 'undetermined') {
+          const persisted = await getPersistedLocationPermission();
+          if (persisted === 'granted') {
+            return {
+              ...mapped,
+              status: 'granted',
+            };
+          }
+        }
+        return mapped;
       } catch {
         return {
           status: 'unsupported',
@@ -138,7 +255,13 @@ function createNativeLocationPermissionPort(
       }
       try {
         const perm = await expoLocation.requestForegroundPermissionsAsync();
-        return await mapNativeResponse(expoLocation, perm);
+        const mapped = await mapNativeResponse(expoLocation, perm);
+        if (mapped.status === 'granted') {
+          await setPersistedLocationPermission('granted');
+        } else if (mapped.status === 'denied') {
+          await setPersistedLocationPermission('denied');
+        }
+        return mapped;
       } catch {
         return {
           status: 'unsupported',
@@ -199,28 +322,61 @@ function createWebLocationPermissionPort(
         };
       }
 
+      const persisted = await getPersistedLocationPermission();
+
       const permissions = getPermissions();
       if (permissions && typeof permissions.query === 'function') {
         try {
           const res = await permissions.query({ name: 'geolocation' as PermissionName });
-          const status: ForegroundPermissionSnapshot['status'] =
-            res.state === 'granted'
-              ? 'granted'
-              : res.state === 'denied'
-              ? 'denied'
-              : 'undetermined';
+          if (res.state === 'granted') {
+            await setPersistedLocationPermission('granted');
+            return {
+              status: 'granted',
+              canAskAgain: true,
+              servicesEnabled: true,
+              approximate: null,
+            };
+          }
+          if (res.state === 'denied') {
+            await setPersistedLocationPermission('denied');
+            return {
+              status: 'denied',
+              canAskAgain: false,
+              servicesEnabled: null,
+              approximate: null,
+            };
+          }
+          // Em iOS Safari / PWA standalone e alguns WebViews Android, permissions.query retorna 'prompt'
+          // mesmo após o usuário já ter permitido no app. Respeita a permissão já salva no dispositivo.
+          if (persisted === 'granted') {
+            return {
+              status: 'granted',
+              canAskAgain: true,
+              servicesEnabled: true,
+              approximate: null,
+            };
+          }
           return {
-            status,
-            canAskAgain: res.state !== 'denied',
+            status: 'undetermined',
+            canAskAgain: true,
             servicesEnabled: null,
             approximate: null,
           };
         } catch {
-          // Permite fallback se permissions.query falhar
+          // Permite fallback se permissions.query falhar (ex.: iOS WebKit)
         }
       }
 
-      // Ausência da Permissions API não significa granted nem denied:
+      if (persisted === 'granted') {
+        return {
+          status: 'granted',
+          canAskAgain: true,
+          servicesEnabled: true,
+          approximate: null,
+        };
+      }
+
+      // Ausência da Permissions API sem permissão persistida anterior:
       return {
         status: 'undetermined',
         canAskAgain: true,
@@ -242,16 +398,42 @@ function createWebLocationPermissionPort(
 
       return new Promise<ForegroundPermissionSnapshot>((resolve) => {
         geo.getCurrentPosition(
-          () => {
+          async (pos: any) => {
+            await setPersistedLocationPermission('granted');
+            const lat = pos?.coords?.latitude;
+            const lng = pos?.coords?.longitude;
+            const accuracy = pos?.coords?.accuracy ?? null;
+            const hasCoords =
+              typeof lat === 'number' &&
+              typeof lng === 'number' &&
+              !Number.isNaN(lat) &&
+              !Number.isNaN(lng);
+
             resolve({
               status: 'granted',
               canAskAgain: true,
               servicesEnabled: true,
-              approximate: null,
+              approximate:
+                accuracy !== null && typeof accuracy === 'number'
+                  ? accuracy > 1000
+                  : null,
+              coords: hasCoords
+                ? {
+                    latitude: lat,
+                    longitude: lng,
+                    accuracyMeters: accuracy,
+                    timestamp: Date.now(),
+                    isApproximate:
+                      accuracy !== null &&
+                      typeof accuracy === 'number' &&
+                      accuracy > 1000,
+                  }
+                : null,
             });
           },
           async (err: any) => {
             if (err?.code === 1 || err?.code === err?.PERMISSION_DENIED) {
+              await setPersistedLocationPermission('denied');
               resolve({
                 status: 'denied',
                 canAskAgain: false,
@@ -263,14 +445,20 @@ function createWebLocationPermissionPort(
 
             // POSITION_UNAVAILABLE (2) ou TIMEOUT (3)
             let status: ForegroundPermissionSnapshot['status'] = 'undetermined';
-            const permissions = getPermissions();
-            if (permissions && typeof permissions.query === 'function') {
-              try {
-                const res = await permissions.query({ name: 'geolocation' as PermissionName });
-                if (res.state === 'granted') {
-                  status = 'granted';
-                }
-              } catch {}
+            const persisted = await getPersistedLocationPermission();
+            if (persisted === 'granted') {
+              status = 'granted';
+            } else {
+              const permissions = getPermissions();
+              if (permissions && typeof permissions.query === 'function') {
+                try {
+                  const res = await permissions.query({ name: 'geolocation' as PermissionName });
+                  if (res.state === 'granted') {
+                    status = 'granted';
+                    await setPersistedLocationPermission('granted');
+                  }
+                } catch {}
+              }
             }
 
             resolve({
