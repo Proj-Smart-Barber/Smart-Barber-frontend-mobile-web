@@ -148,11 +148,17 @@ export function ExploreFeedSlide({
         </View>
       )}
 
-      {/* 2. Gradiente Suave Inferior para Leitura da Legenda */}
+      {/* 2. Gradientes Suaves Superior e Inferior para Leitura sobre Mídia */}
       <LinearGradient
-        colors={['transparent', 'rgba(10, 10, 14, 0.55)', 'rgba(10, 10, 14, 0.94)']}
+        colors={['rgba(10, 10, 14, 0.68)', 'rgba(10, 10, 14, 0.28)', 'transparent']}
+        locations={[0, 0.55, 1]}
+        style={[styles.topScrim, { height: Math.max(topInset, 16) + 92 }]}
+        pointerEvents="none"
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(10, 10, 14, 0.48)', 'rgba(10, 10, 14, 0.88)']}
         locations={[0, 0.45, 1]}
-        style={[styles.bottomScrim, { height: bottomInset + 200 }]}
+        style={[styles.bottomScrim, { height: bottomInset + 180 }]}
         pointerEvents="none"
       />
 
@@ -182,7 +188,7 @@ export function ExploreFeedSlide({
       </View>
 
       {/* 4. Trilho de Ações à Direita: Detalhes, Catálogo, Sobre */}
-      <View style={[styles.actionRail, { bottom: bottomInset + 16 }]}>
+      <View style={[styles.actionRail, { bottom: bottomInset + 12 }]}>
         {/* Ação: Detalhes / Serviços (papel secundário em vidro, sem competir com o CTA central Agendar) */}
         <Pressable
           onPress={() => activeMedia?.service ? onOpenService(item, activeMedia) : onOpenCatalog(item)}
@@ -230,7 +236,7 @@ export function ExploreFeedSlide({
       </View>
 
       {/* 5. Legenda Inferior Esquerda: Logo + Nome + Avaliação + Serviço/Ambiente + Dots */}
-      <View style={[styles.bottomCaption, { bottom: bottomInset + 16 }]}>
+      <View style={[styles.bottomCaption, { bottom: bottomInset + 12 }]}>
         {/* Identificação da Barbearia */}
         <View style={styles.captionHeaderRow}>
           {item.barbershop.logoUrl ? (

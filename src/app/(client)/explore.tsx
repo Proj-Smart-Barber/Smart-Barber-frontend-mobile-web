@@ -134,7 +134,6 @@ export default function ClientExploreScreen() {
           }
         >
           <ExploreFeedView
-            initialRadius={10}
             isVisible={activeSection === 'feed'}
             topOffset={feedTopOffset}
             onActiveMediaChange={publishActiveMedia}
@@ -154,7 +153,6 @@ export default function ClientExploreScreen() {
             onRetryPosition={
               clientExperience?.locationOnboarding?.retryPosition
             }
-            initialRadius={10}
           />
         </View>
       )}

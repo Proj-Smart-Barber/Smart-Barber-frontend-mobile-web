@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { useTheme, useReducedMotion } from '@/shared/theme';
 import { Text } from '@/shared/ui/Text';
-import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 
 export type ClientExploreSection = 'feed' | 'nearby' | 'bookings';
 
@@ -45,15 +44,10 @@ export function ClientExploreTabs({
 }: ClientExploreTabsProps) {
   const { colors, radius, isDark } = useTheme();
   const reducedMotion = useReducedMotion();
+  const isOverMedia = active === 'feed';
 
   return (
-    <LiquidGlassView
-      variant="navigation"
-      autoHeight
-      borderRadius={radius.lg}
-      style={[styles.outerContainer, style]}
-      contentStyle={styles.innerContent}
-    >
+    <View style={[styles.outerContainer, style]}>
       <View
         accessibilityRole="tablist"
         accessibilityLabel="Seções de descoberta"
@@ -61,6 +55,10 @@ export function ClientExploreTabs({
       >
         {EXPLORE_TAB_ITEMS.map((item) => {
           const isSelected = active === item.id;
+          const inactiveTextColor =
+            isOverMedia || isDark
+              ? 'rgba(255, 255, 255, 0.92)'
+              : colors.text.primary;
 
           return (
             <Pressable
@@ -81,9 +79,9 @@ export function ClientExploreTabs({
                   backgroundColor: isSelected
                     ? colors.brand.primary
                     : pressed
-                      ? isDark
-                        ? 'rgba(255, 255, 255, 0.08)'
-                        : 'rgba(0, 0, 0, 0.05)'
+                      ? isOverMedia || isDark
+                        ? 'rgba(255, 255, 255, 0.12)'
+                        : 'rgba(0, 0, 0, 0.06)'
                       : 'transparent',
                   borderColor: isSelected
                     ? colors.brand.primary
@@ -102,10 +100,13 @@ export function ClientExploreTabs({
             >
               <Text
                 variant="caption"
-                weight={isSelected ? 'bold' : 'medium'}
+                weight={isSelected ? 'bold' : 'semibold'}
                 align="center"
-                color={isSelected ? '#FFFFFF' : colors.text.primary}
-                style={styles.tabLabel}
+                color={isSelected ? '#FFFFFF' : inactiveTextColor}
+                style={[
+                  styles.tabLabel,
+                  isOverMedia && !isSelected ? styles.overMediaTextShadow : null,
+                ]}
               >
                 {item.label}
               </Text>
@@ -113,22 +114,21 @@ export function ClientExploreTabs({
           );
         })}
       </View>
-    </LiquidGlassView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   outerContainer: {
     width: '100%',
-  },
-  innerContent: {
-    padding: 4,
+    backgroundColor: 'transparent',
   },
   tablist: {
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'space-between',
-    gap: 4,
+    gap: 6,
+    backgroundColor: 'transparent',
   },
   tabButton: {
     flex: 1,
@@ -141,5 +141,10 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     lineHeight: 16,
+  },
+  overMediaTextShadow: {
+    textShadowColor: 'rgba(0, 0, 0, 0.85)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

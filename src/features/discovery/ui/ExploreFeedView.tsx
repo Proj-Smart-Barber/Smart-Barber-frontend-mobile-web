@@ -64,7 +64,7 @@ export function ExploreFeedView({
   // Bottom inset consideration for floating capsule bar (approx 64px) + safe area
   const bottomInset = Math.max(
     measuredNavbar,
-    (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8,
+    insets.bottom > 0 ? Math.min(insets.bottom, 12) : 8,
   );
   const topInset =
     topOffset !== undefined ? topOffset : insets.top > 0 ? insets.top + 8 : 16;

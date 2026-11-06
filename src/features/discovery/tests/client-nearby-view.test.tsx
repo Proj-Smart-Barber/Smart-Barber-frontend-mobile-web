@@ -92,7 +92,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
     );
   }
 
-  it('1. Com posição válida/autorizada: busca proximidade, exibe distâncias confiáveis, permite trocar raio e encaminha ao catálogo real', async () => {
+  it('1. Com posição válida/autorizada: por padrão exibe todas as barbearias sem ativar distância máxima e limita o raio apenas quando o usuário usa os filtros', async () => {
     locationStore.updateSession({
       state: 'granted',
       coords: {
@@ -103,6 +103,15 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
         isApproximate: false,
         formattedLocation: 'Bela Vista, São Paulo',
       },
+    });
+
+    const searchAllSpy = vi.spyOn(discoveryApi, 'searchAll').mockResolvedValue({
+      items: [sampleNearbyShop],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasNext: false,
+      serverTime: '2026-11-06T12:00:00Z',
     });
 
     const nearbySpy = vi.spyOn(discoveryApi, 'searchNearby').mockResolvedValue({
@@ -119,15 +128,15 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
       canAskAgain: true,
     });
 
+    // Por padrão exibe todas as barbearias sem limitar pelo raio
     expect(await screen.findByText('Barbearia Imperial Paulista')).toBeTruthy();
-    expect(screen.getByText(/650 m de você/i)).toBeTruthy();
-    expect(nearbySpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        radiusKm: 10,
-      }),
-    );
+    expect(searchAllSpy).toHaveBeenCalled();
+    expect(nearbySpy).not.toHaveBeenCalled();
 
-    // Altera o raio para 25 km
+    const allDistancesBtn = screen.getByRole('button', { name: /Todas as distâncias/i });
+    expect(allDistancesBtn.getAttribute('aria-selected')).toBe('true');
+
+    // Limita o raio apenas quando o usuário aciona o filtro de raio (ex.: 25 km)
     const radius25Btn = screen.getByRole('button', { name: /Raio de 25 quilômetros/i });
     fireEvent.click(radius25Btn);
 
@@ -138,6 +147,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
         }),
       );
     });
+    expect(await screen.findByText(/650 m de você/i)).toBeTruthy();
 
     // Clica para abrir serviços da unidade (encaminha ao catálogo existente)
     const openBtns = await screen.findAllByText('Ver serviços');
@@ -239,6 +249,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
 
     renderNearby({
       onboardingStage: 'ready',
+      initialMode: 'NEARBY',
     });
 
     expect(await screen.findByText('Serviço temporariamente indisponível')).toBeTruthy();
@@ -306,6 +317,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
 
     renderNearby({
       onboardingStage: 'ready',
+      initialMode: 'NEARBY',
     });
 
     expect(
