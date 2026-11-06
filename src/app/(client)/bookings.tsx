@@ -8,6 +8,7 @@ import { Text, EmptyState, Spinner, Button, Card, Badge, SegmentedFilter, Loadin
 import { useNavigation } from '../../shared/navigation';
 import { ClientNavbarMetricsContext } from '../../shared/navigation/ClientNavbarMetrics';
 import { useSession } from '../../features/auth';
+import { ClientExploreTabs, type ClientExploreSection } from '../../features/discovery';
 import { useMyBookings, ClientBookingsSkeleton } from '../../features/bookings';
 import { BookingCard } from '../../features/bookings/ui/BookingCard';
 import type { BookingDto } from '../../features/bookings/api/bookings.dto';
@@ -68,6 +69,15 @@ export default function ClientBookingsScreen() {
     router.push(`/(account)/bookings/${booking.id}` as any);
   };
 
+  const handleSelectExploreSection = (section: ClientExploreSection) => {
+    if (section === 'bookings') return;
+    if (section === 'nearby') {
+      router.push('/(client)/explore?section=nearby' as any);
+      return;
+    }
+    router.push('/(client)/explore' as any);
+  };
+
   return (
     <View
       style={[
@@ -86,6 +96,12 @@ export default function ClientBookingsScreen() {
         ]}
       >
         <View style={styles.contentConstraint}>
+          <ClientExploreTabs
+            active="bookings"
+            onSelect={handleSelectExploreSection}
+            style={{ marginBottom: spacing.md }}
+          />
+
           {isCompact ? (
             <View style={styles.compactHeader}>
               <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>

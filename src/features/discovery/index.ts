@@ -32,3 +32,5 @@ export * from './ui/DiscoveryMapModal';
 export * from './ui/GoogleMapCanvas';
 export * from './ui/location-onboarding-modal';
 export * from './ui/location-status-panel';
+export * from './ui/client-explore-tabs';
+export * from './ui/client-nearby-view';

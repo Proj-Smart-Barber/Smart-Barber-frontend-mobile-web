@@ -181,19 +181,25 @@ export function ExploreFeedSlide({
         </Pressable>
       </View>
 
-      {/* 4. Trilho de Ações à Direita: Serviço, Catálogo, Sobre */}
+      {/* 4. Trilho de Ações à Direita: Detalhes, Catálogo, Sobre */}
       <View style={[styles.actionRail, { bottom: bottomInset + 16 }]}>
-        {/* Ação: Serviço */}
+        {/* Ação: Detalhes / Serviços (papel secundário em vidro, sem competir com o CTA central Agendar) */}
         <Pressable
           onPress={() => activeMedia?.service ? onOpenService(item, activeMedia) : onOpenCatalog(item)}
           style={styles.railActionItem}
           accessibilityRole="button"
-          accessibilityLabel="Ver detalhes do serviço e agendar"
+          accessibilityLabel={
+            activeMedia?.service
+              ? 'Ver detalhes do serviço'
+              : 'Ver serviços da barbearia'
+          }
         >
-          <View style={[styles.railActionButton, styles.railActionButtonPrimary]}>
-            <Ionicons name="cut" size={20} color="#ffffff" />
+          <View style={styles.railActionButtonGlass}>
+            <Ionicons name="cut-outline" size={20} color="#ffffff" />
           </View>
-          <Text style={styles.railActionLabel}>{activeMedia?.service?"Serviço":"Serviços"}</Text>
+          <Text style={styles.railActionLabel}>
+            {activeMedia?.service ? 'Detalhes' : 'Serviços'}
+          </Text>
         </Pressable>
 
         {/* Ação: Catálogo */}
