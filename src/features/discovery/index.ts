@@ -17,6 +17,7 @@ export * from './ui/BarbershopPhotoCarousel';
 export * from './ui/BarbershopHomeCarousel';
 export * from './ui/ExploreFeedSlide';
 export * from './ui/ExploreFeedView';
+export * from './model/client-experience-context';
 export * from './ui/ExploreSheets';
 export * from './ui/DiscoveryFilters';
 export * from './ui/DiscoverySkeleton';
