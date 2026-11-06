@@ -4,6 +4,7 @@ export * from './api/explore-feed.contract';
 export * from './api/explore-feed.api';
 export * from './model/location-provider';
 export * from './model/location-permission';
+export * from './model/use-client-location-onboarding';
 export type {
   DiscoveryMode,
   DiscoveryRadius,
@@ -29,3 +30,5 @@ export * from './ui/ClientHeader';
 export * from './ui/ClientNextBookingCard';
 export * from './ui/DiscoveryMapModal';
 export * from './ui/GoogleMapCanvas';
+export * from './ui/location-onboarding-modal';
+export * from './ui/location-status-panel';

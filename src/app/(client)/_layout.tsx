@@ -1,22 +1,78 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
-import { useTheme } from '@/shared/theme';
+import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { useSession } from '@/features/auth';
 import {
   ClientExperienceProvider,
   useClientExperienceContext,
   buildBarbershopCatalogHref,
+  useClientLocationOnboarding,
+  LocationOnboardingModal,
 } from '@/features/discovery';
 import { useToast } from '@/shared/ui';
 import { ClientNavigationShell } from '@/shared/navigation/ClientNavigationShell';
+import { useNavigation } from '@/shared/navigation/navigation-context';
+
+function ClientLocationOnboardingCoordinator({
+  actorId,
+  onBlockedChange,
+}: {
+  actorId: string | null;
+  onBlockedChange: (blocked: boolean) => void;
+}) {
+  const pathname = usePathname();
+  const { isCompact } = useAdaptiveLayout();
+  const { isDrawerOpen } = useNavigation();
+  const { bookingStart } = useClientExperienceContext();
+
+  const isExplore = pathname === '/(client)/explore' || pathname === '/explore';
+  const enabled = isCompact && isExplore && !isDrawerOpen && !bookingStart;
+
+  const {
+    stage,
+    requestPhase,
+    isPositionSlow,
+    continueRequest,
+    dismissIntro,
+  } = useClientLocationOnboarding({
+    actorId,
+    enabled,
+  });
+
+  const isModalOpen = stage === 'intro' || stage === 'requesting';
+
+  useEffect(() => {
+    onBlockedChange(isModalOpen);
+    return () => {
+      onBlockedChange(false);
+    };
+  }, [isModalOpen, onBlockedChange]);
+
+  if (!isExplore && isModalOpen) {
+    return null;
+  }
+
+  return (
+    <LocationOnboardingModal
+      visible={isModalOpen}
+      stage={stage}
+      requestPhase={requestPhase}
+      isPositionSlow={isPositionSlow}
+      onContinue={continueRequest}
+      onClose={dismissIntro}
+    />
+  );
+}
 
 export function ClientLayoutContent() {
   const { colors } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
+  const { identity } = useSession();
   const { bookingStart, requestBooking, closeBooking } = useClientExperienceContext();
   const toast = useToast();
   const isNavigatingRef = useRef(false);
+  const [isOnboardingBlocked, setIsOnboardingBlocked] = useState(false);
 
   useEffect(() => {
     if (!bookingStart || isNavigatingRef.current) return;
@@ -55,7 +111,7 @@ export function ClientLayoutContent() {
   return (
     <ClientNavigationShell
       onRequestBooking={requestBooking}
-      interactionBlocked={Boolean(bookingStart)}
+      interactionBlocked={Boolean(bookingStart) || isOnboardingBlocked}
     >
       <Stack
         screenOptions={{
@@ -71,6 +127,11 @@ export function ClientLayoutContent() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="profile" />
       </Stack>
+
+      <ClientLocationOnboardingCoordinator
+        actorId={identity?.id ?? null}
+        onBlockedChange={setIsOnboardingBlocked}
+      />
     </ClientNavigationShell>
   );
 }
