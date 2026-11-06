@@ -34,11 +34,7 @@ export interface UseExploreFeedViewModel {
 export function useExploreFeed(params?: UseExploreFeedParams): UseExploreFeedViewModel {
   const queryClient = useQueryClient();
   const [mode, setModeState] = useState<DiscoveryMode>(() => {
-    const currentLoc = locationStore.getSession();
-    return (
-      params?.initialMode ??
-      (currentLoc.state === 'granted' && currentLoc.coords !== null ? 'NEARBY' : 'ALL')
-    );
+    return params?.initialMode ?? 'ALL';
   });
 
   const [regionKey, setRegionKey] = useState('');

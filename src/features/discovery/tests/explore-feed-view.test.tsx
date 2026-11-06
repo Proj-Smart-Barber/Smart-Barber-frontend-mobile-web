@@ -104,13 +104,17 @@ describe('ExploreFeedView', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ExploreFeedView initialRadius={10} />
+          <ExploreFeedView />
         </ThemeProvider>
       </QueryClientProvider>,
     );
 
     expect(await screen.findByText('Barbearia Estação Mooca — Demonstração')).toBeTruthy();
     expect(await screen.findByText('Barba Terapia e Alinhamento')).toBeTruthy();
+    expect(exploreFeedApi.getFeed).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'ALL' }),
+      expect.anything(),
+    );
   });
   it('oferece recuperação para a busca geral após falha no feed',async()=>{
     const queryClient=new QueryClient({defaultOptions:{queries:{retry:false}}});

@@ -435,7 +435,7 @@ function ClientNavigationShellContent({
     outputRange: [0, 0.65],
   });
 
-  const bottomInset = (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8;
+  const bottomInset = insets.bottom > 0 ? Math.min(insets.bottom, 12) : 8;
 
   const capsuleOpacity = reducedMotion
     ? isDrawerOpen

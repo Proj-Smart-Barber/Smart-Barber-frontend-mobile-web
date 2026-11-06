@@ -572,7 +572,7 @@ export function ExploreFilterSheet({
   };
 
   const handleReset = () => {
-    setSelectedMode(isLocationGranted ? 'NEARBY' : 'ALL');
+    setSelectedMode('ALL');
     setSelectedRadius(10);
     setQuery('');
     setRegion('');

@@ -20,7 +20,7 @@ import { Spinner } from '@/shared/ui/Spinner';
 import { BrandMark } from '@/shared/brand';
 import { useDiscovery } from '../model/use-discovery';
 import type { LocationOnboardingStage } from '../model/use-client-location-onboarding';
-import type { DiscoveryRadius } from '../model/discovery.types';
+import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
 import {
   buildBarbershopCatalogHref,
   type PublicShop,
@@ -36,6 +36,7 @@ export interface ClientNearbyViewProps {
   canAskAgain?: boolean;
   onRecoverPermission?: () => void | Promise<void>;
   onRetryPosition?: () => void | Promise<void>;
+  initialMode?: DiscoveryMode;
   initialRadius?: DiscoveryRadius;
   initialQuery?: string;
 }
@@ -45,6 +46,7 @@ export function ClientNearbyView({
   canAskAgain = true,
   onRecoverPermission,
   onRetryPosition,
+  initialMode = 'ALL',
   initialRadius = 10,
   initialQuery = '',
 }: ClientNearbyViewProps) {
@@ -75,7 +77,7 @@ export function ClientNearbyView({
     locationSession,
     requestLocation,
   } = useDiscovery({
-    initialMode: 'NEARBY',
+    initialMode,
     initialRadius,
     initialQuery,
   });
@@ -256,6 +258,41 @@ export function ClientNearbyView({
               Raio:
             </Text>
             <View style={styles.radiusPillsGroup}>
+              <Pressable
+                onPress={() => {
+                  setRegionFilter('');
+                  setMode('ALL');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Todas as distâncias"
+                accessibilityState={{ selected: effectiveMode === 'ALL' }}
+                aria-selected={effectiveMode === 'ALL'}
+                style={[
+                  styles.radiusPill,
+                  {
+                    borderRadius: radius.md,
+                    borderColor:
+                      effectiveMode === 'ALL'
+                        ? colors.brand.primary
+                        : colors.border.subtle,
+                    backgroundColor:
+                      effectiveMode === 'ALL'
+                        ? colors.brand.primary
+                        : colors.surface.input,
+                  },
+                ]}
+              >
+                <Text
+                  variant="caption"
+                  weight={effectiveMode === 'ALL' ? 'bold' : 'medium'}
+                  color={
+                    effectiveMode === 'ALL' ? '#FFFFFF' : colors.text.secondary
+                  }
+                >
+                  Todas
+                </Text>
+              </Pressable>
+
               {RADIUS_OPTIONS.map((opt) => {
                 const isSelected =
                   filters.radiusKm === opt && effectiveMode === 'NEARBY';
@@ -264,12 +301,17 @@ export function ClientNearbyView({
                     key={opt}
                     onPress={() => {
                       setRegionFilter('');
-                      setMode('NEARBY');
-                      setRadiusKm(opt);
+                      if (isSelected) {
+                        setMode('ALL');
+                      } else {
+                        setMode('NEARBY');
+                        setRadiusKm(opt);
+                      }
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={`Raio de ${opt} quilômetros`}
                     accessibilityState={{ selected: isSelected }}
+                    aria-selected={isSelected}
                     style={[
                       styles.radiusPill,
                       {
@@ -311,7 +353,7 @@ export function ClientNearbyView({
         </View>
       )}
 
-      {/* Identificação Clara do Contexto da Listagem (Proximidade vs Busca Manual) */}
+      {/* Identificação Clara do Contexto da Listagem (Proximidade vs Todas vs Busca Manual) */}
       <View style={[styles.contextIdentificationRow, { marginTop: spacing[3] }]}>
         {isProximityActive ? (
           <View style={styles.contextIdentificationInline}>
@@ -324,6 +366,17 @@ export function ClientNearbyView({
               {`Unidades em até ${filters.radiusKm} km${
                 locationSession.coords?.isApproximate ? ' (distância aproximada)' : ''
               }`}
+            </Text>
+          </View>
+        ) : hasValidCoordinates && !isServiceUnavailable && !searchQuery.trim() ? (
+          <View style={styles.contextIdentificationInline}>
+            <Ionicons
+              name="globe-outline"
+              size={14}
+              color={colors.text.secondary}
+            />
+            <Text variant="caption" weight="semibold" color={colors.text.secondary}>
+              Exibindo todas as barbearias (use os filtros de raio acima para limitar a distância)
             </Text>
           </View>
         ) : (
