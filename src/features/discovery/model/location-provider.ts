@@ -1,4 +1,9 @@
 import { Platform } from 'react-native';
+import {
+  createLocationPermissionPort,
+  type ForegroundPermissionSnapshot,
+  type LocationPermissionPort,
+} from './location-permission';
 
 export type LocationPermissionState =
   | 'idle'
@@ -97,7 +102,10 @@ class EphemeralLocationStore {
   };
 
   private listeners = new Set<(session: LocationSession) => void>();
-  private pendingResolves = new Set<(session: LocationSession) => void>();
+  private permissionPort: LocationPermissionPort = createLocationPermissionPort();
+  private isCustomPort = false;
+  private activeRequestPromise: Promise<LocationSession> | null = null;
+  private activeRestorePromise: Promise<LocationSession> | null = null;
 
   constructor() {
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
@@ -105,6 +113,15 @@ class EphemeralLocationStore {
         this.handleVisibilityChange();
       });
     }
+  }
+
+  setPermissionPort(port: LocationPermissionPort): void {
+    this.permissionPort = port;
+    this.isCustomPort = true;
+  }
+
+  getPermissionPort(): LocationPermissionPort {
+    return this.permissionPort;
   }
 
   private handleVisibilityChange() {
@@ -155,6 +172,8 @@ class EphemeralLocationStore {
       state: 'idle',
       coords: null,
     };
+    this.activeRequestPromise = null;
+    this.activeRestorePromise = null;
     void setCachedRaw(null);
     this.notify();
   }
@@ -164,55 +183,135 @@ class EphemeralLocationStore {
    */
   reset() {
     this.clear();
+    this.permissionPort = createLocationPermissionPort();
+    this.isCustomPort = false;
   }
 
   /**
-   * Restaura coordenadas salvas no cache persistente local (se ainda válidas)
+   * Restaura coordenadas salvas no cache persistente local (se ainda válidas e com permissão confirmada)
    */
   async restoreFromCache(): Promise<LocationSession> {
-    try {
-      const raw = await getCachedRaw();
-      if (!raw) return this.currentSession;
-      const parsed: CachedLocationData = JSON.parse(raw);
-      if (
-        parsed &&
-        typeof parsed.latitude === 'number' &&
-        typeof parsed.longitude === 'number' &&
-        typeof parsed.timestamp === 'number'
-      ) {
-        const isFresh = Date.now() - parsed.timestamp < STALE_TIMEOUT_MS;
-        if (isFresh) {
+    if (this.activeRestorePromise) {
+      return this.activeRestorePromise;
+    }
+
+    this.activeRestorePromise = (async () => {
+      const genId = this.currentSession.generationId;
+      try {
+        const raw = await getCachedRaw();
+        if (!raw) return this.currentSession;
+
+        let parsed: CachedLocationData | null = null;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          await setCachedRaw(null);
+          return this.currentSession;
+        }
+
+        if (
+          !parsed ||
+          typeof parsed.latitude !== 'number' ||
+          typeof parsed.longitude !== 'number' ||
+          typeof parsed.timestamp !== 'number'
+        ) {
+          await setCachedRaw(null);
+          return this.currentSession;
+        }
+
+        // Cache expirado além do TTL de 30 min é inválido
+        const now = Date.now();
+        const age = now - parsed.timestamp;
+        if (age > LOCATION_CACHE_TTL_MS) {
+          await setCachedRaw(null);
+          if (this.currentSession.generationId === genId) {
+            if (this.currentSession.state === 'granted' || this.currentSession.state === 'stale') {
+              this.currentSession = {
+                generationId: genId,
+                state: 'idle',
+                coords: null,
+              };
+              this.notify();
+            }
+          }
+          return this.currentSession;
+        }
+
+        // Valida permissão real antes de publicar cache como granted ou habilitar proximidade
+        let permission: ForegroundPermissionSnapshot;
+        try {
+          permission = await this.permissionPort.get();
+        } catch {
+          // Falha de hardware/consulta de permissão não pode publicar cache
+          if (this.currentSession.generationId === genId) {
+            this.currentSession = {
+              generationId: genId,
+              state: 'unavailable',
+              coords: null,
+              errorMessage: 'Falha ao consultar permissão de localização.',
+            };
+            this.notify();
+          }
+          return this.currentSession;
+        }
+
+        if (this.currentSession.generationId !== genId) {
+          return this.currentSession;
+        }
+
+        if (permission.status === 'granted') {
+          const isFresh = age < STALE_TIMEOUT_MS;
+          const isApproximate =
+            permission.approximate !== null
+              ? permission.approximate
+              : Boolean(parsed.isApproximate);
+
           this.currentSession = {
-            generationId: this.currentSession.generationId,
-            state: 'granted',
+            generationId: genId,
+            state: isFresh ? 'granted' : 'stale',
             coords: {
               latitude: parsed.latitude,
               longitude: parsed.longitude,
               accuracyMeters: parsed.accuracyMeters ?? null,
               timestamp: parsed.timestamp,
-              isApproximate: Boolean(parsed.isApproximate),
+              isApproximate,
               formattedLocation: parsed.formattedLocation ?? null,
             },
+          };
+          this.notify();
+        } else if (permission.status === 'denied' || permission.status === 'unsupported') {
+          // Cache com autorização revogada ou SO sem suporte: limpa dados e não concede distância
+          await setCachedRaw(null);
+          this.currentSession = {
+            generationId: genId,
+            state: permission.status === 'denied' ? 'denied' : 'unavailable',
+            coords: null,
+            errorMessage:
+              permission.status === 'denied'
+                ? 'Permissão de localização negada pelo usuário.'
+                : 'Geolocalização não é suportada neste dispositivo.',
           };
           this.notify();
         } else {
-          this.currentSession = {
-            ...this.currentSession,
-            state: 'stale',
-            coords: {
-              latitude: parsed.latitude,
-              longitude: parsed.longitude,
-              accuracyMeters: parsed.accuracyMeters ?? null,
-              timestamp: parsed.timestamp,
-              isApproximate: Boolean(parsed.isApproximate),
-              formattedLocation: parsed.formattedLocation ?? null,
-            },
-          };
-          this.notify();
+          // 'undetermined': cache não substitui autorização real pendente
+          if (this.currentSession.coords !== null) {
+            this.currentSession = {
+              generationId: genId,
+              state: 'idle',
+              coords: null,
+            };
+            this.notify();
+          }
         }
-      }
-    } catch {}
-    return this.currentSession;
+      } catch {}
+      return this.currentSession;
+    })();
+
+    try {
+      return await this.activeRestorePromise;
+    } finally {
+      this.activeRestorePromise = null;
+    }
   }
 
   /**
@@ -231,63 +330,144 @@ class EphemeralLocationStore {
   }
 
   /**
-   * Solicita localização de forma explícita ao usuário (Web ou Nativo)
+   * Solicita localização de forma explícita ao usuário (Web ou Nativo).
+   * Chamadas simultâneas compartilham a mesma solicitação pendente.
    */
   async requestCurrentPosition(): Promise<LocationSession> {
-    const newGenId = Math.random().toString(36).substring(2, 15);
+    if (this.activeRequestPromise) {
+      return this.activeRequestPromise;
+    }
+
+    const expectedGenId = Math.random().toString(36).substring(2, 15);
     this.currentSession = {
-      generationId: newGenId,
+      generationId: expectedGenId,
       state: 'requesting',
       coords: null,
     };
-
-    // Notifica cancelamento/substituição de requisições concorrentes pendentes
-    for (const resolvePending of this.pendingResolves) {
-      try {
-        resolvePending(this.currentSession);
-      } catch {}
-    }
-    this.pendingResolves.clear();
-
     this.notify();
 
-    if (Platform.OS === 'web') {
-      return this.requestWebPosition(newGenId);
-    }
+    const promise =
+      this.isCustomPort || Platform.OS !== 'web'
+        ? this.executeCustomOrNativeRequest(expectedGenId)
+        : this.requestWebPosition(expectedGenId, null);
 
-    return this.requestNativePosition(newGenId);
+    this.activeRequestPromise = promise.finally(() => {
+      this.activeRequestPromise = null;
+    });
+
+    return this.activeRequestPromise;
   }
 
-  private requestWebPosition(expectedGenId: string): Promise<LocationSession> {
-    return new Promise<LocationSession>((resolve) => {
-      this.pendingResolves.add(resolve);
+  private async executeCustomOrNativeRequest(expectedGenId: string): Promise<LocationSession> {
+    let perm: ForegroundPermissionSnapshot;
+    try {
+      perm = await this.permissionPort.request();
+    } catch (err: any) {
+      if (this.currentSession.generationId !== expectedGenId) {
+        return this.currentSession;
+      }
+      this.currentSession = {
+        generationId: expectedGenId,
+        state: 'unavailable',
+        coords: null,
+        errorMessage: err?.message || 'Falha ao consultar permissão de localização.',
+      };
+      this.notify();
+      return this.currentSession;
+    }
 
-      const safeResolve = (session: LocationSession) => {
-        this.pendingResolves.delete(resolve);
+    if (this.currentSession.generationId !== expectedGenId) {
+      return this.currentSession;
+    }
+
+    if (perm.status === 'denied') {
+      this.currentSession = {
+        generationId: expectedGenId,
+        state: 'denied',
+        coords: null,
+        errorMessage: 'Permissão de localização negada pelo usuário.',
+      };
+      void setCachedRaw(null);
+      this.notify();
+      return this.currentSession;
+    }
+
+    if (perm.status === 'unsupported') {
+      this.currentSession = {
+        generationId: expectedGenId,
+        state: 'unavailable',
+        coords: null,
+        errorMessage: 'Geolocalização não é suportada neste dispositivo.',
+      };
+      void setCachedRaw(null);
+      this.notify();
+      return this.currentSession;
+    }
+
+    if (perm.status === 'undetermined') {
+      this.currentSession = {
+        generationId: expectedGenId,
+        state: 'idle',
+        coords: null,
+      };
+      this.notify();
+      return this.currentSession;
+    }
+
+    // perm.status === 'granted'
+    if (perm.servicesEnabled === false) {
+      this.currentSession = {
+        generationId: expectedGenId,
+        state: 'unavailable',
+        coords: null,
+        errorMessage: 'Serviços de localização desativados no dispositivo.',
+      };
+      this.notify();
+      return this.currentSession;
+    }
+
+    if (Platform.OS === 'web') {
+      return this.requestWebPosition(expectedGenId, perm.approximate);
+    }
+
+    return this.requestNativePosition(expectedGenId, perm.approximate);
+  }
+
+  private requestWebPosition(
+    expectedGenId: string,
+    forcedApproximate: boolean | null = null,
+  ): Promise<LocationSession> {
+    return new Promise<LocationSession>((resolve) => {
+      const finish = (session: LocationSession) => {
         resolve(session);
       };
 
       if (typeof window === 'undefined' || !navigator?.geolocation) {
-        this.currentSession = {
-          generationId: expectedGenId,
-          state: 'unavailable',
-          coords: null,
-          errorMessage: 'Geolocalização não é suportada neste navegador.',
-        };
-        this.notify();
-        return safeResolve(this.currentSession);
+        if (this.currentSession.generationId === expectedGenId) {
+          this.currentSession = {
+            generationId: expectedGenId,
+            state: 'unavailable',
+            coords: null,
+            errorMessage: 'Geolocalização não é suportada neste navegador.',
+          };
+          this.notify();
+        }
+        return finish(this.currentSession);
       }
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           if (this.currentSession.generationId !== expectedGenId) {
-            return safeResolve(this.currentSession);
+            return finish(this.currentSession);
           }
 
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const accuracy = pos.coords.accuracy ?? null;
-          const isApprox = accuracy !== null && accuracy > 1000;
+          const isApprox =
+            forcedApproximate !== null
+              ? forcedApproximate
+              : accuracy !== null && accuracy > 1000;
 
           const coords: EphemeralCoordinates = {
             latitude: lat,
@@ -305,11 +485,11 @@ class EphemeralLocationStore {
           };
           void setCachedRaw(JSON.stringify(coords));
           this.notify();
-          safeResolve(this.currentSession);
+          finish(this.currentSession);
         },
-        (err) => {
+        async (err) => {
           if (this.currentSession.generationId !== expectedGenId) {
-            return safeResolve(this.currentSession);
+            return finish(this.currentSession);
           }
 
           let state: LocationPermissionState = 'unavailable';
@@ -323,14 +503,32 @@ class EphemeralLocationStore {
             message = 'Tempo limite de busca do GPS excedido.';
           }
 
+          // Se for erro de GPS (posição indisponível ou timeout), verificar se permissão era negada
+          if (state !== 'denied') {
+            try {
+              const perm = await this.permissionPort.get();
+              if (perm.status === 'denied') {
+                state = 'denied';
+                message = 'Permissão de localização negada pelo usuário.';
+              }
+            } catch {}
+          }
+
+          if (this.currentSession.generationId !== expectedGenId) {
+            return finish(this.currentSession);
+          }
+
           this.currentSession = {
             generationId: expectedGenId,
             state,
             coords: null,
             errorMessage: message,
           };
+          if (state === 'denied') {
+            void setCachedRaw(null);
+          }
           this.notify();
-          safeResolve(this.currentSession);
+          finish(this.currentSession);
         },
         {
           enableHighAccuracy: true,
@@ -343,6 +541,7 @@ class EphemeralLocationStore {
 
   private async requestNativePosition(
     expectedGenId: string,
+    forcedApproximate: boolean | null = null,
   ): Promise<LocationSession> {
     try {
       let expoLocation: any = null;
@@ -355,37 +554,21 @@ class EphemeralLocationStore {
       }
 
       if (!expoLocation) {
-        this.currentSession = {
-          generationId: expectedGenId,
-          state: 'unavailable',
-          coords: null,
-          errorMessage:
-            'Módulo nativo de localização não está instalado no dispositivo.',
-        };
-        this.notify();
-        return this.currentSession;
-      }
-
-      const { status } =
-        await expoLocation.requestForegroundPermissionsAsync();
-
-      if (this.currentSession.generationId !== expectedGenId) {
-        return this.currentSession;
-      }
-
-      if (status !== 'granted') {
-        this.currentSession = {
-          generationId: expectedGenId,
-          state: 'denied',
-          coords: null,
-          errorMessage: 'Permissão de localização não concedida.',
-        };
-        this.notify();
+        if (this.currentSession.generationId === expectedGenId) {
+          this.currentSession = {
+            generationId: expectedGenId,
+            state: 'unavailable',
+            coords: null,
+            errorMessage:
+              'Módulo nativo de localização não está instalado no dispositivo.',
+          };
+          this.notify();
+        }
         return this.currentSession;
       }
 
       const locationPromise = expoLocation.getCurrentPositionAsync({
-        accuracy: expoLocation.Accuracy.Balanced,
+        accuracy: expoLocation.Accuracy?.Balanced ?? 3,
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -428,7 +611,10 @@ class EphemeralLocationStore {
         longitude: loc.coords.longitude,
         accuracyMeters: accuracy,
         timestamp: Date.now(),
-        isApproximate: accuracy !== null && accuracy > 1000,
+        isApproximate:
+          forcedApproximate !== null
+            ? forcedApproximate
+            : accuracy !== null && accuracy > 1000,
         formattedLocation,
       };
 

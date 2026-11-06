@@ -103,7 +103,23 @@ describe('EphemeralLocationStore', () => {
     unsubscribe();
   });
 
-  it('deve persistir a localização no cache e restaurar com restoreFromCache()', async () => {
+  it('deve persistir a localização no cache e restaurar com restoreFromCache() quando a permissão real for concedida', async () => {
+    locationStore.setPermissionPort({
+      get: async () => ({
+        status: 'granted',
+        canAskAgain: true,
+        servicesEnabled: true,
+        approximate: false,
+      }),
+      request: async () => ({
+        status: 'granted',
+        canAskAgain: true,
+        servicesEnabled: true,
+        approximate: false,
+      }),
+      openSettings: async () => 'manual',
+    });
+
     locationStore.updateSession({
       state: 'granted',
       coords: {
@@ -121,6 +137,39 @@ describe('EphemeralLocationStore', () => {
     expect(restored.state).toBe('granted');
     expect(restored.coords?.latitude).toBe(-23.5491);
     expect(restored.coords?.formattedLocation).toBe('Mooca, São Paulo');
+  });
+
+  it('não deve restaurar cache como granted se a permissão foi revogada', async () => {
+    locationStore.setPermissionPort({
+      get: async () => ({
+        status: 'denied',
+        canAskAgain: false,
+        servicesEnabled: true,
+        approximate: null,
+      }),
+      request: async () => ({
+        status: 'denied',
+        canAskAgain: false,
+        servicesEnabled: true,
+        approximate: null,
+      }),
+      openSettings: async () => 'manual',
+    });
+
+    locationStore.updateSession({
+      state: 'granted',
+      coords: {
+        latitude: -23.5491,
+        longitude: -46.613,
+        accuracyMeters: 12,
+        timestamp: Date.now(),
+        isApproximate: false,
+      },
+    });
+
+    const restored = await locationStore.restoreFromCache();
+    expect(restored.state).toBe('denied');
+    expect(restored.coords).toBeNull();
   });
 
   it('deve limpar o cache ao chamar clear()', async () => {
