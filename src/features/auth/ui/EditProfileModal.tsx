@@ -241,7 +241,7 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
               style={{ flex: 1 }}
             />
             <Button
-              title="Salvar alterações"
+              title={isSubmitting ? 'Salvando alterações…' : 'Salvar alterações'}
               variant="primary"
               loading={isSubmitting}
               disabled={isSubmitting}

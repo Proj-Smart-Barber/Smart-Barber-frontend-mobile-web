@@ -8,7 +8,8 @@ vi.mock('@/shared/theme', () => ({ useTheme: () => ({spacing:Array(20).fill(8),r
   colors:{text:{primary:'#fff',secondary:'#ccc',muted:'#888'},brand:{primary:'#f00'},border:{default:'#777'}}}) }));
 vi.mock('@/shared/navigation/LiquidGlassView', () => ({LiquidGlassView:({children}:{children:React.ReactNode}) => <div>{children}</div>}));
 vi.mock('@/shared/ui', () => ({Text:({children}:{children:React.ReactNode}) => <span>{children}</span>,
-  Skeleton:() => null, EmptyState:({title}:{title:string}) => <span>{title}</span>}));
+  Skeleton:() => null, EmptyState:({title}:{title:string}) => <span>{title}</span>,
+  LoadingRegion: ({ placeholder, children }: any) => <div>{placeholder || children}</div> }));
 afterEach(() => {cleanup();vi.useRealTimers();});
 
 it('uses the server civil day in the shop timezone and advances after local midnight', () => {

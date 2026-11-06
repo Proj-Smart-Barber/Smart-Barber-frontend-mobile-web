@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { BrandMark } from '@/shared/brand';
-import { Text, Badge, EmptyState, ErrorState, Skeleton } from '@/shared/ui';
+import { Text, Badge, EmptyState, ErrorState, Skeleton, LoadingRegion } from '@/shared/ui';
 import { usePublicServices } from '../model/use-public-services';
 import { ServiceCard } from './ServiceCard';
 import { SelectedServicesSummary } from './SelectedServicesSummary';
@@ -337,11 +337,18 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
             </View>
 
             {isLoading ? (
-              <View style={{ gap: spacing[3] }}>
-                <Skeleton height={108} borderRadius={radius.lg} />
-                <Skeleton height={108} borderRadius={radius.lg} />
-                <Skeleton height={108} borderRadius={radius.lg} />
-              </View>
+              <LoadingRegion
+                phase="initial"
+                busy={true}
+                accessibilityLabel="Carregando serviços disponíveis"
+                placeholder={
+                  <View style={{ gap: spacing[3] }}>
+                    <Skeleton height={108} borderRadius={radius.lg} />
+                    <Skeleton height={108} borderRadius={radius.lg} />
+                    <Skeleton height={108} borderRadius={radius.lg} />
+                  </View>
+                }
+              />
             ) : error ? (
               <ErrorState
                 title="Não foi possível carregar os serviços"

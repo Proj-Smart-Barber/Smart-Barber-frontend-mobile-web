@@ -20,6 +20,8 @@ export * from './ui/ExploreFeedView';
 export * from './ui/ExploreSheets';
 export * from './ui/DiscoveryFilters';
 export * from './ui/DiscoverySkeleton';
+export * from './ui/ExploreFeedSkeleton';
+export * from './ui/NearbyResultsSkeleton';
 export * from './ui/ClientSearchEntry';
 export * from './ui/ClientHeader';
 export * from './ui/ClientNextBookingCard';

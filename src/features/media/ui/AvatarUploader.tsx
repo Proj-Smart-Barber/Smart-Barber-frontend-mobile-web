@@ -268,7 +268,7 @@ export const AvatarUploader = React.forwardRef<AvatarUploaderHandle, AvatarUploa
 
           <View style={styles.actionsCol}>
             <Button
-              title={currentAvatarUrl ? 'Alterar foto' : 'Enviar foto'}
+              title={isBusy ? 'Atualizando foto…' : currentAvatarUrl ? 'Alterar foto' : 'Enviar foto'}
               variant="outline"
               onPress={handlePickPhoto}
               loading={isBusy}

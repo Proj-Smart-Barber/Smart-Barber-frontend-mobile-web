@@ -5,7 +5,8 @@ import { invalidateBookingQueries } from '../model/booking-query-keys';
 import { useSession } from '@/features/auth';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../../shared/theme';
-import { Text, Card, Badge, Button, Spinner, Alert, type BadgeTone } from '../../../shared/ui';
+import { Text, Card, Badge, Button, Spinner, Alert, Skeleton, LoadingRegion } from '../../../shared/ui';
+import type { BadgeTone } from '../../../shared/ui';
 import { useBookingDetail } from '../model/use-booking-detail';
 import {
   formatBookingCalendarDate,
@@ -78,8 +79,21 @@ export function BookingDetailView({
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background.primary }]}>
-        <Spinner size="large" />
+      <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
+        <LoadingRegion
+          phase="initial"
+          busy={true}
+          accessibilityLabel="Carregando detalhes do agendamento"
+          placeholder={
+            <View style={{ width: '100%', maxWidth: 640, alignSelf: 'center', gap: spacing.md, paddingTop: spacing.lg }}>
+              <Skeleton height={32} width={180} borderRadius={radius.md} />
+              <Skeleton height={140} borderRadius={radius.lg} />
+              <Skeleton height={100} borderRadius={radius.lg} />
+              <Skeleton height={180} borderRadius={radius.lg} />
+            </View>
+          }
+          style={{ flex: 1, padding: spacing.md }}
+        />
       </View>
     );
   }

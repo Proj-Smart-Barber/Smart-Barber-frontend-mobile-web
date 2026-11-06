@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { useTheme } from '@/shared/theme';
-import { Text, Skeleton, EmptyState } from '@/shared/ui';
+import { Text, Skeleton, EmptyState, LoadingRegion } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { AvailabilitySlotDto } from '../api/bookings.dto';
 import type { SelectedSlot } from '../model/booking-flow.types';
@@ -140,11 +140,18 @@ export function BookingSlotPicker({
         </Text>
 
         {isLoading ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] }}>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} width={76} height={44} borderRadius={radius.md} />
-            ))}
-          </View>
+          <LoadingRegion
+            phase="initial"
+            busy={true}
+            accessibilityLabel="Carregando horários disponíveis"
+            placeholder={
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] }}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} width={76} height={44} borderRadius={radius.md} />
+                ))}
+              </View>
+            }
+          />
         ) : availabilitySlots.length === 0 ? (
           <EmptyState
             title="Nenhum horário livre"
