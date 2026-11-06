@@ -23,9 +23,11 @@ import { NavigationProvider, useNavigation } from './navigation-context';
 
 export interface ClientNavigationShellProps {
   children: React.ReactNode;
+  onRequestBooking?: () => void;
+  interactionBlocked?: boolean;
 }
 
-interface ClientNavItem {
+interface ClientDrawerItem {
   id: string;
   label: string;
   compactLabel?: string;
@@ -34,8 +36,7 @@ interface ClientNavItem {
   iconInactive: keyof typeof Ionicons.glyphMap;
 }
 
-const PRIMARY_CLIENT_TABS: ClientNavItem[] = [
-  { id: 'menu', label: 'Menu', route: '#drawer', iconActive: 'menu', iconInactive: 'menu-outline' },
+const CLIENT_DRAWER_NAV_ITEMS: ClientDrawerItem[] = [
   {
     id: 'home',
     label: 'Início',
@@ -58,8 +59,54 @@ const PRIMARY_CLIENT_TABS: ClientNavItem[] = [
     iconActive: 'calendar',
     iconInactive: 'calendar-outline',
   },
+];
+
+type CapsuleControlKind = 'menu' | 'tab' | 'action';
+
+interface ClientCapsuleControl {
+  id: string;
+  kind: CapsuleControlKind;
+  label: string;
+  compactLabel?: string;
+  route?: string;
+  iconActive: keyof typeof Ionicons.glyphMap;
+  iconInactive: keyof typeof Ionicons.glyphMap;
+}
+
+const CLIENT_CAPSULE_CONTROLS: ClientCapsuleControl[] = [
+  {
+    id: 'menu',
+    kind: 'menu',
+    label: 'Menu',
+    iconActive: 'menu',
+    iconInactive: 'menu-outline',
+  },
+  {
+    id: 'home',
+    kind: 'tab',
+    label: 'Início',
+    route: '/(client)',
+    iconActive: 'home',
+    iconInactive: 'home-outline',
+  },
+  {
+    id: 'book',
+    kind: 'action',
+    label: 'Agendar',
+    iconActive: 'calendar',
+    iconInactive: 'calendar-outline',
+  },
+  {
+    id: 'explore',
+    kind: 'tab',
+    label: 'Explorar',
+    route: '/(client)/explore',
+    iconActive: 'compass',
+    iconInactive: 'compass-outline',
+  },
   {
     id: 'profile',
+    kind: 'tab',
     label: 'Conta',
     route: '/(client)/profile',
     iconActive: 'person',
@@ -67,7 +114,7 @@ const PRIMARY_CLIENT_TABS: ClientNavItem[] = [
   },
 ];
 
-const ACCOUNT_CLIENT_ITEMS: ClientNavItem[] = [
+const ACCOUNT_CLIENT_ITEMS: ClientDrawerItem[] = [
   {
     id: 'notifications',
     label: 'Notificações',
@@ -107,7 +154,11 @@ function isRouteActive(pathname: string, route: string): boolean {
   );
 }
 
-function ClientNavigationShellContent({ children }: ClientNavigationShellProps) {
+function ClientNavigationShellContent({
+  children,
+  onRequestBooking,
+  interactionBlocked = false,
+}: ClientNavigationShellProps) {
   const [measuredNavbarHeight,setMeasuredNavbarHeight]=useState(64);
   const { colors, spacing, radius, isDark } = useTheme();
   const { isExpanded, isCompact } = useAdaptiveLayout();
@@ -117,6 +168,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
   const pathname = usePathname();
   const { identity, signOut } = useSession();
   const reducedMotion = useReducedMotion();
+  const lastBookingPressRef = React.useRef<number>(0);
   const {
     isDrawerOpen,
     isDrawerVisible,
@@ -290,7 +342,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                   DESCOBERTA & AGENDA
                 </Text>
 
-                {PRIMARY_CLIENT_TABS.slice(0, 3).map((item) => (
+                {CLIENT_DRAWER_NAV_ITEMS.map((item) => (
                   <ClientSidebarItem
                     key={item.id}
                     label={item.label}
@@ -409,6 +461,15 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
           inputRange: [0, 1],
           outputRange: [0, 4],
         });
+
+  const handleBookingPress = () => {
+    const now = Date.now();
+    if (now - lastBookingPressRef.current < 600) {
+      return;
+    }
+    lastBookingPressRef.current = now;
+    onRequestBooking?.();
+  };
 
   return (
     <View
@@ -598,7 +659,7 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                     DESCOBERTA & AGENDA
                   </Text>
 
-                  {PRIMARY_CLIENT_TABS.filter((item) => item.id !== 'menu').map((item) => (
+                  {CLIENT_DRAWER_NAV_ITEMS.map((item) => (
                     <ClientSidebarItem
                       key={item.id}
                       label={item.label}
@@ -692,7 +753,10 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
 
       {/* BottomCapsuleBar Canônica (Padrão Owner com contentStyle horizontal e pílula Crimson) */}
       <Animated.View
-        onLayout={event=>{const height=event.nativeEvent.layout.height;if(height>0)setMeasuredNavbarHeight(height);}}
+        onLayout={(event) => {
+          const height = event.nativeEvent.layout.height;
+          if (height > 0) setMeasuredNavbarHeight(height);
+        }}
         style={[
           [
             styles.outerCapsuleContainer,
@@ -703,10 +767,14 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
               transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
             },
           ],
-          { pointerEvents: isDrawerOpen ? 'none' : 'box-none' },
+          { pointerEvents: isDrawerOpen || interactionBlocked ? 'none' : 'box-none' },
         ]}
+        aria-hidden={isDrawerOpen || interactionBlocked}
+        accessibilityElementsHidden={isDrawerOpen || interactionBlocked}
+        importantForAccessibility={isDrawerOpen || interactionBlocked ? 'no-hide-descendants' : 'auto'}
       >
         <LiquidGlassView
+          variant="navigation"
           borderRadius={radius.full}
           intensity={60}
           elevated
@@ -718,41 +786,112 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
             accessibilityLabel="Navegação principal do cliente"
             style={styles.tablistContainer}
           >
-            {PRIMARY_CLIENT_TABS.map((item) => {
-              const isMenuItem = item.id === 'menu';
-              const isActive = isMenuItem ? isDrawerOpen : isRouteActive(pathname, item.route);
-              const iconName = isActive ? item.iconActive : item.iconInactive;
-              const activeBg = colors.brand.primary;
-              const activeTextColor = '#FFFFFF';
-              const inactiveTextColor = colors.text.secondary;
-
-              const handleItemPress = () => {
-                if (isMenuItem) {
+            {CLIENT_CAPSULE_CONTROLS.map((item) => {
+              if (item.kind === 'menu') {
+                const handleMenuPress = () => {
                   if (isDrawerOpen) {
                     closeDrawer();
                   } else {
                     openDrawer();
                   }
-                } else {
-                  handleNavigate(item.route);
-                }
-              };
+                };
+
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isDrawerOpen
+                        ? 'Fechar menu de navegação'
+                        : 'Abrir menu de navegação'
+                    }
+                    accessibilityState={{ expanded: isDrawerOpen }}
+                    aria-expanded={isDrawerOpen}
+                    onPress={handleMenuPress}
+                    style={({ pressed }) => [
+                      styles.tabItem,
+                      {
+                        opacity: pressed ? 0.7 : 1,
+                        backgroundColor: 'transparent',
+                        borderRadius: radius.full,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isDrawerOpen ? item.iconActive : item.iconInactive}
+                      size={20}
+                      color={colors.text.secondary}
+                    />
+                    <Text
+                      variant="caption"
+                      weight="medium"
+                      numberOfLines={1}
+                      style={{
+                        color: colors.text.secondary,
+                        fontSize: 11,
+                        lineHeight: 14,
+                        marginTop: 2,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              }
+
+              if (item.kind === 'action') {
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel="Agendar horário"
+                    onPress={handleBookingPress}
+                    style={({ pressed }) => [
+                      styles.tabItem,
+                      {
+                        opacity: pressed ? 0.85 : 1,
+                        backgroundColor: colors.brand.primary,
+                        borderRadius: radius.full,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={item.iconActive}
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text
+                      variant="caption"
+                      weight="bold"
+                      numberOfLines={1}
+                      style={{
+                        color: '#FFFFFF',
+                        fontSize: 11,
+                        lineHeight: 14,
+                        marginTop: 2,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              }
+
+              const isActive = item.route ? isRouteActive(pathname, item.route) : false;
+              const iconName = isActive ? item.iconActive : item.iconInactive;
+              const activeBg = colors.brand.primary;
+              const activeTextColor = '#FFFFFF';
+              const inactiveTextColor = colors.text.secondary;
 
               return (
                 <Pressable
                   key={item.id}
-                  accessibilityRole={isMenuItem ? 'button' : 'tab'}
-                  accessibilityLabel={
-                    isMenuItem
-                      ? isDrawerOpen
-                        ? 'Fechar menu de navegação'
-                        : 'Abrir menu de navegação'
-                      : `${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`
-                  }
-                  accessibilityState={
-                    isMenuItem ? { expanded: isDrawerOpen } : { selected: isActive }
-                  }
-                  onPress={handleItemPress}
+                  accessibilityRole="tab"
+                  accessibilityLabel={`${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`}
+                  accessibilityState={{ selected: isActive }}
+                  onPress={() => item.route && handleNavigate(item.route)}
                   style={({ pressed }) => [
                     styles.tabItem,
                     {
@@ -773,13 +912,13 @@ function ClientNavigationShellContent({ children }: ClientNavigationShellProps) 
                     numberOfLines={1}
                     style={{
                       color: isActive ? activeTextColor : inactiveTextColor,
-                      fontSize: isCompact && item.compactLabel ? 10 : 11,
-                      lineHeight: isCompact && item.compactLabel ? 12 : 14,
-                      marginTop: isCompact && item.compactLabel ? 1 : 2,
+                      fontSize: 11,
+                      lineHeight: 14,
+                      marginTop: 2,
                       textAlign: 'center',
                     }}
                   >
-                    {isCompact ? (item.compactLabel ?? item.label) : item.label}
+                    {item.label}
                   </Text>
                 </Pressable>
               );
@@ -862,10 +1001,19 @@ function ClientSidebarItem({
   );
 }
 
-export function ClientNavigationShell({ children }: ClientNavigationShellProps) {
+export function ClientNavigationShell({
+  children,
+  onRequestBooking,
+  interactionBlocked,
+}: ClientNavigationShellProps) {
   return (
     <NavigationProvider>
-      <ClientNavigationShellContent>{children}</ClientNavigationShellContent>
+      <ClientNavigationShellContent
+        onRequestBooking={onRequestBooking}
+        interactionBlocked={interactionBlocked}
+      >
+        {children}
+      </ClientNavigationShellContent>
     </NavigationProvider>
   );
 }
