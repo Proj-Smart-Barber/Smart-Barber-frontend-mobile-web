@@ -147,7 +147,7 @@ describe('ExploreFeedSlide', () => {
       </ThemeProvider>,
     );
 
-    fireEvent.click(screen.getByLabelText('Ver detalhes do serviço e agendar'));
+    fireEvent.click(screen.getByLabelText('Ver detalhes do serviço'));
     expect(onOpenService).toHaveBeenCalledWith(mockItem, mockItem.media[0]);
 
     fireEvent.click(screen.getByLabelText('Abrir catálogo completo de serviços da barbearia'));
@@ -155,6 +155,66 @@ describe('ExploreFeedSlide', () => {
 
     fireEvent.click(screen.getByLabelText('Ver sobre a barbearia, endereço e mapa'));
     expect(onOpenAbout).toHaveBeenCalledWith(mockItem);
+  });
+
+  it('usa papel secundário em vidro para a ação lateral de serviço, preservando Sobre e avaliações sem competir como CTA primário', () => {
+    const onOpenService = vi.fn();
+    const onOpenReviews = vi.fn();
+
+    render(
+      <ThemeProvider>
+        <ExploreFeedSlide
+          item={mockItem}
+          width={390}
+          height={844}
+          bottomInset={80}
+          topInset={44}
+          locationLabel="Perto de você"
+          onOpenService={onOpenService}
+          onOpenCatalog={vi.fn()}
+          onOpenAbout={vi.fn()}
+          onOpenReviews={onOpenReviews}
+          onOpenFilters={vi.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    const detailBtn = screen.getByLabelText('Ver detalhes do serviço');
+    expect(detailBtn).toBeTruthy();
+    expect(screen.getByText('Detalhes')).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText(/Toque para ver avaliações publicadas/i));
+    expect(onOpenReviews).toHaveBeenCalledWith(mockItem);
+  });
+
+  it('não renderiza vídeo nem inventa serviço/preço para mídia ambiental ou de equipe quando isActive=false', () => {
+    const envOnlyItem: ExploreFeedItem = {
+      ...mockItem,
+      media: [mockItem.media[1]],
+    };
+
+    render(
+      <ThemeProvider>
+        <ExploreFeedSlide
+          item={envOnlyItem}
+          isActive={false}
+          width={390}
+          height={844}
+          bottomInset={80}
+          topInset={44}
+          locationLabel="Perto de você"
+          onOpenService={vi.fn()}
+          onOpenCatalog={vi.fn()}
+          onOpenAbout={vi.fn()}
+          onOpenReviews={vi.fn()}
+          onOpenFilters={vi.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText('Ambiente da Barbearia')).toBeTruthy();
+    expect(screen.queryByText(/R\$/i)).toBeNull();
+    expect(screen.queryByTestId('native-video-mock')).toBeNull();
   });
 });
 

@@ -23,7 +23,7 @@ function ClientLocationOnboardingCoordinator({
   const pathname = usePathname();
   const { isCompact } = useAdaptiveLayout();
   const { isDrawerOpen } = useNavigation();
-  const { bookingStart } = useClientExperienceContext();
+  const { bookingStart, publishLocationOnboarding } = useClientExperienceContext();
 
   const isExplore = pathname === '/(client)/explore' || pathname === '/explore';
   const enabled = isCompact && isExplore && !isDrawerOpen && !bookingStart;
@@ -31,13 +31,28 @@ function ClientLocationOnboardingCoordinator({
   const {
     stage,
     requestPhase,
+    canAskAgain,
     isPositionSlow,
     continueRequest,
+    retryPosition,
+    recoverPermission,
     dismissIntro,
   } = useClientLocationOnboarding({
     actorId,
     enabled,
   });
+
+  useEffect(() => {
+    publishLocationOnboarding({
+      stage,
+      canAskAgain,
+      recoverPermission,
+      retryPosition,
+    });
+    return () => {
+      publishLocationOnboarding(null);
+    };
+  }, [stage, canAskAgain, recoverPermission, retryPosition, publishLocationOnboarding]);
 
   const isModalOpen = stage === 'intro' || stage === 'requesting';
 

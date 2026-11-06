@@ -16,6 +16,7 @@ import { Spinner } from '@/shared/ui/Spinner';
 import { LoadingRegion } from '@/shared/ui';
 import { BrandMark } from '@/shared/brand';
 import { useExploreFeed } from '../model/use-explore-feed';
+import type { ActiveClientMedia } from '../model/client-experience-context';
 import { ExploreFeedSlide } from './ExploreFeedSlide';
 import { ExploreFeedSkeleton } from './ExploreFeedSkeleton';
 import {
@@ -31,22 +32,42 @@ import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
 export interface ExploreFeedViewProps {
   initialMode?: DiscoveryMode;
   initialRadius?: DiscoveryRadius;
+  isVisible?: boolean;
+  topOffset?: number;
+  onActiveMediaChange?: (value: ActiveClientMedia | null) => void;
 }
 
-export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewProps) {
-  const { colors, isDark } = useTheme();
+export function ExploreFeedView({
+  initialMode,
+  initialRadius,
+  isVisible = true,
+  topOffset,
+  onActiveMediaChange,
+}: ExploreFeedViewProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useAppSafeArea();
 
-  const measuredNavbar=useContext(ClientNavbarMetricsContext);
-  const [containerWidth,setContainerWidth]=useState(windowWidth);
-  const photoPositions=useRef(new Map<string,number>());
-  const rememberPhoto=useCallback((id:string,index:number)=>{photoPositions.current.set(id,index);},[]);
+  const measuredNavbar = useContext(ClientNavbarMetricsContext);
+  const [containerWidth, setContainerWidth] = useState(windowWidth);
+  const [photoIndexByShop, setPhotoIndexByShop] = useState<Record<string, number>>({});
+  const photoPositions = useRef(new Map<string, number>());
+
+  const rememberPhoto = useCallback((id: string, index: number) => {
+    photoPositions.current.set(id, index);
+    setPhotoIndexByShop((prev) =>
+      prev[id] === index ? prev : { ...prev, [id]: index },
+    );
+  }, []);
+
   const [containerHeight, setContainerHeight] = useState(windowHeight);
 
   // Bottom inset consideration for floating capsule bar (approx 64px) + safe area
-  const bottomInset = Math.max(measuredNavbar, (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8);
-  const topInset = insets.top > 0 ? insets.top + 8 : 16;
+  const bottomInset = Math.max(
+    measuredNavbar,
+    (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8,
+  );
+  const topInset =
+    topOffset !== undefined ? topOffset : insets.top > 0 ? insets.top + 8 : 16;
 
   const stageHeight = containerHeight > 0 ? containerHeight : windowHeight;
 
@@ -81,17 +102,123 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
   const [selectedMedia, setSelectedMedia] = useState<ExploreFeedMediaItem | null>(null);
 
   const [activeIndex, setActiveIndex] = useState(0);
+  const activeShopIdRef = useRef<string | null>(null);
+  const isVisibleRef = useRef(isVisible);
+  isVisibleRef.current = isVisible;
+
   const onVisible = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (!isVisibleRef.current) return;
     const first = viewableItems.find((item) => item.isViewable);
-    if (first?.index != null) setActiveIndex(first.index);
+    if (first?.index != null) {
+      setActiveIndex(first.index);
+      if (first.item?.barbershop?.id) {
+        activeShopIdRef.current = first.item.barbershop.id;
+      }
+    }
   }).current;
   const visibility = useRef({ itemVisiblePercentThreshold: 60 }).current;
   const flatListRef = useRef<FlatList<ExploreFeedItem>>(null);
 
+  // Restore by valid shop/media when results change, avoiding showing another barbershop under old context
+  useEffect(() => {
+    if (items.length === 0) {
+      if (activeIndex !== 0) setActiveIndex(0);
+      activeShopIdRef.current = null;
+      return;
+    }
+
+    const currentShopId = activeShopIdRef.current;
+    if (currentShopId) {
+      const foundIndex = items.findIndex((it) => it.barbershop.id === currentShopId);
+      if (foundIndex >= 0) {
+        if (foundIndex !== activeIndex) {
+          setActiveIndex(foundIndex);
+        }
+        return;
+      }
+    }
+
+    if (activeIndex >= items.length) {
+      setActiveIndex(0);
+      activeShopIdRef.current = items[0]?.barbershop.id ?? null;
+    } else {
+      activeShopIdRef.current = items[activeIndex]?.barbershop.id ?? null;
+    }
+  }, [items, activeIndex]);
+
   useEffect(() => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     setActiveIndex(0);
+    activeShopIdRef.current = null;
   }, [mode, radiusKm, searchQuery, locationSession.generationId, regionKey]);
+
+  // Publish active media to ClientExperienceContext when visible; publish null when hidden or empty
+  const onActiveMediaChangeRef = useRef(onActiveMediaChange);
+  onActiveMediaChangeRef.current = onActiveMediaChange;
+
+  useEffect(() => {
+    const callback = onActiveMediaChangeRef.current;
+    if (!callback) return;
+
+    if (!isVisible || items.length === 0) {
+      callback(null);
+      return;
+    }
+
+    const currentItem = items[activeIndex] ?? items[0];
+    if (!currentItem || !currentItem.barbershop?.id) {
+      callback(null);
+      return;
+    }
+
+    const shopId = currentItem.barbershop.id;
+    const photos = currentItem.media.length > 0 ? currentItem.media : [];
+    if (photos.length === 0) {
+      callback(null);
+      return;
+    }
+
+    const storedPhotoIdx =
+      photoIndexByShop[shopId] ?? photoPositions.current.get(shopId) ?? 0;
+    const validPhotoIdx = Math.max(0, Math.min(storedPhotoIdx, photos.length - 1));
+    const currentMedia = photos[validPhotoIdx] ?? null;
+
+    if (!currentMedia) {
+      callback(null);
+      return;
+    }
+
+    // Only associate service when media kind is 'service' and service object is present
+    const realService =
+      currentMedia.kind === 'service' && currentMedia.service
+        ? {
+            id: currentMedia.service.id,
+            title: currentMedia.service.title,
+            priceInCents: currentMedia.service.priceInCents,
+            durationInMinutes: currentMedia.service.durationInMinutes,
+          }
+        : null;
+
+    callback({
+      shopId,
+      shopName: currentItem.barbershop.name,
+      mediaId: currentMedia.id,
+      service: realService,
+    });
+  }, [isVisible, items, activeIndex, photoIndexByShop]);
+
+  useEffect(() => {
+    return () => {
+      onActiveMediaChangeRef.current?.(null);
+    };
+  }, []);
+
+  // Close active sheets if feed becomes hidden
+  useEffect(() => {
+    if (!isVisible && activeSheet !== null) {
+      setActiveSheet(null);
+    }
+  }, [isVisible, activeSheet]);
 
   const handleOpenService = useCallback(
     (item: ExploreFeedItem, activeMedia: ExploreFeedMediaItem) => {
@@ -147,9 +274,9 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
     ({ item, index }: { item: ExploreFeedItem; index: number }) => (
       <ExploreFeedSlide
         item={item}
-        isActive={index === activeIndex && activeSheet === null}
-        isNear={Math.abs(index - activeIndex) <= 1}
-        initialPhotoIndex={photoPositions.current.get(item.barbershop.id)??0}
+        isActive={isVisible && index === activeIndex && activeSheet === null}
+        isNear={isVisible && Math.abs(index - activeIndex) <= 1}
+        initialPhotoIndex={photoPositions.current.get(item.barbershop.id) ?? 0}
         onPhotoIndexChange={rememberPhoto}
         width={containerWidth}
         height={stageHeight}
@@ -164,9 +291,11 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
       />
     ),
     [
+      isVisible,
       activeIndex,
       activeSheet,
-      containerWidth,rememberPhoto,
+      containerWidth,
+      rememberPhoto,
       stageHeight,
       bottomInset,
       topInset,
@@ -188,49 +317,83 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
     [stageHeight],
   );
 
-  const activeIndexRef=useRef(activeIndex);activeIndexRef.current=activeIndex;
-  useEffect(()=>{flatListRef.current?.scrollToOffset({offset:activeIndexRef.current*stageHeight,animated:false});},[stageHeight,containerWidth]);
+  const activeIndexRef = useRef(activeIndex);
+  activeIndexRef.current = activeIndex;
+  useEffect(() => {
+    if (stageHeight > 0 && containerWidth > 0) {
+      flatListRef.current?.scrollToOffset({
+        offset: activeIndexRef.current * stageHeight,
+        animated: false,
+      });
+    }
+  }, [stageHeight, containerWidth]);
 
   const handleEndReached = useCallback(() => {
+    if (!isVisible) return;
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [isVisible, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handleLayout = useCallback(
+    (e: any) => {
+      if (!isVisible) return;
+      const layoutWidth = e.nativeEvent.layout.width;
+      const layoutHeight = e.nativeEvent.layout.height;
+      // Ignore zero or invalid dimensions from a hidden container
+      if (layoutWidth > 0) {
+        setContainerWidth(layoutWidth);
+      }
+      if (layoutHeight > 0 && Math.abs(layoutHeight - containerHeight) > 1) {
+        setContainerHeight(layoutHeight);
+      }
+    },
+    [isVisible, containerHeight],
+  );
 
   if (isLoading && items.length === 0) {
     return (
       <View
-        style={styles.container}
-        onLayout={(e) => {
-          const layoutWidth = e.nativeEvent.layout.width;
-          if (layoutWidth > 0) setContainerWidth(layoutWidth);
-          const layoutHeight = e.nativeEvent.layout.height;
-          if (layoutHeight > 0 && Math.abs(layoutHeight - containerHeight) > 1) {
-            setContainerHeight(layoutHeight);
-          }
-        }}
+        style={[styles.container, !isVisible && styles.hiddenContainer]}
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        aria-hidden={!isVisible}
+        accessibilityElementsHidden={!isVisible}
+        importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+        onLayout={handleLayout}
       >
-        <LoadingRegion
-          phase="initial"
-          busy={true}
-          accessibilityLabel="Carregando experiências do feed Explorar"
-          placeholder={
-            <ExploreFeedSkeleton
-              width={containerWidth}
-              height={stageHeight}
-              bottomInset={bottomInset}
-              topInset={topInset}
-            />
-          }
-          style={{ flex: 1 }}
-        />
+        {isVisible && (
+          <LoadingRegion
+            phase="initial"
+            busy={true}
+            accessibilityLabel="Carregando experiências do feed Explorar"
+            placeholder={
+              <ExploreFeedSkeleton
+                width={containerWidth}
+                height={stageHeight}
+                bottomInset={bottomInset}
+                topInset={topInset}
+              />
+            }
+            style={{ flex: 1 }}
+          />
+        )}
       </View>
     );
   }
 
   if (error && items.length === 0) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: '#0a0a0a', padding: 24 }]}>
+      <View
+        style={[
+          styles.centerContainer,
+          { backgroundColor: '#0a0a0a', padding: 24 },
+          !isVisible && styles.hiddenContainer,
+        ]}
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        aria-hidden={!isVisible}
+        accessibilityElementsHidden={!isVisible}
+        importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+      >
         <BrandMark size={48} variant="symbol-ivory" decorative />
         <Text style={styles.errorTitle}>Não foi possível carregar o feed</Text>
         <Text style={styles.errorSubtext}>
@@ -242,14 +405,34 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
           onPress={refetch}
           style={{ marginTop: 20 }}
         />
-        <Button variant="outline" title="Ver todas as regiões" onPress={()=>{setMode('ALL');setRegionKey('');setSearchQuery('');if(mode==='ALL')refetch();}} style={{marginTop:12}}/>
+        <Button
+          variant="outline"
+          title="Ver todas as regiões"
+          onPress={() => {
+            setMode('ALL');
+            setRegionKey('');
+            setSearchQuery('');
+            if (mode === 'ALL') refetch();
+          }}
+          style={{ marginTop: 12 }}
+        />
       </View>
     );
   }
 
   if (items.length === 0) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: '#0a0a0a', padding: 24 }]}>
+      <View
+        style={[
+          styles.centerContainer,
+          { backgroundColor: '#0a0a0a', padding: 24 },
+          !isVisible && styles.hiddenContainer,
+        ]}
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        aria-hidden={!isVisible}
+        accessibilityElementsHidden={!isVisible}
+        importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+      >
         <BrandMark size={48} variant="symbol-crimson" decorative />
         <Text style={styles.emptyTitle}>Nenhuma barbearia encontrada</Text>
         <Text style={styles.emptySubtext}>
@@ -276,14 +459,12 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
 
   return (
     <View
-      style={styles.container}
-      onLayout={(e) => {
-        const layoutWidth=e.nativeEvent.layout.width;if(layoutWidth>0)setContainerWidth(layoutWidth);
-        const layoutHeight = e.nativeEvent.layout.height;
-        if (layoutHeight > 0 && Math.abs(layoutHeight - containerHeight) > 1) {
-          setContainerHeight(layoutHeight);
-        }
-      }}
+      style={[styles.container, !isVisible && styles.hiddenContainer]}
+      pointerEvents={isVisible ? 'auto' : 'none'}
+      aria-hidden={!isVisible}
+      accessibilityElementsHidden={!isVisible}
+      importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+      onLayout={handleLayout}
     >
       <FlatList
         ref={flatListRef}
@@ -293,12 +474,13 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
         renderItem={renderItem}
         keyExtractor={(item) => item.barbershop.id}
         pagingEnabled
+        scrollEnabled={isVisible}
         showsVerticalScrollIndicator={false}
         snapToInterval={stageHeight}
         snapToAlignment="start"
         decelerationRate="fast"
         getItemLayout={getItemLayout}
-        onEndReached={handleEndReached}
+        onEndReached={isVisible ? handleEndReached : undefined}
         onEndReachedThreshold={0.5}
         removeClippedSubviews={Platform.OS !== 'web'}
         maxToRenderPerBatch={3}
@@ -307,7 +489,7 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
         style={StyleSheet.absoluteFill}
       />
 
-      {isFetchingNextPage && (
+      {isVisible && isFetchingNextPage && (
         <View
           style={{
             position: 'absolute',
@@ -330,7 +512,7 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
         </View>
       )}
 
-      {error && items.length > 0 && (
+      {isVisible && error && items.length > 0 && (
         <View
           style={{
             position: 'absolute',
@@ -353,7 +535,7 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
         </View>
       )}
 
-      {isProximityUnavailable && (
+      {isVisible && isProximityUnavailable && (
         <View
           style={{
             position: 'absolute',
@@ -390,32 +572,32 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
 
       {/* Sheets Interativos */}
       <ExploreServiceSheet
-        visible={activeSheet === 'service'}
+        visible={isVisible && activeSheet === 'service'}
         item={selectedItem}
         activeMedia={selectedMedia}
         onClose={handleCloseSheet}
       />
 
       <ExploreCatalogSheet
-        visible={activeSheet === 'catalog'}
+        visible={isVisible && activeSheet === 'catalog'}
         item={selectedItem}
         onClose={handleCloseSheet}
       />
 
       <ExploreAboutSheet
-        visible={activeSheet === 'about'}
+        visible={isVisible && activeSheet === 'about'}
         item={selectedItem}
         onClose={handleCloseSheet}
       />
 
       <ExploreReviewsSheet
-        visible={activeSheet === 'reviews'}
+        visible={isVisible && activeSheet === 'reviews'}
         item={selectedItem}
         onClose={handleCloseSheet}
       />
 
       <ExploreFilterSheet
-        visible={activeSheet === 'filters'}
+        visible={isVisible && activeSheet === 'filters'}
         mode={mode}
         radiusKm={radiusKm}
         searchQuery={searchQuery}
@@ -433,6 +615,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
     position: 'relative',
+  },
+  hiddenContainer: {
+    opacity: 0,
   },
   centerContainer: {
     flex: 1,

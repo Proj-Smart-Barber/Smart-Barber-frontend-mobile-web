@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { usePathname } from 'expo-router';
+import type { LocationOnboardingStage } from './use-client-location-onboarding';
 
 export type ActiveClientMedia = {
   shopId: string;
@@ -17,10 +18,19 @@ export type BookingStart =
   | { kind: 'contextual'; context: ActiveClientMedia }
   | { kind: 'general' };
 
+export interface ClientLocationOnboardingBridge {
+  stage: LocationOnboardingStage;
+  canAskAgain: boolean;
+  recoverPermission: () => Promise<void>;
+  retryPosition: () => Promise<void>;
+}
+
 export interface ClientExperienceContextValue {
   activeMedia: ActiveClientMedia | null;
   bookingStart: BookingStart | null;
+  locationOnboarding: ClientLocationOnboardingBridge | null;
   publishActiveMedia: (value: ActiveClientMedia | null) => void;
+  publishLocationOnboarding: (value: ClientLocationOnboardingBridge | null) => void;
   requestBooking: () => void;
   closeBooking: () => void;
 }
@@ -51,6 +61,8 @@ export function ClientExperienceProvider({
 
   const [activeMedia, setActiveMedia] = useState<ActiveClientMedia | null>(null);
   const [bookingStart, setBookingStart] = useState<BookingStart | null>(null);
+  const [locationOnboarding, setLocationOnboarding] =
+    useState<ClientLocationOnboardingBridge | null>(null);
 
   const activeMediaRef = useRef<ActiveClientMedia | null>(null);
   activeMediaRef.current = activeMedia;
@@ -73,6 +85,13 @@ export function ClientExperienceProvider({
     activeMediaRef.current = value;
     setActiveMedia(value);
   }, []);
+
+  const publishLocationOnboarding = useCallback(
+    (value: ClientLocationOnboardingBridge | null) => {
+      setLocationOnboarding(value);
+    },
+    [],
+  );
 
   const requestBooking = useCallback(() => {
     // Duplo toque / chamadas concorrentes produzem uma única solicitação
@@ -120,7 +139,9 @@ export function ClientExperienceProvider({
   const value: ClientExperienceContextValue = {
     activeMedia,
     bookingStart,
+    locationOnboarding,
     publishActiveMedia,
+    publishLocationOnboarding,
     requestBooking,
     closeBooking,
   };
@@ -138,4 +159,8 @@ export function useClientExperienceContext(): ClientExperienceContextValue {
     throw new Error('useClientExperienceContext deve ser utilizado dentro de um ClientExperienceProvider');
   }
   return context;
+}
+
+export function useOptionalClientExperienceContext(): ClientExperienceContextValue | null {
+  return useContext(ClientExperienceContext);
 }
