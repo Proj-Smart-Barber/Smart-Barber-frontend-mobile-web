@@ -5,9 +5,9 @@ import { Animated, Platform, Share } from 'react-native';
 
 describe('Navigation Helpers', () => {
   describe('getActiveDestinationFromPathname', () => {
-    it('identifica jornada pessoal sem ativar disponibilidade geral', () => {
-      expect(getActiveDestinationFromPathname('/my-schedule')).toBe('my-schedule');
-      expect(getActiveDestinationFromPathname('/(app)/my-schedule')).toBe('my-schedule');
+    it('identifica /my-schedule como alias da rota unificada de disponibilidade', () => {
+      expect(getActiveDestinationFromPathname('/my-schedule')).toBe('availability');
+      expect(getActiveDestinationFromPathname('/(app)/my-schedule')).toBe('availability');
     });
     it('deve retornar home quando pathname for nulo, indefinido ou vazio', () => {
       expect(getActiveDestinationFromPathname(null)).toBe('home');

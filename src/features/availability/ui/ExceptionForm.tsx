@@ -19,6 +19,7 @@ interface ExceptionFormProps {
   mode?: 'create' | 'edit';
   initialValues?: AvailabilityExceptionFormValues;
   onCancelEdit?: () => void;
+  scope?: 'unit' | 'individual';
 }
 
 const EMPTY_VALUES: AvailabilityExceptionFormValues = {
@@ -40,10 +41,13 @@ export function ExceptionForm({
   mode = 'create',
   initialValues,
   onCancelEdit,
+  scope,
 }: ExceptionFormProps) {
   const isEdit = mode === 'edit';
   const [open, setOpen] = useState(isEdit);
   const { colors, spacing, radius } = useTheme();
+
+  const isIndividual = scope ? scope === 'individual' : Boolean(initialValues?.barbermanId);
 
   const {
     control,
@@ -83,7 +87,7 @@ export function ExceptionForm({
   if (!open) {
     return (
       <Button
-        title="Adicionar exceção"
+        title={isIndividual ? 'Adicionar folga ou bloqueio' : 'Adicionar exceção da barbearia'}
         variant="outline"
         leftIcon={<Ionicons name="add" size={20} color={colors.brand.primary} />}
         onPress={() => setOpen(true)}
@@ -120,12 +124,22 @@ export function ExceptionForm({
         </View>
         <View style={styles.headerCopy}>
           <Text variant="h3" color={colors.text.primary}>
-            {isEdit ? 'Editar exceção' : 'Nova exceção'}
+            {isEdit
+              ? isIndividual
+                ? 'Editar folga ou bloqueio'
+                : 'Editar exceção da barbearia'
+              : isIndividual
+                ? 'Nova folga ou bloqueio'
+                : 'Nova exceção da barbearia'}
           </Text>
           <Text variant="caption" color={colors.text.secondary}>
             {isEdit
-              ? 'Atualize a data, o período ou o motivo desta exceção.'
-              : 'Ajuste uma data sem alterar a jornada semanal.'}
+              ? isIndividual
+                ? 'Atualize a data, o intervalo de bloqueio ou o motivo.'
+                : 'Atualize a data, o período ou o motivo desta exceção da unidade.'
+              : isIndividual
+                ? 'Registre uma folga de dia inteiro ou intervalo de indisponibilidade específico.'
+                : 'Ajuste uma data sem alterar a jornada semanal da barbearia.'}
           </Text>
         </View>
       </View>
@@ -142,7 +156,9 @@ export function ExceptionForm({
       >
         <Ionicons name="information-circle-outline" size={18} color={colors.text.secondary} />
         <Text variant="caption" color={colors.text.secondary} style={styles.helperText}>
-          Deixe abertura e fechamento vazios para fechar a unidade durante o dia inteiro.
+          {isIndividual
+            ? 'Deixe início e fim do bloqueio vazios para registrar folga de dia inteiro.'
+            : 'Deixe abertura e fechamento vazios para fechar a unidade durante o dia inteiro.'}
         </Text>
       </View>
 
@@ -172,7 +188,10 @@ export function ExceptionForm({
             control={control}
             name="openTime"
             render={({ field }) => (
-              <FormField label="Abertura" error={errors.openTime?.message}>
+              <FormField
+                label={isIndividual ? 'Início do bloqueio' : 'Abertura'}
+                error={errors.openTime?.message}
+              >
                 <TextInput
                   value={field.value ?? ''}
                   onChangeText={(v) => {
@@ -184,7 +203,7 @@ export function ExceptionForm({
                   keyboardType="numeric"
                   maxLength={5}
                   editable={!disabled}
-                  accessibilityLabel="Horário de abertura da exceção"
+                  accessibilityLabel={isIndividual ? 'Horário de início do bloqueio' : 'Horário de abertura da exceção'}
                   leftIcon={
                     <Ionicons name="time-outline" size={18} color={colors.text.secondary} />
                   }
@@ -200,7 +219,10 @@ export function ExceptionForm({
             control={control}
             name="closeTime"
             render={({ field }) => (
-              <FormField label="Fechamento" error={errors.closeTime?.message}>
+              <FormField
+                label={isIndividual ? 'Fim do bloqueio' : 'Fechamento'}
+                error={errors.closeTime?.message}
+              >
                 <TextInput
                   value={field.value ?? ''}
                   onChangeText={(v) => {
@@ -212,7 +234,7 @@ export function ExceptionForm({
                   keyboardType="numeric"
                   maxLength={5}
                   editable={!disabled}
-                  accessibilityLabel="Horário de fechamento da exceção"
+                  accessibilityLabel={isIndividual ? 'Horário de fim do bloqueio' : 'Horário de fechamento da exceção'}
                   leftIcon={
                     <Ionicons name="time-outline" size={18} color={colors.text.secondary} />
                   }
@@ -228,12 +250,12 @@ export function ExceptionForm({
         control={control}
         name="reason"
         render={({ field }) => (
-          <FormField label="Motivo (opcional)">
+          <FormField label={isIndividual ? 'Motivo da folga ou bloqueio (opcional)' : 'Motivo (opcional)'}>
             <TextInput
               value={field.value ?? ''}
               onChangeText={(v) => field.onChange(v === '' ? null : v)}
               onBlur={field.onBlur}
-              placeholder="Feriado, folga, manutenção..."
+              placeholder={isIndividual ? 'Consulta médica, folga, imprevisto...' : 'Feriado, folga geral, manutenção...'}
               editable={!disabled}
               accessibilityLabel="Motivo da exceção"
               leftIcon={
@@ -253,8 +275,8 @@ export function ExceptionForm({
           style={styles.cancelButton}
         />
         <Button
-          title={isEdit ? 'Salvar edição' : 'Salvar exceção'}
-          loadingTitle={isEdit ? 'Salvando edição…' : 'Salvando exceção…'}
+          title={isEdit ? 'Salvar alteração' : isIndividual ? 'Salvar folga / bloqueio' : 'Salvar exceção'}
+          loadingTitle={isEdit ? 'Salvando alteração…' : 'Salvando…'}
           variant="primary"
           leftIcon={<Ionicons name="checkmark" size={20} color="#FFFFFF" />}
           onPress={() => { void handleSubmit(handleSave)(); }}

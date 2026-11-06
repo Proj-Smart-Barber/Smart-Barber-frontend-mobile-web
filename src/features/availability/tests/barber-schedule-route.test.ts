@@ -10,9 +10,9 @@ const state = vi.hoisted(() => ({
 vi.mock('@/features/auth', () => ({ useSession: () => state.session }));
 vi.mock('@/shared/config/env', () => ({ ENV: state.env }));
 vi.mock('@/shared/ui', () => ({ ErrorState: () => null }));
-vi.mock('@/features/availability', () => ({ BarberScheduleScreen: () => null }));
+vi.mock('@/features/availability', () => ({ UnifiedAvailabilityContainer: () => null, BarberScheduleScreen: () => null }));
 import MyScheduleRoute from '@/app/(app)/my-schedule';
-import { BarberScheduleScreen as RouteScreen } from '@/features/availability';
+import { UnifiedAvailabilityContainer as RouteScreen } from '@/features/availability';
 import { ErrorState } from '@/shared/ui';
 
 describe('rota pessoal na sessão atual', () => {

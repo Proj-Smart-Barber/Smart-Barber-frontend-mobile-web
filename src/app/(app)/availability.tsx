@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { AvailabilityScreen } from '@/features/availability';
+import { UnifiedAvailabilityContainer } from '@/features/availability';
 import { useSession } from '@/features/auth';
 
 export default function AvailabilityRoute() {
@@ -8,10 +8,12 @@ export default function AvailabilityRoute() {
     barbermanId?: string;
     professionalName?: string;
     name?: string;
+    scope?: 'unit' | 'personal' | 'team';
   }>();
 
   return (
-    <AvailabilityScreen
+    <UnifiedAvailabilityContainer
+      initialScope={params.scope}
       barbershopId={barbershop?.id ?? null}
       barbermanId={params.barbermanId ?? null}
       professionalName={params.professionalName ?? params.name ?? null}

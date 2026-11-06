@@ -43,10 +43,15 @@ const MESSAGES = {
   pendingAttempt: 'Há uma tentativa anterior sem resultado confirmado. Consulte o resultado antes de salvar.',
 } as const;
 
-export function useBarberScheduleViewModel(shopId: string, barbermanId: string) {
+export function useBarberScheduleViewModel(
+  shopId: string,
+  barbermanId: string,
+  explicitActorId?: string,
+) {
   const session = useSession();
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const currentActorId = explicitActorId ?? session?.identity?.id ?? '';
   const shop = useBarbershopQuery(shopId);
   const general = useScheduleScopeQuery(shopId);
   const personal = useScheduleScopeQuery(shopId, barbermanId);
@@ -67,6 +72,21 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
   const { isDirty } = methods.formState;
   const initialized = useRef(false);
 
+  const currentScopeRef = useRef(`${shopId}:${barbermanId}`);
+  useEffect(() => {
+    const key = `${shopId}:${barbermanId}`;
+    if (currentScopeRef.current !== key) {
+      currentScopeRef.current = key;
+      initialized.current = false;
+      baseline.current = null;
+      setPending(null);
+      setConflict(null);
+      setVersionReview(null);
+      setAccessLost(false);
+      setFeedback(null);
+    }
+  }, [shopId, barbermanId]);
+
   const adopt = useCallback((document: ScheduleScopeDocument) => {
     baseline.current = document;
     methods.reset(scheduleForm(document));
@@ -85,7 +105,9 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
   // Uma tentativa deixada em aberto por recarga/queda continua recuperável por referência opaca.
   useEffect(() => {
     let cancelled = false;
-    void operationAttemptStore.listReferences(barbermanId).then(async refs => {
+    const actor = explicitActorId ?? sessionRef.current?.identity?.id;
+    if (!actor) return;
+    void operationAttemptStore.listReferences(actor).then(async refs => {
       for (const ref of refs) {
         if (ref.resourceKind !== 'SCHEDULE' || ref.operation !== SCHEDULE_OPERATION) continue;
         if (!['submitting', 'uncertain'].includes(ref.status)) continue;
@@ -95,12 +117,22 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
       }
     }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [shopId, barbermanId]);
+  }, [shopId, barbermanId, explicitActorId]);
 
   const isCurrentContext = useCallback(() => {
     const context = getBarberScheduleContext(sessionRef.current);
-    return Boolean(context && context.shopId === shopId && context.userId === barbermanId);
-  }, [shopId, barbermanId]);
+    if (!context || context.shopId !== shopId) return false;
+    const actor = explicitActorId ?? context.userId;
+    // Se o usuário autenticado está editando a própria jornada
+    if (actor === barbermanId && context.userId === barbermanId) {
+      return true;
+    }
+    // Se o usuário autenticado for OWNER da unidade ativa, ele pode administrar membros da equipe
+    if (context.role === 'OWNER') {
+      return true;
+    }
+    return false;
+  }, [shopId, barbermanId, explicitActorId]);
 
   const applyDocument = useCallback((document: ScheduleScopeDocument) => {
     cache.setQueryData(AVAILABILITY_QUERY_KEYS.scope(shopId, barbermanId), document);
@@ -168,10 +200,11 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
     lock.current = true; setBusy(true); setFeedback(null); setConflict(null);
     try {
       if (!isCurrentContext()) { setAccessLost(true); setFeedback(MESSAGES.accessLost); return; }
+      const actor = explicitActorId ?? sessionRef.current?.identity?.id ?? '';
       const outcome = await saveSchedule(
         availabilityRepository,
         {
-          actorId: barbermanId,
+          actorId: actor,
           shopId,
           barbermanId,
           state: values.state,
@@ -206,16 +239,18 @@ export function useBarberScheduleViewModel(shopId: string, barbermanId: string) 
   /** Consulta o contrato de operações; nunca reenvia o PUT nem sobrescreve o rascunho. */
   async function reconcile() {
     if (lock.current || !pending) return;
+    const actor = explicitActorId ?? sessionRef.current?.identity?.id ?? '';
     lock.current = true; setBusy(true);
-    try { await applyReconcile(await reconcileSchedule(barbermanId, pending.requestId, barbermanId, {}, shopId)); }
+    try { await applyReconcile(await reconcileSchedule(actor, pending.requestId, barbermanId, {}, shopId)); }
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
 
   /** Encerra no servidor uma tentativa sem resposta; só então o rascunho pode ser enviado com nova chave. */
   async function abandonAttempt() {
     if (lock.current || !pending) return;
+    const actor = explicitActorId ?? sessionRef.current?.identity?.id ?? '';
     lock.current = true; setBusy(true);
-    try { await applyReconcile(await closeScheduleAttempt(barbermanId, pending.requestId, barbermanId, {}, shopId)); }
+    try { await applyReconcile(await closeScheduleAttempt(actor, pending.requestId, barbermanId, {}, shopId)); }
     finally { lock.current = false; if (alive.current) setBusy(false); }
   }
 
