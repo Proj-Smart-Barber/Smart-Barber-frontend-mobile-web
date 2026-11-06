@@ -30,6 +30,7 @@ export * from './lib/normalize-booking-error';
 
 export * from './ui/BookingFlowView';
 export * from './ui/BookingCard';
+export * from './ui/ClientBookingsSkeleton';
 export * from './ui/BookingDetailView';
 export * from './ui/BookingHistory';
 export * from './ui/BookingActionConfirm';

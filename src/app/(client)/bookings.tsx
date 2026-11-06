@@ -4,11 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '../../shared/theme';
 import { useAppSafeArea } from '../../shared/theme/use-app-safe-area';
-import { Text, EmptyState, Spinner, Button, Card, Badge, SegmentedFilter } from '../../shared/ui';
+import { Text, EmptyState, Spinner, Button, Card, Badge, SegmentedFilter, LoadingRegion } from '../../shared/ui';
 import { useNavigation } from '../../shared/navigation';
 import { ClientNavbarMetricsContext } from '../../shared/navigation/ClientNavbarMetrics';
 import { useSession } from '../../features/auth';
-import { useMyBookings } from '../../features/bookings/model/use-my-bookings';
+import { useMyBookings, ClientBookingsSkeleton } from '../../features/bookings';
 import { BookingCard } from '../../features/bookings/ui/BookingCard';
 import type { BookingDto } from '../../features/bookings/api/bookings.dto';
 
@@ -60,20 +60,6 @@ export default function ClientBookingsScreen() {
     actorId: identity?.id,
     enabled: isAuthenticated,
   });
-
-  if (isLoading) {
-    return (
-      <View
-        style={[
-          styles.center,
-          { backgroundColor: colors.background.primary },
-          webBackgroundStyle,
-        ]}
-      >
-        <Spinner size="large" />
-      </View>
-    );
-  }
 
   const displayedItems =
     activeTab === 'upcoming' ? upcoming : activeTab === 'past' ? past : bookings;
@@ -151,7 +137,19 @@ export default function ClientBookingsScreen() {
         </View>
       </View>
 
-      {error ? (
+      {isLoading ? (
+        <LoadingRegion
+          phase="initial"
+          busy={true}
+          accessibilityLabel="Carregando seus agendamentos"
+          placeholder={
+            <View style={styles.contentConstraint}>
+              <ClientBookingsSkeleton count={3} />
+            </View>
+          }
+          style={{ flex: 1, paddingHorizontal: isCompact ? 16 : 32, paddingTop: spacing.md }}
+        />
+      ) : error ? (
         <View style={styles.center}>
           <Text variant="body" style={{ color: colors.feedback.error, textAlign: 'center' }}>
             Não foi possível carregar os agendamentos devido a uma instabilidade no servidor (503/rede).

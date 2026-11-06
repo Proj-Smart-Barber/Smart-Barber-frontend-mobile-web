@@ -13,9 +13,11 @@ import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
+import { LoadingRegion } from '@/shared/ui';
 import { BrandMark } from '@/shared/brand';
 import { useExploreFeed } from '../model/use-explore-feed';
 import { ExploreFeedSlide } from './ExploreFeedSlide';
+import { ExploreFeedSkeleton } from './ExploreFeedSkeleton';
 import {
   ExploreServiceSheet,
   ExploreCatalogSheet,
@@ -197,14 +199,31 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
 
   if (isLoading && items.length === 0) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: '#0a0a0a' }]}>
-        <BrandMark size={56} variant="symbol-crimson" decorative />
-        <View style={{ marginTop: 20 }}>
-          <Spinner size="large" />
-        </View>
-        <Text style={[styles.loadingText, { color: '#e0e0e0' }]}>
-          Carregando experiências do Explorar...
-        </Text>
+      <View
+        style={styles.container}
+        onLayout={(e) => {
+          const layoutWidth = e.nativeEvent.layout.width;
+          if (layoutWidth > 0) setContainerWidth(layoutWidth);
+          const layoutHeight = e.nativeEvent.layout.height;
+          if (layoutHeight > 0 && Math.abs(layoutHeight - containerHeight) > 1) {
+            setContainerHeight(layoutHeight);
+          }
+        }}
+      >
+        <LoadingRegion
+          phase="initial"
+          busy={true}
+          accessibilityLabel="Carregando experiências do feed Explorar"
+          placeholder={
+            <ExploreFeedSkeleton
+              width={containerWidth}
+              height={stageHeight}
+              bottomInset={bottomInset}
+              topInset={topInset}
+            />
+          }
+          style={{ flex: 1 }}
+        />
       </View>
     );
   }
@@ -287,6 +306,29 @@ export function ExploreFeedView({ initialMode, initialRadius }: ExploreFeedViewP
         initialNumToRender={2}
         style={StyleSheet.absoluteFill}
       />
+
+      {isFetchingNextPage && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: bottomInset + 12,
+            alignSelf: 'center',
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 20,
+            zIndex: 30,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}
+          accessibilityRole="status"
+          accessibilityLiveRegion="polite"
+        >
+          <Spinner size="small" />
+          <Text style={{ color: '#fff', fontSize: 12 }}>Carregando mais experiências…</Text>
+        </View>
+      )}
 
       {error && items.length > 0 && (
         <View

@@ -66,3 +66,31 @@ Ambiente de medição: runtime frontend local (Expo 58 / Metro Web), com rede si
   - Substitui referência anterior de loading.
   - Tarefa 0 e 1: somente registro de metadados e integridade de hash; nenhuma cópia para código de produto ou alteração em loaders nesta etapa.
   - Tarefa 1L: cópia integral preservando bytes e transparência para `assets/images/brand/sb-loading-transparent.gif`, mantendo o BrandMark oficial estático como fallback.
+
+---
+
+## 4. Atualização Factual — Conclusão da Fase 1L
+
+1. **Correções Fatuais na Base Real**:
+   - O feed Explorar utiliza `FlatList` nativo com `getItemLayout`, `pagingEnabled` e paginação contínua (e não `FlashList`).
+   - Mídia de vídeo é carregada dinamicamente via `ExploreVideo` dentro de `ExploreFeedSlide.tsx` (não existe módulo separado `ExploreFeedVideo.tsx`).
+
+2. **Componentes Padronizados Implementados**:
+   - `assets/images/brand/sb-loading-transparent.gif`: Cópia idêntica e verificada do GIF transparente oficial (SHA-256 idêntico ao original).
+   - `BrandLoadingIndicator`: Monograma sem placa preta, desmontado imediatamente quando inativo, com fallback automático para `BrandMark` quando `useReducedMotion() === true`.
+   - `useLoadingFeedback`: Temporização honesta com atraso visual de 200ms para `refresh`, `next-page` e `media` (evitando flicker em redes rápidas), feedback imediato (0ms) para `initial`, `mutation`, `locating`, e detecção de espera longa (>8s).
+   - `LoadingRegion`: Região acessível com `aria-busy`, live region `polite`, ocultação de placeholders decorativos para leitores de tela (`aria-hidden={true}`) e banner visual/acessível de espera prolongada.
+   - Esqueletos de Domínio: `ExploreFeedSkeleton` (geometria completa de palco e trilhos), `NearbyResultsSkeleton`, `ClientBookingsSkeleton` (destaque + lista) e `NotificationsSkeleton`.
+
+3. **Integrações de Superfície Realizadas**:
+   - `ExploreFeedView`: Substituído loading cego por `LoadingRegion` + `ExploreFeedSkeleton`. Paginação com indicador transitório não-bloqueante.
+   - `ClientBookingsScreen` (`src/app/(client)/bookings.tsx`): Removido `if (isLoading)` que destruía a tela; cabeçalho e abas permanecem montados enquanto `LoadingRegion` renderiza `ClientBookingsSkeleton`.
+   - `ClientNotificationsScreen` (`src/app/(client)/notifications.tsx`): Cabeçalho e botões de retorno/perfil permanecem montados durante o carregamento com `NotificationsSkeleton`.
+   - `EditProfileModal`: Feedback contextual honesto no botão de submissão ("Salvando alterações…") com trava síncrona imediata contra double-tap e preservação do formulário.
+   - `AvatarUploader`: Feedback honesto ("Atualizando foto…") com bloqueio de concorrência e preservação de estado.
+   - `PublicCatalogView`, `BookingSlotPicker`, `BookingReview`, `BookingDetailView`: Skeletons e botões de confirmação contextualizados sem spinners duplicados ou sobreposições cegas.
+
+4. **Verificação Automatizada**:
+   - Suíte de 8 arquivos de testes de loading (23 testes) 100% aprovada.
+   - Suíte global frontend: 136 arquivos (855 testes) aprovados.
+   - Typecheck (`tsc --noEmit`): 0 erros.

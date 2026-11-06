@@ -307,7 +307,13 @@ export function BookingReview({
           />
         ) : (
           <Button
-            title={quoteMismatch ? 'Aceitar e Confirmar Novos Valores' : 'Confirmar Agendamento'}
+            title={
+              isSubmitting
+                ? 'Confirmando agendamento…'
+                : quoteMismatch
+                  ? 'Aceitar e Confirmar Novos Valores'
+                  : 'Confirmar Agendamento'
+            }
             variant="primary"
             loading={isSubmitting}
             disabled={isSubmitting}

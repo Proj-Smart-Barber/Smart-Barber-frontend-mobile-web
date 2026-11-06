@@ -9,11 +9,13 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { Spinner } from '@/shared/ui/Spinner';
 import { Badge } from '@/shared/ui/Badge';
 import { Button } from '@/shared/ui/Button';
+import { LoadingRegion } from '@/shared/ui';
 import { useNavigation } from '@/shared/navigation';
 import { ClientNavbarMetricsContext } from '@/shared/navigation/ClientNavbarMetrics';
 import { useSession } from '@/features/auth';
 import { useNotificationsFeed } from '@/features/notifications/model/notification-queries';
 import { NotificationCard } from '@/features/notifications/ui/NotificationCard';
+import { NotificationsSkeleton } from '@/features/notifications/ui/NotificationsSkeleton';
 
 export default function ClientNotificationsScreen() {
   const router = useRouter();
@@ -51,20 +53,6 @@ export default function ClientNotificationsScreen() {
     refetch,
     isRefetching,
   } = useNotificationsFeed(identity?.id, { cursor, limit: 20 });
-
-  if (isLoading) {
-    return (
-      <View
-        style={[
-          styles.center,
-          { backgroundColor: colors.background.primary },
-          webBackgroundStyle,
-        ]}
-      >
-        <Spinner size="large" />
-      </View>
-    );
-  }
 
   const notifications = data?.notifications ?? [];
   const unreadCount = data?.unreadCount ?? 0;
@@ -143,7 +131,19 @@ export default function ClientNotificationsScreen() {
         </View>
       </View>
 
-      {error ? (
+      {isLoading ? (
+        <LoadingRegion
+          phase="initial"
+          busy={true}
+          accessibilityLabel="Carregando notificações"
+          placeholder={
+            <View style={styles.contentConstraint}>
+              <NotificationsSkeleton count={4} />
+            </View>
+          }
+          style={{ flex: 1, paddingHorizontal: isCompact ? 16 : 32, paddingTop: spacing.md }}
+        />
+      ) : error ? (
         <View style={styles.center}>
           <Text variant="body" style={{ color: colors.feedback.error }}>
             Não foi possível carregar as notificações.

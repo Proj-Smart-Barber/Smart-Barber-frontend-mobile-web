@@ -1,12 +1,14 @@
 import React from 'react';
-import { View } from 'react-native';
+import { ImageSourcePropType, View } from 'react-native';
 import { BrandMark } from '../brand';
 import { useTheme } from '../theme';
+import { BrandLoadingIndicator } from './BrandLoadingIndicator';
 import { Spinner } from './Spinner';
 import { Text } from './Text';
 
 export interface BootstrapScreenProps {
   message?: string;
+  clientLoadingBrandSource?: ImageSourcePropType;
 }
 
 /**
@@ -16,6 +18,7 @@ export interface BootstrapScreenProps {
  */
 export function BootstrapScreen({
   message = 'Verificando sua sessão…',
+  clientLoadingBrandSource,
 }: BootstrapScreenProps) {
   const { colors, spacing, isDark } = useTheme();
 
@@ -32,12 +35,22 @@ export function BootstrapScreen({
         backgroundColor: colors.background.primary,
       }}
     >
-      <BrandMark
-        variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-        size={136}
-        decorative={false}
-      />
-      <Spinner size="large" color={colors.brand.primary} />
+      {clientLoadingBrandSource ? (
+        <BrandLoadingIndicator
+          animatedSource={clientLoadingBrandSource}
+          size={136}
+          accessibilityLabel={message}
+        />
+      ) : (
+        <>
+          <BrandMark
+            variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+            size={136}
+            decorative={false}
+          />
+          <Spinner size="large" color={colors.brand.primary} />
+        </>
+      )}
       <Text
         variant="bodySm"
         align="center"
