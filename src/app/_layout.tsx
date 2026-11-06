@@ -190,13 +190,15 @@ function ClockLifecycleBridge({
   const prevActorIdRef = useRef<string | null>(actorId);
 
   useEffect(() => {
-    // Invalida o relógio e a localização efêmera no logout ou na troca de ator/conta
+    // Invalida o relógio no logout ou troca de ator; preserva localização salva do dispositivo
+    // e restaura coordenadas imediatamente ao autenticar
     if (
       sessionStatus === 'unauthenticated' ||
       (prevActorIdRef.current !== null && prevActorIdRef.current !== actorId)
     ) {
       serverClock.clear();
-      locationStore.clear();
+    } else if (sessionStatus === 'authenticated') {
+      void locationStore.restoreFromCache?.();
     }
     prevActorIdRef.current = actorId;
   }, [actorId, sessionStatus]);

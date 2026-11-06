@@ -602,7 +602,10 @@ export function ExploreFeedView({
         radiusKm={radiusKm}
         searchQuery={searchQuery}
         regionKey={regionKey}
-        isLocationGranted={locationSession.state === 'granted'}
+        isLocationGranted={
+          (locationSession.state === 'granted' || locationSession.state === 'stale') &&
+          locationSession.coords !== null
+        }
         onClose={handleCloseSheet}
         onApplyFilters={handleApplyFilters}
       />

@@ -89,7 +89,9 @@ vi.mock('@/shared/ui', () => ({
   ToastProvider: ({ children }: any) => children,
 }));
 vi.mock('@/features/bookings', () => ({ serverClock: { clear() {} } }));
-vi.mock('@/features/discovery', () => ({ locationStore: { clear() {} } }));
+vi.mock('@/features/discovery', () => ({
+  locationStore: { clear() {}, restoreFromCache: async () => ({}) },
+}));
 vi.mock('@/shared/operations/OperationLifecycleBridge', () => ({
   OperationLifecycleBridge: () => null,
 }));

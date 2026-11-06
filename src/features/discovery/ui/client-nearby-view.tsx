@@ -19,6 +19,7 @@ import { LoadingRegion } from '@/shared/ui/LoadingRegion';
 import { Spinner } from '@/shared/ui/Spinner';
 import { BrandMark } from '@/shared/brand';
 import { useDiscovery } from '../model/use-discovery';
+import { locationStore } from '../model/location-provider';
 import type { LocationOnboardingStage } from '../model/use-client-location-onboarding';
 import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
 import {
@@ -149,8 +150,12 @@ export function ClientNearbyView({
   };
 
   function locationStoreHasCoords(): boolean {
+    const current = locationStore.getSession();
     return (
-      locationSession.state === 'granted' && locationSession.coords !== null
+      ((current.state === 'granted' || current.state === 'stale') &&
+        current.coords !== null) ||
+      ((locationSession.state === 'granted' || locationSession.state === 'stale') &&
+        locationSession.coords !== null)
     );
   }
 

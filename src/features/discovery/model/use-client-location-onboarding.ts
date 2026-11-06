@@ -10,7 +10,7 @@ import {
   type LocationSession,
 } from './location-provider';
 
-export const LOCATION_INTRO_STORAGE_KEY = '@smart_barber:location_intro:v1';
+export const LOCATION_INTRO_STORAGE_KEY = '@smart_barber:location_intro:v2';
 
 export type LocationOnboardingStage =
   | 'checking'
@@ -183,8 +183,9 @@ export function useClientLocationOnboarding({
         if (currentSession.state === 'granted' && currentSession.coords) {
           setStage('ready');
         } else {
-          // Permissão concedida no sistema: tenta obter posição em background
+          // Permissão concedida: restaura coordenadas salvas (ou obtém no nativo) sem reabrir prompt
           setStage('ready');
+          void locationStore.refreshPositionIfGranted(snapshot.approximate);
         }
         return;
       }
@@ -248,9 +249,9 @@ export function useClientLocationOnboarding({
         setCanAskAgain(snapshot.canAskAgain);
 
         if (snapshot.status === 'granted') {
-          // Se o usuário concedeu permissão nas configurações do sistema, adquire a posição
+          // Se o usuário concedeu permissão nas configurações do sistema, restaura ou adquire a posição
           setStage('ready');
-          void locationStore.requestCurrentPosition();
+          void locationStore.refreshPositionIfGranted(snapshot.approximate);
         } else if (snapshot.status === 'denied') {
           setStage('denied');
         }
@@ -305,23 +306,34 @@ export function useClientLocationOnboarding({
       setCanAskAgain(snapshot.canAskAgain);
 
       if (snapshot.status === 'granted') {
-        setRequestPhase('position');
-        try {
-          const session = await locationStore.requestCurrentPosition();
-          if (generationRef.current !== gen || currentActorIdRef.current !== actor) {
-            return;
-          }
+        if (snapshot.coords) {
+          locationStore.updateSession({
+            state: 'granted',
+            coords: {
+              ...snapshot.coords,
+              formattedLocation: null,
+            },
+          });
+          setStage('ready');
+        } else {
+          setRequestPhase('position');
+          try {
+            const session = await locationStore.requestCurrentPosition();
+            if (generationRef.current !== gen || currentActorIdRef.current !== actor) {
+              return;
+            }
 
-          if (session.state === 'granted') {
-            setStage('ready');
-          } else {
+            if (session.state === 'granted') {
+              setStage('ready');
+            } else {
+              setStage('unavailable');
+            }
+          } catch {
+            if (generationRef.current !== gen || currentActorIdRef.current !== actor) {
+              return;
+            }
             setStage('unavailable');
           }
-        } catch {
-          if (generationRef.current !== gen || currentActorIdRef.current !== actor) {
-            return;
-          }
-          setStage('unavailable');
         }
       } else if (snapshot.status === 'denied' || snapshot.status === 'unsupported') {
         setStage('denied');
@@ -409,12 +421,23 @@ export function useClientLocationOnboarding({
         setCanAskAgain(snapshot.canAskAgain);
 
         if (snapshot.status === 'granted') {
-          setRequestPhase('position');
-          const session = await locationStore.requestCurrentPosition();
-          if (generationRef.current !== gen || currentActorIdRef.current !== actor) {
-            return;
+          if (snapshot.coords) {
+            locationStore.updateSession({
+              state: 'granted',
+              coords: {
+                ...snapshot.coords,
+                formattedLocation: null,
+              },
+            });
+            setStage('ready');
+          } else {
+            setRequestPhase('position');
+            const session = await locationStore.requestCurrentPosition();
+            if (generationRef.current !== gen || currentActorIdRef.current !== actor) {
+              return;
+            }
+            setStage(session.state === 'granted' ? 'ready' : 'unavailable');
           }
-          setStage(session.state === 'granted' ? 'ready' : 'unavailable');
         } else {
           setStage(snapshot.status === 'denied' ? 'denied' : 'unavailable');
         }
