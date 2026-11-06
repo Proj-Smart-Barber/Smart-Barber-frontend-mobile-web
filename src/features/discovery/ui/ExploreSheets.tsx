@@ -18,6 +18,8 @@ import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { usePublicServices } from '@/features/services/model/use-public-services';
 import { BarbershopReviewsList } from '@/features/reviews/ui/BarbershopReviewsList';
+import { LocationStatusPanel } from './location-status-panel';
+import { locationStore } from '../model/location-provider';
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
 import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
 
@@ -708,6 +710,30 @@ export function ExploreFilterSheet({
                 </Pressable>
               </View>
             </View>
+
+            {/* Painel de status e recuperação quando NEARBY selecionado sem permissão/posição */}
+            {selectedMode === 'NEARBY' && !isLocationGranted && (
+              <View style={{ marginBottom: 16 }}>
+                <LocationStatusPanel
+                  status={
+                    locationStore.getSession().state === 'unavailable' ||
+                    locationStore.getSession().state === 'timeout'
+                      ? 'unavailable'
+                      : 'denied'
+                  }
+                  canAskAgain={true}
+                  onRecoverPermission={async () => {
+                    await locationStore.requestCurrentPosition();
+                  }}
+                  onRetryPosition={async () => {
+                    await locationStore.requestCurrentPosition();
+                  }}
+                  onManualSearch={() => {
+                    setSelectedMode('ALL');
+                  }}
+                />
+              </View>
+            )}
 
             {/* Raio de Proximidade (apenas se NEARBY) */}
             {selectedMode === 'NEARBY' && (
