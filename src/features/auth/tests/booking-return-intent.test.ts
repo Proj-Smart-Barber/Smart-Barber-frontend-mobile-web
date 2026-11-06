@@ -39,4 +39,11 @@ describe('R2 — booking-return-intent', () => {
     clearBookingReturnIntent();
     expect(getBookingReturnIntent()).toBeNull();
   });
+
+  it('retorno de reserva preserva caminho canônico público sem desvio para feed', () => {
+    setBookingReturnIntent({ shopId: 'barbearia-centro', draftId: 'draft-abc-456' });
+    const intent = getBookingReturnIntent();
+    expect(intent?.returnPath).toBe('/barbershops/barbearia-centro/book');
+    expect(intent?.returnPath).not.toContain('/explore');
+  });
 });
