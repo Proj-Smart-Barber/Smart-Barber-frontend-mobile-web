@@ -76,40 +76,48 @@ export function ClientExploreTabs({
                 styles.tabButton,
                 {
                   borderRadius: radius.md,
-                  backgroundColor: isSelected
-                    ? colors.brand.primary
-                    : pressed
-                      ? isOverMedia || isDark
-                        ? 'rgba(255, 255, 255, 0.12)'
-                        : 'rgba(0, 0, 0, 0.06)'
-                      : 'transparent',
-                  borderColor: isSelected
-                    ? colors.brand.primary
+                  backgroundColor: pressed
+                    ? isOverMedia || isDark
+                      ? 'rgba(255, 255, 255, 0.12)'
+                      : 'rgba(0, 0, 0, 0.06)'
                     : 'transparent',
+                  borderColor: 'transparent',
                   ...(Platform.OS === 'web'
                     ? ({
                         cursor: 'pointer',
                         userSelect: 'none',
                         transition: reducedMotion
                           ? 'none'
-                          : 'background-color 150ms ease',
+                          : 'background-color 150ms ease, opacity 150ms ease',
                       } as any)
                     : {}),
                 },
               ]}
             >
-              <Text
-                variant="caption"
-                weight={isSelected ? 'bold' : 'semibold'}
-                align="center"
-                color={isSelected ? '#FFFFFF' : inactiveTextColor}
-                style={[
-                  styles.tabLabel,
-                  isOverMedia && !isSelected ? styles.overMediaTextShadow : null,
-                ]}
-              >
-                {item.label}
-              </Text>
+              <View style={styles.tabContent}>
+                <Text
+                  variant="caption"
+                  weight={isSelected ? 'bold' : 'semibold'}
+                  align="center"
+                  color={isSelected ? '#FFFFFF' : inactiveTextColor}
+                  style={[
+                    styles.tabLabel,
+                    isOverMedia ? styles.overMediaTextShadow : null,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                <View
+                  style={[
+                    styles.underline,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.brand.primary
+                        : 'transparent',
+                    },
+                  ]}
+                />
+              </View>
             </Pressable>
           );
         })}
@@ -133,11 +141,22 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     minHeight: 44,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+  },
+  tabContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  underline: {
+    height: 3,
+    width: '100%',
+    borderRadius: 2,
+    marginTop: 4,
   },
   tabLabel: {
     lineHeight: 16,
