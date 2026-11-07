@@ -34,6 +34,7 @@ export interface AvatarUploaderProps {
   aspect?: [number, number];
   shape?: 'circle' | 'rounded';
   variant?: 'standard' | 'compact' | 'avatar-only';
+  onBusyChange?: (isBusy: boolean) => void;
 }
 
 export const AvatarUploader = React.forwardRef<AvatarUploaderHandle, AvatarUploaderProps>(
@@ -49,6 +50,7 @@ export const AvatarUploader = React.forwardRef<AvatarUploaderHandle, AvatarUploa
       aspect = [1, 1],
       shape = 'circle',
       variant = 'standard',
+      onBusyChange,
     },
     ref,
   ) {
@@ -60,6 +62,10 @@ export const AvatarUploader = React.forwardRef<AvatarUploaderHandle, AvatarUploa
 
   const isBusy = customUpload ? localUploading : isUploading;
   const activeError = customUpload ? localError : hookError;
+
+  React.useEffect(() => {
+    onBusyChange?.(isBusy);
+  }, [isBusy, onBusyChange]);
 
   const handleFileChange = async (event: any) => {
     const file = event?.target?.files?.[0];

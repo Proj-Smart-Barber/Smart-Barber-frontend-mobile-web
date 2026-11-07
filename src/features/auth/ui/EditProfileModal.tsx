@@ -78,6 +78,7 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
   };
 
   const handleSave = async () => {
+    if (isSubmitting) return;
     if (!validate()) return;
 
     setIsSubmitting(true);
@@ -209,19 +210,19 @@ export function EditProfileModal({ visible, onClose, onSuccess }: EditProfileMod
               ]}
             >
               <View style={styles.readOnlyRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
                   <Text variant="caption" color={colors.text.muted}>
                     E-mail da conta
                   </Text>
                   <Text variant="bodySm" weight="medium" color={colors.text.secondary}>
-                    {identity?.email || 'cliente@smartbarber.com'}
+                    {identity?.email ? identity.email : 'Não informado'}
                   </Text>
                 </View>
                 <Badge label="Somente leitura" tone="neutral" size="sm" />
               </View>
 
               <Text variant="caption" color={colors.text.muted} style={{ fontSize: 11 }}>
-                Por motivos de segurança, e-mail e CPF não podem ser alterados por este formulário.
+                Este formulário permite alterar apenas o nome e o telefone de contato. O e-mail da conta não pode ser alterado por este formulário.
               </Text>
             </View>
           </ScrollView>
