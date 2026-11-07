@@ -68,7 +68,7 @@ const mockItem: ExploreFeedItem = {
 };
 
 describe('ExploreFeedSlide', () => {
-  it('deve renderizar o título Explorar, identificação da barbearia, nota e distância formatada', () => {
+  it('não deve renderizar o título duplicado Explorar no slide, preservando identificação da barbearia, nota e distância formatada', () => {
     const onOpenService = vi.fn();
     const onOpenCatalog = vi.fn();
     const onOpenAbout = vi.fn();
@@ -93,7 +93,8 @@ describe('ExploreFeedSlide', () => {
       </ThemeProvider>,
     );
 
-    expect(screen.getByText('Explorar')).toBeTruthy();
+    // C-006: segundo título "Explorar" removido do slide
+    expect(screen.queryByText('Explorar')).toBeNull();
     expect(screen.getByText('Barbearia Horizonte — Demonstração')).toBeTruthy();
     expect(screen.getByText('Vila Mariana, São Paulo')).toBeTruthy();
     expect(screen.getByText(/4,8 \(126\)/)).toBeTruthy();
@@ -215,6 +216,36 @@ describe('ExploreFeedSlide', () => {
     expect(screen.getByText('Ambiente da Barbearia')).toBeTruthy();
     expect(screen.queryByText(/R\$/i)).toBeNull();
     expect(screen.queryByTestId('native-video-mock')).toBeNull();
+  });
+
+  it('C-008: atualiza índice e chama onPhotoIndexChange via scroll horizontal compatível com web', () => {
+    const onPhotoIndexChange = vi.fn();
+    render(
+      <ThemeProvider>
+        <ExploreFeedSlide
+          item={mockItem}
+          width={390}
+          height={844}
+          bottomInset={80}
+          topInset={44}
+          onPhotoIndexChange={onPhotoIndexChange}
+          onOpenService={vi.fn()}
+          onOpenCatalog={vi.fn()}
+          onOpenAbout={vi.fn()}
+          onOpenReviews={vi.fn()}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText('Degradê na Máquina')).toBeTruthy();
+
+    const scrollEl = screen.getByTestId('explore-photo-scroll');
+    Object.defineProperty(scrollEl, 'scrollLeft', { value: 390, writable: true });
+    fireEvent.scroll(scrollEl, {
+      nativeEvent: { contentOffset: { x: 390, y: 0 } },
+    });
+
+    expect(onPhotoIndexChange).toHaveBeenCalledWith('shop-1', 1);
   });
 });
 

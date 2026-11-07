@@ -40,12 +40,13 @@ export function BrandLoadingIndicator({
 }: BrandLoadingIndicatorProps) {
   const { isDark } = useTheme();
   const reducedMotion = useReducedMotion();
+  const [hasError, setHasError] = React.useState(false);
 
   if (!busy || !visible) {
     return null;
   }
 
-  const shouldUseStaticFallback = reducedMotion || !animatedSource;
+  const shouldUseStaticFallback = reducedMotion || !animatedSource || hasError;
 
   return (
     <View
@@ -75,6 +76,7 @@ export function BrandLoadingIndicator({
           accessibilityRole="image"
           accessibilityLabel={accessibilityLabel}
           resizeMode="contain"
+          onError={() => setHasError(true)}
           style={{ width: size, height: size }}
         />
       )}

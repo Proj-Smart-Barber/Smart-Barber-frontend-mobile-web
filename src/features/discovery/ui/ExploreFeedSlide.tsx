@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/theme';
 import { BrandMark } from '@/shared/brand';
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
+import { getVisibleMediaIndex } from '../lib/gallery-media-index';
 
 const ExploreVideo = lazy(() =>
   import('./ExploreVideo').then((module) => ({ default: module.ExploreVideo })),
@@ -22,20 +23,20 @@ const ExploreVideo = lazy(() =>
 
 export interface ExploreFeedSlideProps {
   item: ExploreFeedItem;
-  initialPhotoIndex?:number;
-  onPhotoIndexChange?:(id:string,index:number)=>void;
+  initialPhotoIndex?: number;
+  onPhotoIndexChange?: (id: string, index: number) => void;
   isActive?: boolean;
   isNear?: boolean;
   width: number;
   height: number;
   bottomInset: number;
   topInset: number;
-  locationLabel: string;
+  locationLabel?: string;
   onOpenService: (item: ExploreFeedItem, activeMedia: ExploreFeedMediaItem) => void;
   onOpenCatalog: (item: ExploreFeedItem) => void;
   onOpenAbout: (item: ExploreFeedItem) => void;
   onOpenReviews: (item: ExploreFeedItem) => void;
-  onOpenFilters: () => void;
+  onOpenFilters?: () => void;
 }
 
 export function ExploreFeedSlide({
@@ -57,24 +58,43 @@ export function ExploreFeedSlide({
 }: ExploreFeedSlideProps) {
   const { colors } = useTheme();
   const [activePhotoIndex, setActivePhotoIndex] = useState(initialPhotoIndex);
+  const activePhotoIndexRef = useRef(initialPhotoIndex);
+  activePhotoIndexRef.current = activePhotoIndex;
   const [imageErrorMap, setImageErrorMap] = useState<Record<string, boolean>>({});
 
   const photos = item.media.length > 0 ? item.media : [];
   const activeMedia = photos[activePhotoIndex] || null;
 
-  const photoScroll=useRef<React.ComponentRef<typeof ScrollView>>(null);
-  useEffect(()=>{const valid=Math.max(0,Math.min(activePhotoIndex,photos.length-1));if(valid!==activePhotoIndex)setActivePhotoIndex(valid);photoScroll.current?.scrollTo({x:valid*width,animated:false});},[width,photos.length,activePhotoIndex]);
+  const photoScroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
-  const handleHorizontalScroll = useCallback(
+  // Sincroniza estado inicial seguro quando item ou fotos mudam
+  useEffect(() => {
+    const boundedInitial = Math.max(0, Math.min(initialPhotoIndex, Math.max(0, photos.length - 1)));
+    if (boundedInitial !== activePhotoIndexRef.current) {
+      activePhotoIndexRef.current = boundedInitial;
+      setActivePhotoIndex(boundedInitial);
+    }
+  }, [initialPhotoIndex, photos.length, item.barbershop.id]);
+
+  // Restaura posição no mount, troca de barbearia ou resize (sem reentrância a cada gesto de rolagem)
+  useEffect(() => {
+    if (width > 0 && photos.length > 0) {
+      const targetX = activePhotoIndexRef.current * width;
+      photoScroll.current?.scrollTo({ x: targetX, animated: false });
+    }
+  }, [width, item.barbershop.id]);
+
+  const handleScrollUpdate = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const offsetX = e.nativeEvent.contentOffset.x;
-      const index = Math.round(offsetX / width);
-      if (index >= 0 && index < photos.length && index !== activePhotoIndex) {
-        setActivePhotoIndex(index);
-        onPhotoIndexChange?.(item.barbershop.id,index);
+      const offsetX = e.nativeEvent?.contentOffset?.x ?? 0;
+      const nextIndex = getVisibleMediaIndex(offsetX, width, photos.length);
+      if (nextIndex !== activePhotoIndexRef.current) {
+        activePhotoIndexRef.current = nextIndex;
+        setActivePhotoIndex(nextIndex);
+        onPhotoIndexChange?.(item.barbershop.id, nextIndex);
       }
     },
-    [width, photos.length, activePhotoIndex,onPhotoIndexChange,item.barbershop.id],
+    [width, photos.length, onPhotoIndexChange, item.barbershop.id],
   );
 
   const formattedDistance =
@@ -92,11 +112,14 @@ export function ExploreFeedSlide({
       {/* 1. Carrossel Horizontal de Fotos do Estabelecimento */}
       {photos.length > 0 ? (
         <ScrollView
+          testID="explore-photo-scroll"
           ref={photoScroll}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleHorizontalScroll}
+          onScroll={handleScrollUpdate}
+          onMomentumScrollEnd={handleScrollUpdate}
+          onScrollEndDrag={handleScrollUpdate}
           scrollEventThrottle={16}
           style={StyleSheet.absoluteFill}
         >
@@ -150,9 +173,9 @@ export function ExploreFeedSlide({
 
       {/* 2. Gradientes Suaves Superior e Inferior para Leitura sobre Mídia */}
       <LinearGradient
-        colors={['rgba(10, 10, 14, 0.68)', 'rgba(10, 10, 14, 0.28)', 'transparent']}
+        colors={['rgba(10, 10, 14, 0.72)', 'rgba(10, 10, 14, 0.32)', 'transparent']}
         locations={[0, 0.55, 1]}
-        style={[styles.topScrim, { height: Math.max(topInset, 16) + 92 }]}
+        style={[styles.topScrim, { height: Math.max(topInset, 16) + 36 }]}
         pointerEvents="none"
       />
       <LinearGradient
@@ -162,32 +185,7 @@ export function ExploreFeedSlide({
         pointerEvents="none"
       />
 
-      {/* 3. Topo Compacto: Explorar + Contexto de Região + Filtros */}
-      <View style={[styles.topBar, { paddingTop: Math.max(topInset, 16) + 4 }]}>
-        <View style={styles.topBarLeft}>
-          <Text style={styles.topBarTitle}>Explorar</Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-sharp" size={13} color="#f0f0f0" />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {locationLabel}
-            </Text>
-          </View>
-        </View>
-
-        <Pressable
-          onPress={onOpenFilters}
-          style={styles.filterButtonContainer}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir filtros de busca e raio"
-        >
-          <View style={styles.filterButtonCircle}>
-            <Ionicons name="options-outline" size={20} color="#ffffff" />
-          </View>
-          <Text style={styles.filterButtonText}>Filtros</Text>
-        </Pressable>
-      </View>
-
-      {/* 4. Trilho de Ações à Direita: Detalhes, Catálogo, Sobre */}
+      {/* 3. Trilho de Ações à Direita: Detalhes, Catálogo, Sobre */}
       <View style={[styles.actionRail, { bottom: bottomInset + 12 }]}>
         {/* Ação: Detalhes / Serviços (papel secundário em vidro, sem competir com o CTA central Agendar) */}
         <Pressable
@@ -373,68 +371,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1,
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    zIndex: 10,
-  },
-  topBarLeft: {
-    flex: 1,
-    gap: 3,
-  },
-  topBarTitle: {
-    color: '#ffffff',
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.85)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  locationText: {
-    color: '#f3f4f6',
-    fontSize: 13,
-    fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.85)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  filterButtonContainer: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  filterButtonCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(25, 25, 28, 0.72)',
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  filterButtonText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 0.1,
   },
   indicatorsRow: {
     flexDirection: 'row',

@@ -23,3 +23,7 @@ expo-env.d.ts
 .agents/
 opencode.json
 skills-locl.json
+
+# Scripts e logs locais temporários
+run-dev-server.cmd
+dev-server.log

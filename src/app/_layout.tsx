@@ -29,6 +29,8 @@ import {
   clearBookingReturnIntent,
 } from '@/features/auth/model/booking-return-intent';
 
+const BRAND_LOADING_SOURCE = require('../../assets/images/brand/sb-loading-transparent.gif');
+
 function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
   const {
     status,
@@ -144,6 +146,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
   if (!fontsLoaded || status === 'bootstrapping' || waitingForLogin) {
     return (
       <BootstrapScreen
+        clientLoadingBrandSource={BRAND_LOADING_SOURCE}
         message={fontsLoaded ? 'Verificando sua sessão…' : 'Carregando tipografia e recursos…'}
       />
     );

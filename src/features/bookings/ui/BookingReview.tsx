@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useTheme } from '@/shared/theme';
+import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { Text, Button, Badge, ErrorState } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import type { Service } from '@/features/services/model/service.types';
@@ -11,6 +11,7 @@ import type { SelectedSlot, BookingCustomer, BookingMode } from '../model/bookin
 import type { AuthoritativeQuote } from '../lib/normalize-booking-error';
 import { formatPrice, formatDuration } from '@/features/services/model/service.types';
 import { setBookingReturnIntent } from '@/features/auth/model/booking-return-intent';
+import { formatReviewDate } from '../lib/booking-review-formatters';
 
 export interface BookingReviewProps {
   mode: BookingMode;
@@ -54,6 +55,7 @@ export function BookingReview({
   onEditSlot,
 }: BookingReviewProps) {
   const { colors, spacing, radius } = useTheme();
+  const { isCompact } = useAdaptiveLayout();
   const router = useRouter();
 
   // Verifica se o início é a menos de 2h
@@ -155,8 +157,15 @@ export function BookingReview({
           Detalhes do Atendimento
         </Text>
 
-        <View style={{ gap: spacing[2] }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ gap: spacing[3] }}>
+          <View
+            style={{
+              flexDirection: isCompact ? 'column' : 'row',
+              justifyContent: isCompact ? 'flex-start' : 'space-between',
+              alignItems: isCompact ? 'flex-start' : 'center',
+              gap: isCompact ? 2 : spacing[2],
+            }}
+          >
             <Text variant="caption" color={colors.text.muted}>
               Barbearia
             </Text>
@@ -165,7 +174,14 @@ export function BookingReview({
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View
+            style={{
+              flexDirection: isCompact ? 'column' : 'row',
+              justifyContent: isCompact ? 'flex-start' : 'space-between',
+              alignItems: isCompact ? 'flex-start' : 'center',
+              gap: isCompact ? 2 : spacing[2],
+            }}
+          >
             <Text variant="caption" color={colors.text.muted}>
               Profissional
             </Text>
@@ -174,23 +190,51 @@ export function BookingReview({
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View
+            style={{
+              flexDirection: isCompact ? 'column' : 'row',
+              justifyContent: isCompact ? 'flex-start' : 'space-between',
+              alignItems: isCompact ? 'flex-start' : 'center',
+              gap: isCompact ? 2 : spacing[2],
+            }}
+          >
             <Text variant="caption" color={colors.text.muted}>
-              Data e Horário
+              Data
             </Text>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text variant="bodySm" weight="bold" color={colors.brand.primary}>
-                {selectedDate} às {selectedSlot?.startTime || '--:--'}
-              </Text>
-            </View>
+            <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+              {formatReviewDate(selectedDate)}
+            </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View
+            style={{
+              flexDirection: isCompact ? 'column' : 'row',
+              justifyContent: isCompact ? 'flex-start' : 'space-between',
+              alignItems: isCompact ? 'flex-start' : 'center',
+              gap: isCompact ? 2 : spacing[2],
+            }}
+          >
+            <Text variant="caption" color={colors.text.muted}>
+              Horário
+            </Text>
+            <Text variant="bodySm" weight="bold" color={colors.text.primary}>
+              {selectedSlot?.startTime || '--:--'}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              flexDirection: isCompact ? 'column' : 'row',
+              justifyContent: isCompact ? 'flex-start' : 'space-between',
+              alignItems: isCompact ? 'flex-start' : 'center',
+              gap: isCompact ? 2 : spacing[2],
+            }}
+          >
             <Text variant="caption" color={colors.text.muted}>
               Cliente
             </Text>
             <Text variant="bodySm" weight="medium" color={colors.text.primary}>
-              {mode === 'UNIT' ? customer?.name || 'Cliente da unidade' : 'Você (Pessoal)'}
+              {mode === 'UNIT' ? customer?.name || 'Cliente da unidade' : 'Você'}
             </Text>
           </View>
         </View>
@@ -204,15 +248,18 @@ export function BookingReview({
         borderWidth={1}
         contentStyle={{ padding: spacing[4], gap: spacing[3] }}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2] }}>
           <Text variant="h2" weight="bold" color={colors.text.primary}>
             Serviços ({selectedServices.length})
           </Text>
           <Button
-            title="Alterar"
-            variant="ghost"
+            title="Alterar serviços"
+            variant="secondary"
+            leftIcon={<Ionicons name="pencil-outline" size={16} color={colors.text.primary} />}
             onPress={onEditServices}
-            style={{ minHeight: 32, paddingHorizontal: spacing[2] }}
+            disabled={isSubmitting}
+            accessibilityLabel="Alterar serviços selecionados"
+            style={{ minHeight: 44, paddingHorizontal: spacing[3] }}
           />
         </View>
 
@@ -246,8 +293,8 @@ export function BookingReview({
         </View>
 
         {/* Totais */}
-        <View style={{ gap: 4, paddingTop: spacing[2] }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View style={{ gap: 4, paddingTop: spacing[2], borderTopWidth: 1, borderTopColor: colors.border.default }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="caption" color={colors.text.muted}>
               Duração Total Estimada:
             </Text>
@@ -256,11 +303,11 @@ export function BookingReview({
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
             <Text variant="body" weight="bold" color={colors.text.primary}>
               Valor Total Previsto:
             </Text>
-            <Text variant="price" weight="bold" color={colors.brand.primary}>
+            <Text variant="price" weight="bold" color={colors.text.primary}>
               {formatPrice(quoteMismatch && authoritativeQuote ? authoritativeQuote.totalPriceInCents : totalPriceInCents)}
             </Text>
           </View>

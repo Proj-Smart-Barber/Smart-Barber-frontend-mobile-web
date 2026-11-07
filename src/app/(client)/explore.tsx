@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import {
@@ -10,6 +11,7 @@ import {
   resolveClientExploreSection,
   useOptionalClientExperienceContext,
   type ClientExploreSection,
+  type ExploreFeedHandle,
 } from '@/features/discovery';
 
 /**
@@ -31,6 +33,7 @@ export default function ClientExploreScreen() {
     () => activeSection === 'feed',
   );
   const [headerHeight, setHeaderHeight] = useState(0);
+  const feedRef = useRef<ExploreFeedHandle>(null);
 
   useEffect(() => {
     if (activeSection === 'feed') {
@@ -78,7 +81,7 @@ export default function ClientExploreScreen() {
     [activeSection, publishActiveMedia, router],
   );
 
-  const topSafePadding = insets.top > 0 ? insets.top + 8 : 16;
+  const topSafePadding = insets.top > 0 ? insets.top + 10 : 16;
   const feedTopOffset =
     headerHeight > 0 ? headerHeight + 8 : topSafePadding + 56;
 
@@ -116,6 +119,22 @@ export default function ClientExploreScreen() {
             active={activeSection}
             onSelect={handleSelectSection}
           />
+          {activeSection === 'feed' && (
+            <View style={styles.filterBarRow}>
+              <Pressable
+                onPress={() => feedRef.current?.openFilters()}
+                style={({ pressed }) => [
+                  styles.filterButton,
+                  pressed && styles.filterButtonPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Abrir filtros de busca e raio"
+              >
+                <Ionicons name="options-outline" size={16} color="#ffffff" />
+                <Text style={styles.filterButtonLabel}>Filtros</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </View>
 
@@ -134,6 +153,7 @@ export default function ClientExploreScreen() {
           }
         >
           <ExploreFeedView
+            ref={feedRef}
             isVisible={activeSection === 'feed'}
             topOffset={feedTopOffset}
             onActiveMediaChange={publishActiveMedia}
@@ -178,6 +198,38 @@ const styles = StyleSheet.create({
   },
   nearbyHeaderBlock: {
     paddingBottom: 8,
+  },
+  filterBarRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 6,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minHeight: 36,
+    minWidth: 44,
+    borderRadius: 18,
+    backgroundColor: 'rgba(25, 25, 28, 0.72)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  filterButtonPressed: {
+    backgroundColor: 'rgba(45, 45, 52, 0.85)',
+  },
+  filterButtonLabel: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   headerConstraint: {
     width: '100%',
