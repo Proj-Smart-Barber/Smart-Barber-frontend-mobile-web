@@ -13,6 +13,18 @@ import { useSession, EditProfileModal } from '@/features/auth';
 import { AvatarUploader, AvatarUploaderHandle } from '@/features/media';
 import { formatPhoneNumber } from '@/shared/lib/phone-format';
 
+interface ThemeOption {
+  mode: 'system' | 'light' | 'dark';
+  label: string;
+  icon: any;
+}
+
+const themeOptions: ThemeOption[] = [
+  { mode: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
+  { mode: 'light', label: 'Claro', icon: 'sunny-outline' },
+  { mode: 'dark', label: 'Escuro', icon: 'moon-outline' },
+];
+
 export default function ClientProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -24,6 +36,7 @@ export default function ClientProfileScreen() {
 
   const avatarUploaderRef = useRef<AvatarUploaderHandle>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPhotoBusy, setIsPhotoBusy] = useState(false);
 
   let openDrawer: (() => void) | undefined;
   let onContentScroll: ((event: any) => void) | undefined;
@@ -45,18 +58,12 @@ export default function ClientProfileScreen() {
         }
       : {};
 
-  const userName = identity?.name || 'Cliente';
-  const userEmail = identity?.email || 'cliente@smartbarber.com';
+  const displayTitleName = identity?.name?.trim() ? identity.name : 'Cliente';
+  const userName = identity?.name?.trim() ? identity.name : 'Não informado';
+  const userEmail = identity?.email ? identity.email : 'Não informado';
+  const userPhone = identity?.phoneNumber ? formatPhoneNumber(identity.phoneNumber) : 'Não informado';
 
-  const themeOptions: Array<{
-    mode: 'system' | 'light' | 'dark';
-    label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-  }> = [
-    { mode: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
-    { mode: 'light', label: 'Claro', icon: 'sunny-outline' },
-    { mode: 'dark', label: 'Escuro', icon: 'moon-outline' },
-  ];
+
 
   return (
     <View
@@ -74,7 +81,7 @@ export default function ClientProfileScreen() {
           {
             paddingTop: insets.top > 0 ? insets.top + 8 : 16,
             paddingBottom: !isExpanded
-              ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+              ? (navbarOffset > 0 ? navbarOffset + 24 : Math.max(insets.bottom, 16) + 96)
               : 40,
             paddingHorizontal: isCompact ? 16 : 32,
           },
@@ -86,7 +93,7 @@ export default function ClientProfileScreen() {
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text variant="h2" style={styles.headerTitle}>
+                <Text variant="h2" style={styles.headerTitle} accessibilityRole="header">
                   Minha Conta
                 </Text>
                 <Text variant="caption" color={colors.text.secondary}>
@@ -111,6 +118,7 @@ export default function ClientProfileScreen() {
                   await refreshIdentity?.().catch(() => {});
                   queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
                 }}
+                onBusyChange={setIsPhotoBusy}
                 size={68}
                 label=""
               />
@@ -119,17 +127,14 @@ export default function ClientProfileScreen() {
                 <Text
                   variant="h3"
                   weight="bold"
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  style={{ color: colors.text.primary }}
+                  style={{ color: colors.text.primary, flexShrink: 1 }}
                 >
-                  {userName}
+                  {displayTitleName}
                 </Text>
                 <Text
                   variant="caption"
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
                   color={colors.text.secondary}
+                  style={{ flexShrink: 1 }}
                 >
                   {userEmail}
                 </Text>
@@ -142,17 +147,24 @@ export default function ClientProfileScreen() {
             {/* Ações do Perfil */}
             <View style={styles.profileActionsRow}>
               <Button
-                title="Alterar foto"
+                title={isPhotoBusy ? 'Atualizando foto…' : 'Alterar foto'}
                 variant="outline"
+                loading={isPhotoBusy}
+                disabled={isPhotoBusy}
                 leftIcon={<Ionicons name="camera-outline" size={16} color={colors.text.primary} />}
                 onPress={() => avatarUploaderRef.current?.pickPhoto()}
+                accessibilityRole="button"
+                accessibilityLabel="Alterar foto de perfil"
                 style={{ flex: 1 }}
               />
               <Button
                 title="Editar perfil"
                 variant="outline"
+                disabled={isPhotoBusy}
                 leftIcon={<Ionicons name="create-outline" size={16} color={colors.text.primary} />}
                 onPress={() => setIsEditModalOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Editar dados do perfil"
                 style={{ flex: 1 }}
               />
             </View>
@@ -175,7 +187,7 @@ export default function ClientProfileScreen() {
               contentStyle={styles.optionsListContent}
             >
               <View style={styles.dataRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text variant="caption" color={colors.text.muted}>
                     Nome completo
                   </Text>
@@ -183,9 +195,9 @@ export default function ClientProfileScreen() {
                     variant="bodySm"
                     weight="medium"
                     color={colors.text.primary}
-                    style={{ marginTop: 2 }}
+                    style={{ marginTop: 2, flexWrap: 'wrap' }}
                   >
-                    {identity?.name || 'Cliente'}
+                    {userName}
                   </Text>
                 </View>
               </View>
@@ -193,7 +205,7 @@ export default function ClientProfileScreen() {
               <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
 
               <View style={styles.dataRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text variant="caption" color={colors.text.muted}>
                     Telefone de contato
                   </Text>
@@ -203,7 +215,7 @@ export default function ClientProfileScreen() {
                     color={colors.text.primary}
                     style={{ marginTop: 2 }}
                   >
-                    {identity?.phoneNumber ? formatPhoneNumber(identity.phoneNumber) : 'Não informado'}
+                    {userPhone}
                   </Text>
                 </View>
               </View>
@@ -211,7 +223,7 @@ export default function ClientProfileScreen() {
               <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
 
               <View style={styles.dataRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
                   <Text variant="caption" color={colors.text.muted}>
                     E-mail
                   </Text>
@@ -219,7 +231,7 @@ export default function ClientProfileScreen() {
                     variant="bodySm"
                     weight="medium"
                     color={colors.text.primary}
-                    style={{ marginTop: 2 }}
+                    style={{ marginTop: 2, flexWrap: 'wrap' }}
                   >
                     {userEmail}
                   </Text>
@@ -248,6 +260,7 @@ export default function ClientProfileScreen() {
                     key={opt.mode}
                     onPress={() => setMode(opt.mode)}
                     accessibilityRole="button"
+                    accessibilityLabel={`Aparência ${opt.label}`}
                     accessibilityState={{ selected: isSelected }}
                     style={[
                       styles.themeOptionButton,
@@ -282,7 +295,7 @@ export default function ClientProfileScreen() {
             </View>
           </View>
 
-          {/* Atalhos rápidos */}
+          {/* Atalhos Rápidos */}
           <View style={styles.section}>
             <Text
               variant="caption"
@@ -290,7 +303,7 @@ export default function ClientProfileScreen() {
               color={colors.text.muted}
               style={styles.sectionTitle}
             >
-              MEUS DADOS & ATIVIDADE
+              ATALHOS & ATIVIDADE
             </Text>
 
             <LiquidGlassView
@@ -298,43 +311,113 @@ export default function ClientProfileScreen() {
               borderRadius={radius.xl}
               contentStyle={styles.optionsListContent}
             >
+              {/* Meus agendamentos */}
               <Pressable
                 onPress={() => router.push('/(client)/bookings')}
                 accessibilityRole="button"
+                accessibilityLabel="Meus agendamentos"
                 style={({ pressed }) => [
                   styles.optionRow,
                   pressed && { backgroundColor: colors.surface.selected },
                 ]}
               >
                 <Ionicons name="calendar-outline" size={20} color={colors.brand.primary} />
-                <Text
-                  variant="bodySm"
-                  weight="medium"
-                  style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}
-                >
-                  Histórico de agendamentos
-                </Text>
+                <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    style={{ color: colors.text.primary }}
+                  >
+                    Meus agendamentos
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Próximos atendimentos e agendamentos confirmados
+                  </Text>
+                </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
               </Pressable>
 
               <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
 
+              {/* Histórico de agendamentos */}
               <Pressable
-                onPress={() => router.push('/(client)/notifications')}
+                onPress={() => router.push('/(client)/bookings?tab=history' as any)}
                 accessibilityRole="button"
+                accessibilityLabel="Histórico de agendamentos"
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  pressed && { backgroundColor: colors.surface.selected },
+                ]}
+              >
+                <Ionicons name="time-outline" size={20} color={colors.brand.primary} />
+                <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    style={{ color: colors.text.primary }}
+                  >
+                    Histórico de agendamentos
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Atendimentos anteriores concluídos ou cancelados
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+              </Pressable>
+
+              <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
+
+              {/* Notificações e avisos */}
+              <Pressable
+                onPress={() => router.push('/(client)/notifications' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Notificações e avisos"
                 style={({ pressed }) => [
                   styles.optionRow,
                   pressed && { backgroundColor: colors.surface.selected },
                 ]}
               >
                 <Ionicons name="notifications-outline" size={20} color={colors.brand.primary} />
-                <Text
-                  variant="bodySm"
-                  weight="medium"
-                  style={{ flex: 1, color: colors.text.primary, marginLeft: 12 }}
-                >
-                  Notificações e avisos
-                </Text>
+                <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    style={{ color: colors.text.primary }}
+                  >
+                    Notificações e avisos
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Lembretes, confirmações e avisos do sistema
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+              </Pressable>
+
+              <View style={[styles.divider, { backgroundColor: colors.border.subtle }]} />
+
+              {/* Localização e barbearias próximas */}
+              <Pressable
+                onPress={() => router.push('/(client)/explore?section=nearby' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Localização e barbearias próximas"
+                style={({ pressed }) => [
+                  styles.optionRow,
+                  pressed && { backgroundColor: colors.surface.selected },
+                ]}
+              >
+                <Ionicons name="location-outline" size={20} color={colors.brand.primary} />
+                <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
+                  <Text
+                    variant="bodySm"
+                    weight="medium"
+                    style={{ color: colors.text.primary }}
+                  >
+                    Localização e barbearias próximas
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Explorar unidades perto de você no mapa ou lista
+                  </Text>
+                </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
               </Pressable>
             </LiquidGlassView>
@@ -345,6 +428,8 @@ export default function ClientProfileScreen() {
             <Button
               title="Sair da Conta"
               variant="destructive"
+              accessibilityRole="button"
+              accessibilityLabel="Sair da Conta"
               leftIcon={<Ionicons name="log-out-outline" size={18} color="#FFFFFF" />}
               onPress={() => signOut()}
             />
@@ -395,7 +480,7 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 4,
     justifyContent: 'center',
   },
   profileActionsRow: {
@@ -436,7 +521,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   optionRow: {
-    minHeight: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
