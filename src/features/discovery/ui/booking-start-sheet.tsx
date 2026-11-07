@@ -33,29 +33,32 @@ export interface BookingStartSheetProps {
 }
 
 export function BookingStartSheet({ start, onClose }: BookingStartSheetProps) {
+  if (!start) {
+    return null;
+  }
+
+  return <BookingStartSheetModal start={start} onClose={onClose} />;
+}
+
+function BookingStartSheetModal({
+  start,
+  onClose,
+}: {
+  start: BookingStart;
+  onClose: () => void;
+}) {
   const { colors, radius, spacing, isDark } = useTheme();
   const router = useRouter();
 
   // Snapshot imutável capturado no momento da abertura
-  const [frozenStart, setFrozenStart] = useState<BookingStart | null>(null);
-  const [mode, setMode] = useState<'contextual' | 'general'>('general');
+  const [activeSnapshot] = useState<BookingStart>(start);
+  const [mode, setMode] = useState<'contextual' | 'general'>(
+    start.kind === 'contextual' ? 'contextual' : 'general',
+  );
   const isNavigatingRef = useRef(false);
-
-  useEffect(() => {
-    if (start && !frozenStart) {
-      setFrozenStart(start);
-      setMode(start.kind === 'contextual' ? 'contextual' : 'general');
-    } else if (!start && frozenStart) {
-      setFrozenStart(null);
-      setMode('general');
-      isNavigatingRef.current = false;
-    }
-  }, [start, frozenStart]);
 
   // Tecla Escape na Web e BackHandler no Android
   useEffect(() => {
-    if (!start) return;
-
     if (Platform.OS === 'android') {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         onClose();
@@ -73,7 +76,7 @@ export function BookingStartSheet({ start, onClose }: BookingStartSheetProps) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [start, onClose]);
+  }, [onClose]);
 
   // Descoberta geral de barbearias (Modo ALL sem inventar distâncias quando sem GPS)
   const locationSession = locationStore.getSession();
@@ -108,15 +111,10 @@ export function BookingStartSheet({ start, onClose }: BookingStartSheetProps) {
     [onClose, router],
   );
 
-  if (!start && !frozenStart) {
-    return null;
-  }
-
-  const activeSnapshot = frozenStart || start;
   const isContextual =
-    mode === 'contextual' && activeSnapshot?.kind === 'contextual';
+    mode === 'contextual' && activeSnapshot.kind === 'contextual';
   const context =
-    activeSnapshot?.kind === 'contextual' ? activeSnapshot.context : null;
+    activeSnapshot.kind === 'contextual' ? activeSnapshot.context : null;
 
   const handleContinueContextual = () => {
     if (!context) return;
@@ -137,7 +135,7 @@ export function BookingStartSheet({ start, onClose }: BookingStartSheetProps) {
 
   return (
     <Modal
-      visible={Boolean(start)}
+      visible
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -152,6 +150,9 @@ export function BookingStartSheet({ start, onClose }: BookingStartSheetProps) {
         />
 
         <View
+          accessibilityRole="dialog"
+          accessibilityLabel="Agendar atendimento"
+          aria-modal={true}
           style={[
             styles.sheetContainer,
             {
