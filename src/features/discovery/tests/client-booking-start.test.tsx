@@ -165,6 +165,25 @@ describe('BookingStartSheet — Tarefa 6: Conectar Agendar ao Catálogo e Reserv
     expect(handleClose).toHaveBeenCalled();
   });
 
+  it('9. Sheet em telas pequenas incorpora safe-area e respiro inferior para rolagem dos botões (C-004)', () => {
+    const handleClose = vi.fn();
+    renderWithProviders(
+      <BookingStartSheet start={contextualServiceStart} onClose={handleClose} />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: /Agendar atendimento/i });
+    expect(dialog).toBeDefined();
+
+    // Com safe-area insets bottom de 34px (do mock useSafeAreaInsets),
+    // o container deve ter paddingBottom >= 34px
+    expect(dialog.style.paddingBottom).toBe('34px');
+
+    const continueBtn = screen.getByRole('button', { name: /continuar/i });
+    const switchBtn = screen.getByRole('button', { name: /trocar barbearia ou serviço/i });
+    expect(continueBtn).toBeDefined();
+    expect(switchBtn).toBeDefined();
+  });
+
   it('3. Mídia ambiental: unidade correta sem serviço/preço inventado e ação Escolher serviço', () => {
     const handleClose = vi.fn();
     renderWithProviders(

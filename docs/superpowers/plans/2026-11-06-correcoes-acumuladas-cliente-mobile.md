@@ -101,10 +101,21 @@ Limites: leitura de código e análise da captura. Não houve clique reproduzido
 
 | ID | Achado | Origem | Estado | Fechamento esperado |
 | --- | --- | --- | --- | --- |
-| C-001 | Agendar termina em orientação sem escolha acionável | relato + leitura estática | CANDIDATO A RESOLVIDO COM EVIDÊNCIA DE NAVEGADOR | implementado na tarefa 6; validado com sucesso em navegador (Playwright 390 e 320); validação final ponta a ponta com API/aparelho físico no lote final |
-| C-002 | CTA e aba selecionada com preenchimento Crimson equivalente | captura + leitura estática | ABERTO | diferenciar hierarquia local na cápsula (Agendar = Crimson, aba ativa = superfície vidro/neutra elevada) |
-| C-003 | Serviço lateral compete com Agendar | captura + leitura estática | ABERTO PARA REVALIDAÇÃO NO LOTE FINAL | avaliar respiro do rail lateral em viewports compactos |
-| C-004 | Margem de respiro e sobreposição em viewport 320x568 no sheet de agendar | navegador local Tarefa 9 | ABERTO | adicionar padding bottom adaptativo para viewports ultra-compactos no sheet |
+| C-001 | Agendar termina em orientação sem escolha acionável | relato + leitura estática | RESOLVIDO COM EVIDÊNCIA DE NAVEGADOR | Implementado via BookingStartSheet; validado via Playwright (390 e 320); API/dispositivo físico não testados |
+| C-002 | CTA e aba selecionada com preenchimento Crimson equivalente | captura + leitura estática | RESOLVIDO COM EVIDÊNCIA | Diferenciação aplicada em ClientNavigationShell (Agendar = Crimson; aba ativa = superfície vidro neutro elevada + borda 1px) |
+| C-003 | Serviço lateral compete com Agendar | captura + leitura estática | RESOLVIDO COM EVIDÊNCIA / REVALIDADO | Trilho lateral secundário em vidro, 12px de folga até o caption, sem colisão |
+| C-004 | Margem de respiro e sobreposição em viewport 320x568 no sheet de agendar | navegador local Tarefa 9 | RESOLVIDO COM EVIDÊNCIA | Safe-area insets, altura adaptativa 92% (<=600px) e padding de rolagem no BookingStartSheet; separada causa de overlay dev |
+
+## Revisão 02 — Lote Final de Correções do Cliente (07/11/2026)
+
+Execução realizada no worktree `D:/smart_barber/worktrees/frontend-experiencia-cliente-mobile` na branch `fix/cliente-ajustes-finais`.
+
+- **C-001:** Revalidada a abertura de `BookingStartSheet` com corte contextualizado ("Degradê Clássico", R$ 65, 45 min) e modo de busca sem disparo de reservas falsas ou mutação de estado.
+- **C-002:** Resolvido em `ClientNavigationShell.tsx`. A aba selecionada agora utiliza superfície neutra elevada em vidro (`rgba(255,255,255,0.12)` no dark, `rgba(0,0,0,0.08)` no light) com borda sutil de 1px (`rgba(255,255,255,0.18)` / `rgba(0,0,0,0.12)`) e texto na cor primária. O botão "Agendar" permanece como o único elemento com preenchimento Crimson vibrante da cápsula.
+- **C-003:** Inspecionado e revalidado em `ExploreFeedSlide.tsx`. O botão "Detalhes" utiliza vidro secundário com 12px de folga contra o caption, sem competição visual primária com Agendar.
+- **C-004:** Resolvido em `booking-start-sheet.tsx`. Adicionado `useAppSafeArea()`, altura máxima adaptativa (`92%` para telas `<= 600px`), e padding inferior do conteúdo da rolagem. Separada a anomalia de overlay de desenvolvimento (`#error-toast` do Metro/LogBox) de falhas reais do produto.
+
+Evidências registradas em `docs/evidencias-correcoes-finais-cliente-mobile-2026-11-07/` (arquivos `01` a `11`).
 
 Novas revisões devem acrescentar IDs sequenciais, fase/HEAD, prova e critérios de encerramento. Não usar o número da prioridade como autorização para antecipar a correção.
 
