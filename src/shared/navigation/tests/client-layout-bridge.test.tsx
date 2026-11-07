@@ -1,12 +1,18 @@
 // @vitest-environment happy-dom
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ThemeProvider } from '@/shared/theme';
 import { ToastProvider } from '@/shared/ui';
 import ClientLayoutGroup, { ClientLayoutContent } from '@/app/(client)/_layout';
-import { ClientExperienceProvider, useClientExperienceContext } from '@/features/discovery';
+import {
+  ClientExperienceProvider,
+  useClientExperienceContext,
+  discoveryApi,
+  setLocationIntroSeen,
+} from '@/features/discovery';
 
 const mockPush = vi.fn();
 let mockPathname = '/(client)';
@@ -58,50 +64,100 @@ function MediaPublisher({ media }: { media: any }) {
   return null;
 }
 
-describe('ClientLayoutGroup — Ponte Transitória do CTA Agendar (Tarefa 2)', () => {
-  beforeEach(() => {
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
+describe('ClientLayoutGroup — Fluxo Interativo do CTA Agendar (Tarefa 6)', () => {
+  let queryClient: QueryClient;
+
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockPathname = '/(client)';
+    queryClient = createTestQueryClient();
+    await setLocationIntroSeen(true);
+    vi.spyOn(discoveryApi, 'searchAll').mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+      hasNext: false,
+      serverTime: new Date().toISOString(),
+    });
   });
 
-  it('sem contexto (fora do feed): encaminha para /(client)/explore e exibe orientação de escolha', () => {
+  it('sem contexto: ao clicar em Agendar, abre sheet interativo de busca de barbearias', async () => {
     mockPathname = '/(client)';
 
     render(
-      <ThemeProvider initialMode="dark">
-        <ToastProvider>
-          <ClientLayoutGroup />
-        </ToastProvider>
-      </ThemeProvider>,
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider initialMode="dark">
+          <ToastProvider>
+            <ClientLayoutGroup />
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
 
     const agendarBtn = screen.getByRole('button', { name: /Agendar/i });
     fireEvent.click(agendarBtn);
 
-    expect(mockPush).toHaveBeenCalledWith('/(client)/explore');
-    expect(screen.getByText(/Escolha uma barbearia e use Serviço ou Catálogo para iniciar a reserva/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Agendar atendimento/i })).toBeDefined();
+    });
+    expect(screen.getByText(/Escolha uma barbearia/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/Buscar barbearia por nome/i)).toBeDefined();
+    expect(
+      screen.queryByText(/Escolha uma barbearia e use Serviço ou Catálogo para iniciar a reserva/i),
+    ).toBeNull();
   });
 
-  it('sem contexto mas já no Explorar: não empilha /(client)/explore novamente e exibe orientação', () => {
+  it('com contexto de unidade sem serviço específico (foto ambiental): abre sheet e permite ver catálogo', async () => {
     mockPathname = '/(client)/explore';
 
+    const testMediaAmbiental = {
+      shopId: 'shop-def-789',
+      shopName: 'Barbearia Vintage',
+      mediaId: 'media-002',
+      service: null,
+    };
+
     render(
-      <ThemeProvider initialMode="dark">
-        <ToastProvider>
-          <ClientLayoutGroup />
-        </ToastProvider>
-      </ThemeProvider>,
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider initialMode="dark">
+          <ToastProvider>
+            <ClientExperienceProvider actorId="client-1">
+              <MediaPublisher media={testMediaAmbiental} />
+              <ClientLayoutContent />
+            </ClientExperienceProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
 
     const agendarBtn = screen.getByRole('button', { name: /Agendar/i });
     fireEvent.click(agendarBtn);
 
-    // Não deve chamar push para explore novamente
-    expect(mockPush).not.toHaveBeenCalled();
-    expect(screen.getByText(/Escolha uma barbearia e use Serviço ou Catálogo para iniciar a reserva/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Agendar atendimento/i })).toBeDefined();
+    });
+    expect(screen.getByText('Barbearia Vintage')).toBeDefined();
+    expect(screen.getByText(/Unidade selecionada no feed/i)).toBeDefined();
+
+    const escolherServicoBtn = screen.getByRole('button', { name: /escolher serviço/i });
+    fireEvent.click(escolherServicoBtn);
+
+    expect(mockPush).toHaveBeenCalledWith('/barbershops/shop-def-789/services');
   });
 
-  it('com contexto válido de mídia no feed: encaminha ao catálogo com serviceId pré-selecionado', () => {
+  it('com contexto válido de serviço visível: apresenta unidade e serviço e permite continuar para catálogo', async () => {
     mockPathname = '/(client)/explore';
 
     const testMedia = {
@@ -117,46 +173,73 @@ describe('ClientLayoutGroup — Ponte Transitória do CTA Agendar (Tarefa 2)', (
     };
 
     render(
-      <ThemeProvider initialMode="dark">
-        <ToastProvider>
-          <ClientExperienceProvider actorId="client-1">
-            <MediaPublisher media={testMedia} />
-            <ClientLayoutContent />
-          </ClientExperienceProvider>
-        </ToastProvider>
-      </ThemeProvider>,
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider initialMode="dark">
+          <ToastProvider>
+            <ClientExperienceProvider actorId="client-1">
+              <MediaPublisher media={testMedia} />
+              <ClientLayoutContent />
+            </ClientExperienceProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
 
     const agendarBtn = screen.getByRole('button', { name: /Agendar/i });
     fireEvent.click(agendarBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /Agendar atendimento/i })).toBeDefined();
+    });
+    expect(screen.getByText('Barbearia Modelo')).toBeDefined();
+    expect(screen.getByText('Corte e Barba')).toBeDefined();
+    expect(screen.getByText('R$ 75,00')).toBeDefined();
+
+    const continuarBtn = screen.getByRole('button', { name: /continuar/i });
+    fireEvent.click(continuarBtn);
 
     expect(mockPush).toHaveBeenCalledWith('/barbershops/shop-abc-123/services?serviceId=srv-456');
   });
 
-  it('com contexto de unidade sem serviço específico: encaminha ao catálogo geral da barbearia', () => {
+  it('com serviço visível: permite alternar para busca geral de barbearias', async () => {
     mockPathname = '/(client)/explore';
 
-    const testMediaAmbiental = {
-      shopId: 'shop-def-789',
-      shopName: 'Barbearia Vintage',
-      mediaId: 'media-002',
-      service: null,
+    const testMedia = {
+      shopId: 'shop-abc-123',
+      shopName: 'Barbearia Modelo',
+      mediaId: 'media-001',
+      service: {
+        id: 'srv-456',
+        title: 'Corte e Barba',
+        priceInCents: 7500,
+        durationInMinutes: 60,
+      },
     };
 
     render(
-      <ThemeProvider initialMode="dark">
-        <ToastProvider>
-          <ClientExperienceProvider actorId="client-1">
-            <MediaPublisher media={testMediaAmbiental} />
-            <ClientLayoutContent />
-          </ClientExperienceProvider>
-        </ToastProvider>
-      </ThemeProvider>,
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider initialMode="dark">
+          <ToastProvider>
+            <ClientExperienceProvider actorId="client-1">
+              <MediaPublisher media={testMedia} />
+              <ClientLayoutContent />
+            </ClientExperienceProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
 
     const agendarBtn = screen.getByRole('button', { name: /Agendar/i });
     fireEvent.click(agendarBtn);
 
-    expect(mockPush).toHaveBeenCalledWith('/barbershops/shop-def-789/services');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /trocar barbearia ou serviço/i })).toBeDefined();
+    });
+
+    const trocarBtn = screen.getByRole('button', { name: /trocar barbearia ou serviço/i });
+    fireEvent.click(trocarBtn);
+
+    expect(screen.getByText(/Escolha uma barbearia/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/Buscar barbearia por nome/i)).toBeDefined();
   });
 });
