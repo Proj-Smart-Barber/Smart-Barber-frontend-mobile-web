@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   },
   controlButtonDisabled: {
     opacity: 0.4,
-    cursor: 'default',
+    cursor: 'auto',
   },
   controlButtonPressed: {
     backgroundColor: 'rgba(50, 50, 60, 0.95)',
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   },
   mediaButtonDisabled: {
     opacity: 0.35,
-    cursor: 'default',
+    cursor: 'auto',
   },
   mediaButtonPressed: {
     backgroundColor: 'rgba(40, 40, 48, 0.9)',
