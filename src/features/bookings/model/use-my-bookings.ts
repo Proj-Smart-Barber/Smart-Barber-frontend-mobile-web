@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { fetchMyBookings } from '../api/bookings.api';
 import type { BookingDto } from '../api/bookings.dto';
@@ -105,6 +105,20 @@ export function useMyBookings(optionsOrEnabled: boolean | UseMyBookingsOptions =
     };
   }, [allItems, nowMs]);
 
+  const isFetchingNextPageRef = useRef(false);
+
+  const loadNextPage = useCallback(async () => {
+    if (!hasNextPage || isFetchingNextPage || isFetchingNextPageRef.current) {
+      return;
+    }
+    isFetchingNextPageRef.current = true;
+    try {
+      await fetchNextPage();
+    } finally {
+      isFetchingNextPageRef.current = false;
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   return {
     bookings: allItems,
     upcoming,
@@ -116,11 +130,8 @@ export function useMyBookings(optionsOrEnabled: boolean | UseMyBookingsOptions =
     isFetchingNextPage,
     error,
     hasMore: Boolean(hasNextPage),
-    loadNextPage: () => {
-      if (hasNextPage && !isFetchingNextPage) {
-        void fetchNextPage();
-      }
-    },
+    fetchNextPage,
+    loadNextPage,
     refetch,
     isRefetching,
     data: allItems,

@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
-import { Platform, View, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Platform, View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '../../shared/theme';
 import { useAppSafeArea } from '../../shared/theme/use-app-safe-area';
-import { Text, EmptyState, Spinner, Button, Card, Badge, SegmentedFilter, LoadingRegion } from '../../shared/ui';
+import { Text, EmptyState, Button, SegmentedFilter, LoadingRegion } from '../../shared/ui';
 import { useNavigation } from '../../shared/navigation';
 import { ClientNavbarMetricsContext } from '../../shared/navigation/ClientNavbarMetrics';
 import { useSession } from '../../features/auth';
-import { ClientExploreTabs, type ClientExploreSection } from '../../features/discovery';
-import { useMyBookings, ClientBookingsSkeleton } from '../../features/bookings';
+import {
+  ClientExploreTabs,
+  type ClientExploreSection,
+} from '../../features/discovery/ui/client-explore-tabs';
+import { useNextBooking } from '../../features/discovery/model/use-next-booking';
+import { ClientNextBookingCard } from '../../features/discovery/ui/ClientNextBookingCard';
+import { useOptionalClientExperienceContext } from '../../features/discovery/model/client-experience-context';
+import { useMyBookings } from '../../features/bookings/model/use-my-bookings';
+import { ClientBookingsSkeleton } from '../../features/bookings/ui/ClientBookingsSkeleton';
 import { BookingCard } from '../../features/bookings/ui/BookingCard';
 import type { BookingDto } from '../../features/bookings/api/bookings.dto';
 
-type TabFilter = 'upcoming' | 'past' | 'all';
+type TabFilter = 'upcoming' | 'past';
+
+const tabOptions = [
+  { value: 'upcoming' as const, label: 'Próximos' },
+  { value: 'past' as const, label: 'Histórico' },
+];
 
 export default function ClientBookingsScreen() {
   const { colors, spacing, radius, isDark } = useTheme();
@@ -21,18 +33,39 @@ export default function ClientBookingsScreen() {
   const insets = useAppSafeArea();
   const navbarOffset = React.useContext(ClientNavbarMetricsContext);
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { status, identity } = useSession();
   const isAuthenticated = status === 'authenticated';
-  const [activeTab, setActiveTab] = useState<TabFilter>('upcoming');
 
-  let openDrawer: (() => void) | undefined;
+  const [activeTab, setActiveTab] = useState<TabFilter>(() => {
+    return params?.tab === 'history' ? 'past' : 'upcoming';
+  });
+
+  useEffect(() => {
+    if (params?.tab === 'history') {
+      setActiveTab('past');
+    } else if (params?.tab === 'upcoming' || !params?.tab) {
+      setActiveTab('upcoming');
+    } else {
+      setActiveTab('upcoming');
+    }
+  }, [params?.tab]);
+
+  const clientExperience = useOptionalClientExperienceContext();
+
+  const handleNovaReserva = useCallback(() => {
+    if (clientExperience?.requestBooking) {
+      clientExperience.requestBooking();
+    } else {
+      router.push('/(client)/explore' as any);
+    }
+  }, [clientExperience, router]);
+
   let onContentScroll: ((event: any) => void) | undefined;
   try {
     const nav = useNavigation();
-    openDrawer = nav.openDrawer;
     onContentScroll = nav.onContentScroll;
   } catch {
-    openDrawer = undefined;
     onContentScroll = undefined;
   }
 
@@ -45,11 +78,20 @@ export default function ClientBookingsScreen() {
         }
       : {};
 
+  // Consulta autoritativa do próximo atendimento
+  const {
+    booking: nextBooking,
+    serverTime,
+    isLoading: isNextLoading,
+    isError: isNextError,
+    refetch: refetchNextBooking,
+  } = useNextBooking();
+
+  // Consulta paginada das reservas do cliente
   const {
     bookings,
     upcoming,
     past,
-    nextBooking,
     isLoading,
     isFetchingNextPage,
     hasMore,
@@ -62,8 +104,13 @@ export default function ClientBookingsScreen() {
     enabled: isAuthenticated,
   });
 
-  const displayedItems =
-    activeTab === 'upcoming' ? upcoming : activeTab === 'past' ? past : bookings;
+  // Deduplicação entre o destaque autoritativo e a lista paginada de próximos
+  const filteredUpcoming = useMemo(() => {
+    if (!nextBooking?.id) return upcoming;
+    return upcoming.filter((item) => item.id !== nextBooking.id);
+  }, [upcoming, nextBooking?.id]);
+
+  const displayedItems = activeTab === 'upcoming' ? filteredUpcoming : past;
 
   const handleOpenDetail = (booking: BookingDto) => {
     router.push(`/(account)/bookings/${booking.id}` as any);
@@ -76,6 +123,195 @@ export default function ClientBookingsScreen() {
       return;
     }
     router.push('/(client)/explore' as any);
+  };
+
+  const renderListHeader = () => {
+    if (activeTab !== 'upcoming') return null;
+
+    return (
+      <View style={[styles.contentConstraint, { marginBottom: spacing.md }]}>
+        <ClientNextBookingCard
+          booking={nextBooking}
+          serverTime={serverTime}
+          isLoading={isNextLoading}
+          isError={isNextError}
+          onRetry={() => {
+            void refetchNextBooking();
+          }}
+          onFindBarbershop={handleNovaReserva}
+        />
+      </View>
+    );
+  };
+
+  const renderListEmpty = () => {
+    // Se a categoria filtrada está vazia mas ainda há páginas a carregar
+    if (hasMore) {
+      return (
+        <View
+          style={[
+            styles.contentConstraint,
+            styles.emptyCategoryCard,
+            {
+              backgroundColor: isDark
+                ? 'rgba(255, 255, 255, 0.04)'
+                : 'rgba(0, 0, 0, 0.03)',
+              borderColor: isDark
+                ? 'rgba(255, 255, 255, 0.1)'
+                : 'rgba(0, 0, 0, 0.08)',
+              borderRadius: radius.lg,
+              padding: spacing.lg,
+            },
+          ]}
+        >
+          <Text
+            variant="body"
+            weight="medium"
+            style={{ color: colors.text.primary, textAlign: 'center' }}
+          >
+            {activeTab === 'upcoming'
+              ? 'Nenhum agendamento futuro encontrado nas páginas carregadas.'
+              : 'Nenhum agendamento no histórico encontrado nas páginas carregadas.'}
+          </Text>
+          <Text
+            variant="caption"
+            style={{
+              color: colors.text.secondary,
+              textAlign: 'center',
+              marginTop: 4,
+              marginBottom: spacing.md,
+            }}
+          >
+            Existem mais agendamentos disponíveis no seu histórico completo.
+          </Text>
+          <Button
+            title={isFetchingNextPage ? 'Buscando mais...' : 'Buscar mais agendamentos'}
+            variant="outline"
+            onPress={loadNextPage}
+            disabled={isFetchingNextPage}
+          />
+        </View>
+      );
+    }
+
+    // Se todas as páginas foram esgotadas
+    if (activeTab === 'upcoming') {
+      if (nextBooking) {
+        return (
+          <View
+            style={[
+              styles.contentConstraint,
+              { paddingVertical: spacing.lg, alignItems: 'center' },
+            ]}
+          >
+            <Text
+              variant="caption"
+              style={{ color: colors.text.muted, textAlign: 'center' }}
+            >
+              Você não possui outros agendamentos futuros.
+            </Text>
+          </View>
+        );
+      }
+
+      return (
+        <View style={styles.contentConstraint}>
+          <EmptyState
+            title="Nenhum agendamento futuro"
+            description="Você ainda não possui horários agendados. Explore barbearias parceiras e escolha o melhor horário para você."
+            actionLabel="Nova reserva"
+            onAction={handleNovaReserva}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.contentConstraint}>
+        <EmptyState
+          title="Nenhum agendamento no histórico"
+          description="Você ainda não possui atendimentos anteriores finalizados."
+          actionLabel="Explorar barbearias"
+          onAction={handleNovaReserva}
+        />
+      </View>
+    );
+  };
+
+  const renderListFooter = () => {
+    if (displayedItems.length === 0) return null;
+
+    if (error) {
+      return (
+        <View
+          style={[
+            styles.contentConstraint,
+            { paddingVertical: spacing.md, alignItems: 'center' },
+          ]}
+        >
+          <Text
+            variant="caption"
+            style={{
+              color: colors.feedback.error,
+              textAlign: 'center',
+              marginBottom: spacing.xs,
+            }}
+          >
+            Não foi possível carregar mais agendamentos.
+          </Text>
+          <Button
+            title="Tentar novamente"
+            variant="outline"
+            onPress={loadNextPage}
+            disabled={isFetchingNextPage}
+          />
+        </View>
+      );
+    }
+
+    if (hasMore) {
+      return (
+        <View
+          style={[
+            styles.contentConstraint,
+            { paddingVertical: spacing.md, alignItems: 'center' },
+          ]}
+        >
+          <Text
+            variant="caption"
+            style={{
+              color: colors.text.muted,
+              textAlign: 'center',
+              marginBottom: spacing.xs,
+            }}
+          >
+            Exibindo agendamentos carregados. O histórico completo é recuperado sob demanda.
+          </Text>
+          <Button
+            title={isFetchingNextPage ? 'Buscando mais...' : 'Buscar mais agendamentos'}
+            variant="outline"
+            onPress={loadNextPage}
+            disabled={isFetchingNextPage}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.contentConstraint,
+          { paddingVertical: spacing.md, alignItems: 'center' },
+        ]}
+      >
+        <Text
+          variant="caption"
+          style={{ color: colors.text.muted, textAlign: 'center' }}
+        >
+          Fim dos agendamentos disponíveis.
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -115,7 +351,7 @@ export default function ClientBookingsScreen() {
                   title="Nova reserva"
                   variant="primary"
                   leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
-                  onPress={() => router.push('/(client)/explore')}
+                  onPress={handleNovaReserva}
                 />
               </View>
             </View>
@@ -134,18 +370,14 @@ export default function ClientBookingsScreen() {
                 title="Nova reserva"
                 variant="primary"
                 leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
-                onPress={() => router.push('/(client)/explore')}
+                onPress={handleNovaReserva}
               />
             </View>
           )}
 
-          {/* Filtro Segmentado Canônico (Padrão Owner) */}
+          {/* Filtro Segmentado Canônico sem contagens globais fictícias */}
           <SegmentedFilter<TabFilter>
-            options={[
-              { value: 'upcoming', label: 'Próximos', count: upcoming.length },
-              { value: 'past', label: 'Histórico', count: past.length },
-              { value: 'all', label: 'Todos', count: bookings.length },
-            ]}
+            options={tabOptions}
             value={activeTab}
             onChange={setActiveTab}
             style={{ marginTop: spacing.md }}
@@ -153,7 +385,7 @@ export default function ClientBookingsScreen() {
         </View>
       </View>
 
-      {isLoading ? (
+      {isLoading && bookings.length === 0 ? (
         <LoadingRegion
           phase="initial"
           busy={true}
@@ -165,72 +397,54 @@ export default function ClientBookingsScreen() {
           }
           style={{ flex: 1, paddingHorizontal: isCompact ? 16 : 32, paddingTop: spacing.md }}
         />
-      ) : error ? (
+      ) : error && bookings.length === 0 ? (
         <View style={styles.center}>
           <Text variant="body" style={{ color: colors.feedback.error, textAlign: 'center' }}>
-            Não foi possível carregar os agendamentos devido a uma instabilidade no servidor (503/rede).
+            Não foi possível carregar seus agendamentos.
           </Text>
           <Button
             title="Tentar novamente"
             variant="outline"
             style={{ marginTop: spacing.md }}
-            onPress={() => refetch()}
+            onPress={() => {
+              void refetch();
+            }}
           />
         </View>
-      ) : displayedItems.length === 0 ? (
-        <EmptyState
-          title={
-            activeTab === 'upcoming'
-              ? 'Nenhum agendamento futuro'
-              : activeTab === 'past'
-              ? 'Nenhum agendamento no histórico'
-              : 'Nenhum agendamento encontrado'
-          }
-          description="Você ainda não possui horários nesta categoria."
-          actionLabel="Explorar barbearias"
-          onAction={() => router.push('/(client)/explore')}
-        />
       ) : (
         <FlatList
           data={displayedItems}
           keyExtractor={(item) => item.id}
           onScroll={onContentScroll}
           scrollEventThrottle={16}
-          renderItem={({ item, index }) => (
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderListEmpty}
+          ListFooterComponent={renderListFooter}
+          renderItem={({ item }) => (
             <View style={styles.contentConstraint}>
               <BookingCard
                 booking={item}
-                isFeatured={activeTab === 'upcoming' && index === 0 && item.id === nextBooking?.id}
+                isFeatured={false}
                 onPress={() => handleOpenDetail(item)}
               />
             </View>
           )}
-          ListFooterComponent={
-            <View style={[styles.contentConstraint, { paddingVertical: spacing.md, alignItems: 'center' }]}>
-              <Text variant="caption" style={{ color: colors.text.muted, textAlign: 'center', marginBottom: spacing.xs }}>
-                Exibindo agendamentos carregados. O histórico completo é recuperado sob demanda.
-              </Text>
-              {hasMore ? (
-                <Button
-                  title={isFetchingNextPage ? 'Carregando mais...' : 'Carregar mais agendamentos'}
-                  variant="outline"
-                  onPress={loadNextPage}
-                  disabled={isFetchingNextPage}
-                />
-              ) : null}
-            </View>
-          }
           contentContainerStyle={{
             paddingHorizontal: isCompact ? 16 : 32,
             paddingTop: 8,
             paddingBottom: !isExpanded
-              ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+              ? navbarOffset > 0
+                ? navbarOffset + 16
+                : Math.max(insets.bottom, 16) + 96
               : 40,
           }}
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
-              onRefresh={() => { void refetch(); }}
+              onRefresh={() => {
+                void refetch();
+                void refetchNextBooking();
+              }}
               tintColor={colors.brand.primary}
             />
           }
@@ -261,6 +475,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
   },
+  emptyCategoryCard: {
+    borderWidth: 1,
+    alignItems: 'center',
+    marginTop: 8,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -268,4 +487,3 @@ const styles = StyleSheet.create({
     padding: 24,
   },
 });
-
