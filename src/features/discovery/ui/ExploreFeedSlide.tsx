@@ -21,6 +21,10 @@ const ExploreVideo = lazy(() =>
   import('./ExploreVideo').then((module) => ({ default: module.ExploreVideo })),
 );
 
+export interface ExploreFeedSlideHandle {
+  scrollToMedia: (index: number) => void;
+}
+
 export interface ExploreFeedSlideProps {
   item: ExploreFeedItem;
   initialPhotoIndex?: number;
@@ -37,26 +41,39 @@ export interface ExploreFeedSlideProps {
   onOpenAbout: (item: ExploreFeedItem) => void;
   onOpenReviews: (item: ExploreFeedItem) => void;
   onOpenFilters?: () => void;
+  presentation?: 'immersive' | 'desktop';
+  mediaFit?: 'cover' | 'contain';
 }
 
-export function ExploreFeedSlide({
-  item,
-  initialPhotoIndex=0,
-  onPhotoIndexChange,
-  isActive = true,
-  isNear = true,
-  width,
-  height,
-  bottomInset,
-  topInset,
-  locationLabel,
-  onOpenService,
-  onOpenCatalog,
-  onOpenAbout,
-  onOpenReviews,
-  onOpenFilters,
-}: ExploreFeedSlideProps) {
+export const ExploreFeedSlide = React.forwardRef<
+  ExploreFeedSlideHandle,
+  ExploreFeedSlideProps
+>(function ExploreFeedSlide(
+  {
+    item,
+    initialPhotoIndex = 0,
+    onPhotoIndexChange,
+    isActive = true,
+    isNear = true,
+    width,
+    height,
+    bottomInset,
+    topInset,
+    locationLabel,
+    onOpenService,
+    onOpenCatalog,
+    onOpenAbout,
+    onOpenReviews,
+    onOpenFilters,
+    presentation = 'immersive',
+    mediaFit,
+  }: ExploreFeedSlideProps,
+  ref,
+) {
   const { colors } = useTheme();
+  const isDesktop = presentation === 'desktop';
+  const resolvedMediaFit = mediaFit ?? (isDesktop ? 'contain' : 'cover');
+
   const [activePhotoIndex, setActivePhotoIndex] = useState(initialPhotoIndex);
   const activePhotoIndexRef = useRef(initialPhotoIndex);
   activePhotoIndexRef.current = activePhotoIndex;
@@ -66,6 +83,24 @@ export function ExploreFeedSlide({
   const activeMedia = photos[activePhotoIndex] || null;
 
   const photoScroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      scrollToMedia(index: number) {
+        if (width <= 0 || photos.length === 0) return;
+        const bounded = Math.max(0, Math.min(index, photos.length - 1));
+        const targetX = bounded * width;
+        photoScroll.current?.scrollTo({ x: targetX, animated: true });
+        if (bounded !== activePhotoIndexRef.current) {
+          activePhotoIndexRef.current = bounded;
+          setActivePhotoIndex(bounded);
+          onPhotoIndexChange?.(item.barbershop.id, bounded);
+        }
+      },
+    }),
+    [width, photos.length, onPhotoIndexChange, item.barbershop.id],
+  );
 
   // Sincroniza estado inicial seguro quando item ou fotos mudam
   useEffect(() => {
@@ -131,20 +166,26 @@ export function ExploreFeedSlide({
                   media.mimeType?.startsWith('video/') ? (
                     isActive && index === activePhotoIndex ? (
                       <Suspense fallback={<View style={StyleSheet.absoluteFill} />}>
-                        <ExploreVideo url={media.url} poster={media.posterUrl} active={isActive} />
+                        <ExploreVideo
+                          url={media.url}
+                          poster={media.posterUrl}
+                          active={isActive}
+                          contentFit={resolvedMediaFit}
+                          nativeControls={isDesktop}
+                        />
                       </Suspense>
                     ) : media.posterUrl ? (
                       <Image
                         source={{ uri: media.posterUrl }}
                         style={StyleSheet.absoluteFill}
-                        resizeMode="cover"
+                        resizeMode={resolvedMediaFit}
                       />
                     ) : null
                   ) : isNear && Math.abs(index - activePhotoIndex) <= 1 ? (
                     <Image
                       source={{ uri: media.url }}
                       style={StyleSheet.absoluteFill}
-                      resizeMode="cover"
+                      resizeMode={resolvedMediaFit}
                       onError={() => {
                         setImageErrorMap((prev) => ({ ...prev, [media.id]: true }));
                       }}
@@ -171,164 +212,168 @@ export function ExploreFeedSlide({
         </View>
       )}
 
-      {/* 2. Gradientes Suaves Superior e Inferior para Leitura sobre Mídia */}
-      <LinearGradient
-        colors={['rgba(10, 10, 14, 0.72)', 'rgba(10, 10, 14, 0.32)', 'transparent']}
-        locations={[0, 0.55, 1]}
-        style={[styles.topScrim, { height: Math.max(topInset, 16) + 36 }]}
-        pointerEvents="none"
-      />
-      <LinearGradient
-        colors={['transparent', 'rgba(10, 10, 14, 0.48)', 'rgba(10, 10, 14, 0.88)']}
-        locations={[0, 0.45, 1]}
-        style={[styles.bottomScrim, { height: bottomInset + 180 }]}
-        pointerEvents="none"
-      />
+      {/* 2. Overlays mobile: gradientes, trilho lateral e legenda inferior (somente no modo immersive) */}
+      {!isDesktop && (
+        <>
+          <LinearGradient
+            colors={['rgba(10, 10, 14, 0.72)', 'rgba(10, 10, 14, 0.32)', 'transparent']}
+            locations={[0, 0.55, 1]}
+            style={[styles.topScrim, { height: Math.max(topInset, 16) + 36 }]}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(10, 10, 14, 0.48)', 'rgba(10, 10, 14, 0.88)']}
+            locations={[0, 0.45, 1]}
+            style={[styles.bottomScrim, { height: bottomInset + 180 }]}
+            pointerEvents="none"
+          />
 
-      {/* 3. Trilho de Ações à Direita: Detalhes, Catálogo, Sobre */}
-      <View style={[styles.actionRail, { bottom: bottomInset + 12 }]}>
-        {/* Ação: Detalhes / Serviços (papel secundário em vidro, sem competir com o CTA central Agendar) */}
-        <Pressable
-          onPress={() => activeMedia?.service ? onOpenService(item, activeMedia) : onOpenCatalog(item)}
-          style={styles.railActionItem}
-          accessibilityRole="button"
-          accessibilityLabel={
-            activeMedia?.service
-              ? 'Ver detalhes do serviço'
-              : 'Ver serviços da barbearia'
-          }
-        >
-          <View style={styles.railActionButtonGlass}>
-            <Ionicons name="cut-outline" size={20} color="#ffffff" />
+          {/* 3. Trilho de Ações à Direita: Detalhes, Catálogo, Sobre */}
+          <View style={[styles.actionRail, { bottom: bottomInset + 12 }]}>
+            {/* Ação: Detalhes / Serviços (papel secundário em vidro, sem competir com o CTA central Agendar) */}
+            <Pressable
+              onPress={() => activeMedia?.service ? onOpenService(item, activeMedia) : onOpenCatalog(item)}
+              style={styles.railActionItem}
+              accessibilityRole="button"
+              accessibilityLabel={
+                activeMedia?.service
+                  ? 'Ver detalhes do serviço'
+                  : 'Ver serviços da barbearia'
+              }
+            >
+              <View style={styles.railActionButtonGlass}>
+                <Ionicons name="cut-outline" size={20} color="#ffffff" />
+              </View>
+              <Text style={styles.railActionLabel}>
+                {activeMedia?.service ? 'Detalhes' : 'Serviços'}
+              </Text>
+            </Pressable>
+
+            {/* Ação: Catálogo */}
+            <Pressable
+              onPress={() => onOpenCatalog(item)}
+              style={styles.railActionItem}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir catálogo completo de serviços da barbearia"
+            >
+              <View style={styles.railActionButtonGlass}>
+                <Ionicons name="book-outline" size={20} color="#ffffff" />
+              </View>
+              <Text style={styles.railActionLabel}>Catálogo</Text>
+            </Pressable>
+
+            {/* Ação: Sobre */}
+            <Pressable
+              onPress={() => onOpenAbout(item)}
+              style={styles.railActionItem}
+              accessibilityRole="button"
+              accessibilityLabel="Ver sobre a barbearia, endereço e mapa"
+            >
+              <View style={styles.railActionButtonGlass}>
+                <Ionicons name="information-circle-outline" size={22} color="#ffffff" />
+              </View>
+              <Text style={styles.railActionLabel}>Sobre</Text>
+            </Pressable>
           </View>
-          <Text style={styles.railActionLabel}>
-            {activeMedia?.service ? 'Detalhes' : 'Serviços'}
-          </Text>
-        </Pressable>
 
-        {/* Ação: Catálogo */}
-        <Pressable
-          onPress={() => onOpenCatalog(item)}
-          style={styles.railActionItem}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir catálogo completo de serviços da barbearia"
-        >
-          <View style={styles.railActionButtonGlass}>
-            <Ionicons name="book-outline" size={20} color="#ffffff" />
-          </View>
-          <Text style={styles.railActionLabel}>Catálogo</Text>
-        </Pressable>
+          {/* 5. Legenda Inferior Esquerda: Logo + Nome + Avaliação + Serviço/Ambiente + Dots */}
+          <View style={[styles.bottomCaption, { bottom: bottomInset + 12 }]}>
+            {/* Identificação da Barbearia */}
+            <View style={styles.captionHeaderRow}>
+              {item.barbershop.logoUrl ? (
+                <Image
+                  source={{ uri: item.barbershop.logoUrl }}
+                  style={styles.shopLogo}
+                  resizeMode="contain"
+                  accessibilityLabel={`Logo da ${item.barbershop.name}`}
+                />
+              ) : (
+                <View style={styles.shopLogoFallback}>
+                  <BrandMark size={22} variant="symbol-ivory" decorative />
+                </View>
+              )}
 
-        {/* Ação: Sobre */}
-        <Pressable
-          onPress={() => onOpenAbout(item)}
-          style={styles.railActionItem}
-          accessibilityRole="button"
-          accessibilityLabel="Ver sobre a barbearia, endereço e mapa"
-        >
-          <View style={styles.railActionButtonGlass}>
-            <Ionicons name="information-circle-outline" size={22} color="#ffffff" />
-          </View>
-          <Text style={styles.railActionLabel}>Sobre</Text>
-        </Pressable>
-      </View>
-
-      {/* 5. Legenda Inferior Esquerda: Logo + Nome + Avaliação + Serviço/Ambiente + Dots */}
-      <View style={[styles.bottomCaption, { bottom: bottomInset + 12 }]}>
-        {/* Identificação da Barbearia */}
-        <View style={styles.captionHeaderRow}>
-          {item.barbershop.logoUrl ? (
-            <Image
-              source={{ uri: item.barbershop.logoUrl }}
-              style={styles.shopLogo}
-              resizeMode="contain"
-              accessibilityLabel={`Logo da ${item.barbershop.name}`}
-            />
-          ) : (
-            <View style={styles.shopLogoFallback}>
-              <BrandMark size={22} variant="symbol-ivory" decorative />
+              <View style={styles.shopInfoColumn}>
+                <Text style={styles.shopName} numberOfLines={1}>
+                  {item.barbershop.name}
+                </Text>
+                <Text style={styles.shopLocation} numberOfLines={1}>
+                  {item.barbershop.location}
+                </Text>
+              </View>
             </View>
-          )}
 
-          <View style={styles.shopInfoColumn}>
-            <Text style={styles.shopName} numberOfLines={1}>
-              {item.barbershop.name}
-            </Text>
-            <Text style={styles.shopLocation} numberOfLines={1}>
-              {item.barbershop.location}
-            </Text>
-          </View>
-        </View>
+            {/* Linha de Avaliação e Distância (Acionável para ver reviews) */}
+            <Pressable
+              onPress={() => onOpenReviews(item)}
+              style={styles.ratingDistanceRow}
+              accessibilityRole="button"
+              accessibilityLabel={`Avaliação ${ratingText}. Toque para ver avaliações publicadas.`}
+            >
+              <View style={styles.ratingRowContainer}>
+                <Ionicons name="star" size={13} color="#f59e0b" />
+                <Text style={styles.ratingText}>
+                  {item.barbershop.rating !== null && item.barbershop.rating !== undefined
+                    ? `${item.barbershop.rating.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
+                    : 'Sem avaliações'}
+                </Text>
+                {formattedDistance && (
+                  <>
+                    <Text style={styles.separatorBullet}>•</Text>
+                    <Ionicons name="location-sharp" size={12} color="#cbd5e1" />
+                    <Text style={styles.distanceText}>{formattedDistance}</Text>
+                  </>
+                )}
+              </View>
+            </Pressable>
 
-        {/* Linha de Avaliação e Distância (Acionável para ver reviews) */}
-        <Pressable
-          onPress={() => onOpenReviews(item)}
-          style={styles.ratingDistanceRow}
-          accessibilityRole="button"
-          accessibilityLabel={`Avaliação ${ratingText}. Toque para ver avaliações publicadas.`}
-        >
-          <View style={styles.ratingRowContainer}>
-            <Ionicons name="star" size={13} color="#f59e0b" />
-            <Text style={styles.ratingText}>
-              {item.barbershop.rating !== null && item.barbershop.rating !== undefined
-                ? `${item.barbershop.rating.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
-                : 'Sem avaliações'}
-            </Text>
-            {formattedDistance && (
-              <>
-                <Text style={styles.separatorBullet}>•</Text>
-                <Ionicons name="location-sharp" size={12} color="#cbd5e1" />
-                <Text style={styles.distanceText}>{formattedDistance}</Text>
-              </>
+            {/* Detalhe da Foto: Se for Serviço, mostra Título/Preço/Duração; se for Ambiente, mostra Espaço */}
+            {activeMedia?.kind === 'service' && activeMedia.service ? (
+              <View style={styles.serviceDetailBox}>
+                <Text style={styles.serviceTitle} numberOfLines={1}>
+                  {activeMedia.service.title}
+                </Text>
+                <Text style={styles.servicePriceDuration}>
+                  {`R$ ${(activeMedia.service.priceInCents / 100).toFixed(2).replace('.', ',')} • ${activeMedia.service.durationInMinutes} min`}
+                </Text>
+                <Text style={styles.illustrativeNotice}>Imagens e dados ilustrativos</Text>
+              </View>
+            ) : (
+              <View style={styles.serviceDetailBox}>
+                <Text style={styles.serviceTitle} numberOfLines={1}>
+                  Ambiente da Barbearia
+                </Text>
+                <Text style={styles.servicePriceDuration}>Estrutura e instalações do espaço</Text>
+                <Text style={styles.illustrativeNotice}>
+                  {activeMedia?.rightsPending
+                    ? 'Imagens ilustrativas • procedência em revisão'
+                    : 'Imagens e dados ilustrativos'}
+                </Text>
+              </View>
+            )}
+
+            {/* Indicadores de Posição Fotográfica (dots / pill) */}
+            {photos.length > 1 && (
+              <View style={styles.indicatorsRow}>
+                {photos.map((_, idx) => (
+                  <View
+                    key={`dot-${idx}`}
+                    style={[
+                      styles.indicatorDot,
+                      idx === activePhotoIndex
+                        ? [styles.indicatorPillActive, { backgroundColor: colors.brand.primary }]
+                        : styles.indicatorDotInactive,
+                    ]}
+                  />
+                ))}
+              </View>
             )}
           </View>
-        </Pressable>
-
-        {/* Detalhe da Foto: Se for Serviço, mostra Título/Preço/Duração; se for Ambiente, mostra Espaço */}
-        {activeMedia?.kind === 'service' && activeMedia.service ? (
-          <View style={styles.serviceDetailBox}>
-            <Text style={styles.serviceTitle} numberOfLines={1}>
-              {activeMedia.service.title}
-            </Text>
-            <Text style={styles.servicePriceDuration}>
-              {`R$ ${(activeMedia.service.priceInCents / 100).toFixed(2).replace('.', ',')} • ${activeMedia.service.durationInMinutes} min`}
-            </Text>
-            <Text style={styles.illustrativeNotice}>Imagens e dados ilustrativos</Text>
-          </View>
-        ) : (
-          <View style={styles.serviceDetailBox}>
-            <Text style={styles.serviceTitle} numberOfLines={1}>
-              Ambiente da Barbearia
-            </Text>
-            <Text style={styles.servicePriceDuration}>Estrutura e instalações do espaço</Text>
-            <Text style={styles.illustrativeNotice}>
-              {activeMedia?.rightsPending
-                ? 'Imagens ilustrativas • procedência em revisão'
-                : 'Imagens e dados ilustrativos'}
-            </Text>
-          </View>
-        )}
-
-        {/* Indicadores de Posição Fotográfica (dots / pill) */}
-        {photos.length > 1 && (
-          <View style={styles.indicatorsRow}>
-            {photos.map((_, idx) => (
-              <View
-                key={`dot-${idx}`}
-                style={[
-                  styles.indicatorDot,
-                  idx === activePhotoIndex
-                    ? [styles.indicatorPillActive, { backgroundColor: colors.brand.primary }]
-                    : styles.indicatorDotInactive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </View>
+        </>
+      )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -35,3 +35,7 @@ export * from './ui/location-status-panel';
 export * from './ui/client-explore-tabs';
 export * from './ui/client-nearby-view';
 export * from './ui/booking-start-sheet';
+export * from './lib/desktop-explore-layout';
+export * from './ui/desktop-explore-layout';
+export * from './ui/desktop-explore-context';
+export * from './ui/desktop-explore-controls';

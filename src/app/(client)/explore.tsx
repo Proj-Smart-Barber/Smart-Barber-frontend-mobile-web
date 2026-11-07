@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
@@ -22,7 +22,8 @@ import {
  */
 export default function ClientExploreScreen() {
   const { colors } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
+  const { isCompact, isExpanded } = useAdaptiveLayout();
+  const isDesktopVariant = Platform.OS === 'web' && isExpanded;
   const insets = useAppSafeArea();
   const router = useRouter();
   const params = useLocalSearchParams<{ section?: string | string[] }>();
@@ -105,9 +106,11 @@ export default function ClientExploreScreen() {
         }}
         style={[
           styles.topHeaderContainer,
-          activeSection === 'feed'
-            ? styles.feedHeaderOverlay
-            : styles.nearbyHeaderBlock,
+          isDesktopVariant
+            ? styles.desktopHeaderBlock
+            : activeSection === 'feed'
+              ? styles.feedHeaderOverlay
+              : styles.nearbyHeaderBlock,
           {
             paddingTop: topSafePadding,
             paddingHorizontal: isCompact ? 16 : 32,
@@ -155,8 +158,11 @@ export default function ClientExploreScreen() {
           <ExploreFeedView
             ref={feedRef}
             isVisible={activeSection === 'feed'}
-            topOffset={feedTopOffset}
+            topOffset={isDesktopVariant ? 0 : feedTopOffset}
             onActiveMediaChange={publishActiveMedia}
+            presentation={isDesktopVariant ? 'desktop' : 'immersive'}
+            onRequestBooking={clientExperience?.requestBooking}
+            interactionBlocked={Boolean(clientExperience?.bookingStart)}
           />
         </View>
       )}
@@ -195,6 +201,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingBottom: 6,
+  },
+  desktopHeaderBlock: {
+    paddingBottom: 8,
   },
   nearbyHeaderBlock: {
     paddingBottom: 8,

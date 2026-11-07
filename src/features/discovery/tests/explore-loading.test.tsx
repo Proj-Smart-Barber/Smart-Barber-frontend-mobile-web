@@ -15,6 +15,10 @@ vi.mock('@expo/vector-icons', () => ({
   Ionicons: (props: any) => <span data-testid={`icon-${props.name}`} {...props} />,
 }));
 
+vi.mock('expo-blur', () => ({
+  BlurView: ({ children, style }: any) => <div style={style}>{children}</div>,
+}));
+
 vi.mock('expo-haptics', () => ({
   notificationAsync: vi.fn(),
   selectionAsync: vi.fn(),

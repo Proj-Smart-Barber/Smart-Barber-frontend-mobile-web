@@ -17,7 +17,7 @@ import { LoadingRegion } from '@/shared/ui';
 import { BrandMark } from '@/shared/brand';
 import { useExploreFeed } from '../model/use-explore-feed';
 import type { ActiveClientMedia } from '../model/client-experience-context';
-import { ExploreFeedSlide } from './ExploreFeedSlide';
+import { ExploreFeedSlide, type ExploreFeedSlideHandle } from './ExploreFeedSlide';
 import { ExploreFeedSkeleton } from './ExploreFeedSkeleton';
 import {
   ExploreServiceSheet,
@@ -28,6 +28,14 @@ import {
 } from './ExploreSheets';
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
 import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
+import { calculateDesktopExploreLayout } from '../lib/desktop-explore-layout';
+import { DesktopExploreLayout } from './desktop-explore-layout';
+import { DesktopExploreContext } from './desktop-explore-context';
+import {
+  DesktopShopControls,
+  DesktopMediaControls,
+  DesktopExploreKeyboardContainer,
+} from './desktop-explore-controls';
 
 export interface ExploreFeedHandle {
   openFilters: () => void;
@@ -39,6 +47,9 @@ export interface ExploreFeedViewProps {
   isVisible?: boolean;
   topOffset?: number;
   onActiveMediaChange?: (value: ActiveClientMedia | null) => void;
+  presentation?: 'immersive' | 'desktop';
+  onRequestBooking?: () => void;
+  interactionBlocked?: boolean;
 }
 
 export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedViewProps>(
@@ -49,16 +60,41 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
       isVisible = true,
       topOffset,
       onActiveMediaChange,
+      presentation = 'immersive',
+      onRequestBooking,
+      interactionBlocked = false,
     }: ExploreFeedViewProps,
     ref,
   ) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useAppSafeArea();
 
+  const fallbackWidth =
+    windowWidth > 0
+      ? windowWidth
+      : typeof window !== 'undefined' && window.innerWidth > 0
+        ? window.innerWidth
+        : 1024;
+  const fallbackHeight =
+    windowHeight > 0
+      ? windowHeight
+      : typeof window !== 'undefined' && window.innerHeight > 0
+        ? window.innerHeight
+        : 768;
+
   const measuredNavbar = useContext(ClientNavbarMetricsContext);
-  const [containerWidth, setContainerWidth] = useState(windowWidth);
+  const [containerWidth, setContainerWidth] = useState(fallbackWidth);
   const [photoIndexByShop, setPhotoIndexByShop] = useState<Record<string, number>>({});
   const photoPositions = useRef(new Map<string, number>());
+  const slideHandlesRef = useRef<Map<string, ExploreFeedSlideHandle>>(new Map());
+
+  const registerSlideHandle = useCallback((shopId: string, handle: ExploreFeedSlideHandle | null) => {
+    if (handle) {
+      slideHandlesRef.current.set(shopId, handle);
+    } else {
+      slideHandlesRef.current.delete(shopId);
+    }
+  }, []);
 
   const rememberPhoto = useCallback((id: string, index: number) => {
     photoPositions.current.set(id, index);
@@ -67,7 +103,7 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
     );
   }, []);
 
-  const [containerHeight, setContainerHeight] = useState(windowHeight);
+  const [containerHeight, setContainerHeight] = useState(fallbackHeight);
 
   // Bottom inset consideration for floating capsule bar (approx 64px) + safe area
   const bottomInset = Math.max(
@@ -155,6 +191,7 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
   }, [items, activeIndex]);
 
   useEffect(() => {
+    pendingAdvanceOnPageLoadRef.current = null;
     flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
     setActiveIndex(0);
     activeShopIdRef.current = null;
@@ -286,11 +323,103 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
         ? 'Perto de você'
         : 'Todas as regiões';
 
+  const currentItem = items[activeIndex] ?? items[0];
+  const photos = currentItem?.media?.length > 0 ? currentItem.media : [];
+  const storedPhotoIdx =
+    photoIndexByShop[currentItem?.barbershop?.id] ??
+    photoPositions.current.get(currentItem?.barbershop?.id) ??
+    0;
+  const validPhotoIdx = Math.max(0, Math.min(storedPhotoIdx, Math.max(0, photos.length - 1)));
+  const currentMedia = photos[validPhotoIdx] ?? null;
+
+  const handlePreviousShop = useCallback(() => {
+    if (activeIndex <= 0) return;
+    const target = activeIndex - 1;
+    setActiveIndex(target);
+    if (items[target]?.barbershop?.id) {
+      activeShopIdRef.current = items[target].barbershop.id;
+    }
+    if (presentation !== 'desktop') {
+      flatListRef.current?.scrollToIndex({ index: target, animated: true });
+    }
+  }, [activeIndex, items, presentation]);
+
+  const pendingAdvanceOnPageLoadRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (pendingAdvanceOnPageLoadRef.current !== null) {
+      if (items.length > pendingAdvanceOnPageLoadRef.current) {
+        const nextIdx = pendingAdvanceOnPageLoadRef.current;
+        pendingAdvanceOnPageLoadRef.current = null;
+        setActiveIndex(nextIdx);
+        if (items[nextIdx]?.barbershop?.id) {
+          activeShopIdRef.current = items[nextIdx].barbershop.id;
+        }
+      } else if (!isFetchingNextPage) {
+        pendingAdvanceOnPageLoadRef.current = null;
+      }
+    }
+  }, [items.length, isFetchingNextPage]);
+
+  const handleNextShop = useCallback(() => {
+    if (activeIndex < items.length - 1) {
+      const target = activeIndex + 1;
+      setActiveIndex(target);
+      if (items[target]?.barbershop?.id) {
+        activeShopIdRef.current = items[target].barbershop.id;
+      }
+      if (presentation !== 'desktop') {
+        flatListRef.current?.scrollToIndex({ index: target, animated: true });
+      }
+    } else if (hasNextPage && !isFetchingNextPage) {
+      pendingAdvanceOnPageLoadRef.current = items.length;
+      fetchNextPage();
+    }
+  }, [activeIndex, items, hasNextPage, isFetchingNextPage, fetchNextPage, presentation]);
+
+  const handlePreviousMedia = useCallback(() => {
+    if (!currentItem || validPhotoIdx <= 0) return;
+    const handle = slideHandlesRef.current.get(currentItem.barbershop.id);
+    handle?.scrollToMedia(validPhotoIdx - 1);
+  }, [currentItem, validPhotoIdx]);
+
+  const handleNextMedia = useCallback(() => {
+    if (!currentItem || validPhotoIdx >= photos.length - 1) return;
+    const handle = slideHandlesRef.current.get(currentItem.barbershop.id);
+    handle?.scrollToMedia(validPhotoIdx + 1);
+  }, [currentItem, validPhotoIdx, photos.length]);
+
+  const handleBookFromContext = useCallback(
+    (shopItem: ExploreFeedItem, activeMediaItem: ExploreFeedMediaItem | null) => {
+      const realService =
+        activeMediaItem?.kind === 'service' && activeMediaItem.service
+          ? {
+              id: activeMediaItem.service.id,
+              title: activeMediaItem.service.title,
+              priceInCents: activeMediaItem.service.priceInCents,
+              durationInMinutes: activeMediaItem.service.durationInMinutes,
+            }
+          : null;
+
+      const payload: ActiveClientMedia = {
+        shopId: shopItem.barbershop.id,
+        shopName: shopItem.barbershop.name,
+        mediaId: activeMediaItem?.id || '',
+        service: realService,
+      };
+
+      onActiveMediaChangeRef.current?.(payload);
+      onRequestBooking?.();
+    },
+    [onRequestBooking],
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: ExploreFeedItem; index: number }) => (
       <ExploreFeedSlide
+        ref={(handle) => registerSlideHandle(item.barbershop.id, handle)}
         item={item}
-        isActive={isVisible && index === activeIndex && activeSheet === null}
+        isActive={isVisible && index === activeIndex && activeSheet === null && !interactionBlocked}
         isNear={isVisible && Math.abs(index - activeIndex) <= 1}
         initialPhotoIndex={photoPositions.current.get(item.barbershop.id) ?? 0}
         onPhotoIndexChange={rememberPhoto}
@@ -310,8 +439,10 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
       isVisible,
       activeIndex,
       activeSheet,
+      interactionBlocked,
       containerWidth,
       rememberPhoto,
+      registerSlideHandle,
       stageHeight,
       bottomInset,
       topInset,
@@ -367,7 +498,129 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
     [isVisible, containerHeight],
   );
 
+  const renderSheets = () => (
+    <>
+      <ExploreServiceSheet
+        visible={isVisible && activeSheet === 'service'}
+        item={selectedItem}
+        activeMedia={selectedMedia}
+        onClose={handleCloseSheet}
+      />
+
+      <ExploreCatalogSheet
+        visible={isVisible && activeSheet === 'catalog'}
+        item={selectedItem}
+        onClose={handleCloseSheet}
+      />
+
+      <ExploreAboutSheet
+        visible={isVisible && activeSheet === 'about'}
+        item={selectedItem}
+        onClose={handleCloseSheet}
+      />
+
+      <ExploreReviewsSheet
+        visible={isVisible && activeSheet === 'reviews'}
+        item={selectedItem}
+        onClose={handleCloseSheet}
+      />
+
+      <ExploreFilterSheet
+        visible={isVisible && activeSheet === 'filters'}
+        mode={mode}
+        radiusKm={radiusKm}
+        searchQuery={searchQuery}
+        regionKey={regionKey}
+        isLocationGranted={
+          (locationSession.state === 'granted' || locationSession.state === 'stale') &&
+          locationSession.coords !== null
+        }
+        onClose={handleCloseSheet}
+        onApplyFilters={handleApplyFilters}
+      />
+    </>
+  );
+
   if (isLoading && items.length === 0) {
+    if (presentation === 'desktop') {
+      const skeletonMetrics = calculateDesktopExploreLayout({
+        width: containerWidth,
+        height: stageHeight,
+      });
+      return (
+        <View
+          style={[styles.container, !isVisible && styles.hiddenContainer]}
+          pointerEvents={isVisible ? 'auto' : 'none'}
+          aria-hidden={!isVisible}
+          accessibilityElementsHidden={!isVisible}
+          importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+          onLayout={handleLayout}
+        >
+          {isVisible && (
+            <LoadingRegion
+              phase="initial"
+              busy={true}
+              accessibilityLabel="Carregando experiências do feed Explorar"
+              placeholder={
+                <DesktopExploreLayout
+                  metrics={skeletonMetrics}
+                  shopControls={
+                    <View
+                      style={[
+                        styles.skeletonBox,
+                        {
+                          width: 44,
+                          height: 120,
+                          borderRadius: 22,
+                        },
+                      ]}
+                    />
+                  }
+                  mediaControls={
+                    <View
+                      style={[
+                        styles.skeletonBox,
+                        {
+                          width: skeletonMetrics.mediaWidth,
+                          height: 44,
+                          borderRadius: 22,
+                        },
+                      ]}
+                    />
+                  }
+                  media={
+                    <View
+                      style={[
+                        styles.skeletonBox,
+                        {
+                          width: skeletonMetrics.mediaWidth,
+                          height: skeletonMetrics.mediaHeight,
+                          borderRadius: 16,
+                        },
+                      ]}
+                    />
+                  }
+                  context={
+                    <View
+                      style={[
+                        styles.skeletonBox,
+                        {
+                          width: skeletonMetrics.contextWidth,
+                          height: Math.min(skeletonMetrics.mediaHeight, 460),
+                          borderRadius: 16,
+                        },
+                      ]}
+                    />
+                  }
+                />
+              }
+              style={{ flex: 1 }}
+            />
+          )}
+        </View>
+      );
+    }
+
     return (
       <View
         style={[styles.container, !isVisible && styles.hiddenContainer]}
@@ -469,6 +722,99 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
             }}
           />
         </View>
+      </View>
+    );
+  }
+
+  if (presentation === 'desktop') {
+    const isControlsDisabled = !isVisible || activeSheet !== null || Boolean(interactionBlocked);
+    const desktopMetrics = calculateDesktopExploreLayout({
+      width: containerWidth,
+      height: stageHeight,
+    });
+
+    return (
+      <View
+        style={[styles.container, !isVisible && styles.hiddenContainer]}
+        pointerEvents={isVisible ? 'auto' : 'none'}
+        aria-hidden={!isVisible}
+        accessibilityElementsHidden={!isVisible}
+        importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
+        onLayout={handleLayout}
+      >
+        <DesktopExploreKeyboardContainer
+          disabled={isControlsDisabled}
+          onPreviousShop={handlePreviousShop}
+          onNextShop={handleNextShop}
+          onPreviousMedia={handlePreviousMedia}
+          onNextMedia={handleNextMedia}
+        >
+          <DesktopExploreLayout
+            metrics={desktopMetrics}
+            shopControls={
+              <DesktopShopControls
+                currentIndex={activeIndex}
+                totalCount={items.length}
+                hasPrevious={activeIndex > 0}
+                hasNext={activeIndex < items.length - 1 || Boolean(hasNextPage)}
+                isLoadingNextPage={isFetchingNextPage}
+                onPrevious={handlePreviousShop}
+                onNext={handleNextShop}
+                direction={desktopMetrics.mode === 'side-by-side' ? 'vertical' : 'horizontal'}
+                disabled={isControlsDisabled}
+              />
+            }
+            mediaControls={
+              <DesktopMediaControls
+                currentIndex={validPhotoIdx}
+                totalCount={photos.length}
+                hasPrevious={validPhotoIdx > 0}
+                hasNext={validPhotoIdx < photos.length - 1}
+                onPrevious={handlePreviousMedia}
+                onNext={handleNextMedia}
+                disabled={isControlsDisabled}
+              />
+            }
+            media={
+              currentItem ? (
+                <ExploreFeedSlide
+                  ref={(handle) => registerSlideHandle(currentItem.barbershop.id, handle)}
+                  item={currentItem}
+                  presentation="desktop"
+                  isActive={isVisible && activeSheet === null && !interactionBlocked}
+                  isNear={true}
+                  initialPhotoIndex={validPhotoIdx}
+                  onPhotoIndexChange={rememberPhoto}
+                  width={desktopMetrics.mediaWidth}
+                  height={desktopMetrics.mediaHeight}
+                  bottomInset={0}
+                  topInset={0}
+                  locationLabel={locationLabel}
+                  onOpenService={handleOpenService}
+                  onOpenCatalog={handleOpenCatalog}
+                  onOpenAbout={handleOpenAbout}
+                  onOpenReviews={handleOpenReviews}
+                  onOpenFilters={handleOpenFilters}
+                />
+              ) : null
+            }
+            context={
+              currentItem ? (
+                <DesktopExploreContext
+                  item={currentItem}
+                  media={currentMedia}
+                  onBook={handleBookFromContext}
+                  onCatalog={handleOpenCatalog}
+                  onAbout={handleOpenAbout}
+                  onReviews={handleOpenReviews}
+                  disabled={isControlsDisabled}
+                />
+              ) : null
+            }
+          />
+        </DesktopExploreKeyboardContainer>
+
+        {renderSheets()}
       </View>
     );
   }
@@ -587,44 +933,7 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
       )}
 
       {/* Sheets Interativos */}
-      <ExploreServiceSheet
-        visible={isVisible && activeSheet === 'service'}
-        item={selectedItem}
-        activeMedia={selectedMedia}
-        onClose={handleCloseSheet}
-      />
-
-      <ExploreCatalogSheet
-        visible={isVisible && activeSheet === 'catalog'}
-        item={selectedItem}
-        onClose={handleCloseSheet}
-      />
-
-      <ExploreAboutSheet
-        visible={isVisible && activeSheet === 'about'}
-        item={selectedItem}
-        onClose={handleCloseSheet}
-      />
-
-      <ExploreReviewsSheet
-        visible={isVisible && activeSheet === 'reviews'}
-        item={selectedItem}
-        onClose={handleCloseSheet}
-      />
-
-      <ExploreFilterSheet
-        visible={isVisible && activeSheet === 'filters'}
-        mode={mode}
-        radiusKm={radiusKm}
-        searchQuery={searchQuery}
-        regionKey={regionKey}
-        isLocationGranted={
-          (locationSession.state === 'granted' || locationSession.state === 'stale') &&
-          locationSession.coords !== null
-        }
-        onClose={handleCloseSheet}
-        onApplyFilters={handleApplyFilters}
-      />
+      {renderSheets()}
     </View>
   );
 });
@@ -676,5 +985,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     maxWidth: 320,
+  },
+  skeletonBox: {
+    backgroundColor: '#18181c',
   },
 });
