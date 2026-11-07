@@ -29,6 +29,10 @@ import {
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
 import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
 
+export interface ExploreFeedHandle {
+  openFilters: () => void;
+}
+
 export interface ExploreFeedViewProps {
   initialMode?: DiscoveryMode;
   initialRadius?: DiscoveryRadius;
@@ -37,13 +41,17 @@ export interface ExploreFeedViewProps {
   onActiveMediaChange?: (value: ActiveClientMedia | null) => void;
 }
 
-export function ExploreFeedView({
-  initialMode,
-  initialRadius,
-  isVisible = true,
-  topOffset,
-  onActiveMediaChange,
-}: ExploreFeedViewProps) {
+export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedViewProps>(
+  function ExploreFeedView(
+    {
+      initialMode,
+      initialRadius,
+      isVisible = true,
+      topOffset,
+      onActiveMediaChange,
+    }: ExploreFeedViewProps,
+    ref,
+  ) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useAppSafeArea();
 
@@ -247,6 +255,14 @@ export function ExploreFeedView({
   const handleOpenFilters = useCallback(() => {
     setActiveSheet('filters');
   }, []);
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      openFilters: handleOpenFilters,
+    }),
+    [handleOpenFilters],
+  );
 
   const handleCloseSheet = useCallback(() => {
     setActiveSheet(null);
@@ -611,7 +627,7 @@ export function ExploreFeedView({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

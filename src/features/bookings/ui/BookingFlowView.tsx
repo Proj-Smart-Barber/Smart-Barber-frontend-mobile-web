@@ -48,12 +48,14 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
     }
   }, [flow, onExit, router]);
 
+  const isPersonal = options.mode === 'PERSONAL';
+
   const stepTitle = {
-    SERVICES: '1. Selecione os Serviços',
+    SERVICES: isPersonal ? 'Selecione os Serviços' : '1. Selecione os Serviços',
     CUSTOMER: 'Identificar Cliente',
-    PROFESSIONAL: '2. Escolha o Profissional',
-    SLOT: '3. Data e Horário',
-    REVIEW: '4. Revisão e Confirmação',
+    PROFESSIONAL: isPersonal ? 'Escolha o Profissional' : '2. Escolha o Profissional',
+    SLOT: isPersonal ? 'Data e Horário' : '3. Data e Horário',
+    REVIEW: isPersonal ? 'Revisar agendamento' : '4. Revisão e Confirmação',
     RESULT: 'Confirmação',
     UNCERTAIN: 'Verificação de Operação',
   }[flow.step];
@@ -63,8 +65,11 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
   const webBackgroundStyle =
     Platform.OS === 'web'
       ? ({
-          backgroundImage:
-            isDark
+          backgroundImage: isPersonal
+            ? isDark
+              ? 'radial-gradient(ellipse at 50% 0%, rgba(189, 32, 38, 0.08) 0%, rgba(11, 11, 11, 0.98) 70%)'
+              : 'radial-gradient(ellipse at 50% 0%, rgba(189, 32, 38, 0.05) 0%, #F7F5F3 70%)'
+            : isDark
               ? 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.08) 0%, rgba(20, 20, 20, 0.98) 70%)'
               : 'radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.12) 0%, #F7F5F3 70%)',
         } as any)
@@ -82,64 +87,125 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
       ]}
     >
       {/* Top Header */}
-      <LiquidGlassView
-        variant="card"
-        elevated={false}
-        borderRadius={0}
-        borderColor={colors.border.default}
-        borderWidth={1}
-        contentStyle={{
-          paddingHorizontal: spacing[4],
-          paddingVertical: spacing[3],
-        }}
-      >
+      {isPersonal ? (
         <View
+          testID="booking-header-personal"
           style={{
-            maxWidth: 640,
-            width: '100%',
-            alignSelf: 'center',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            paddingHorizontal: spacing[4],
+            paddingVertical: spacing[3],
+            backgroundColor: 'transparent',
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
-            {flow.step !== 'RESULT' && (
-              <Pressable
-                onPress={handleBack}
-                accessibilityRole="button"
-                accessibilityLabel="Voltar passo anterior"
-                hitSlop={8}
-                style={{
-                  minWidth: 44,
-                  minHeight: 44,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: radius.full,
-                }}
-              >
-                <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-              </Pressable>
-            )}
+          <View
+            style={{
+              maxWidth: 640,
+              width: '100%',
+              alignSelf: 'center',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: spacing[2],
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1, minWidth: 0 }}>
+              {flow.step !== 'RESULT' && (
+                <Pressable
+                  onPress={handleBack}
+                  accessibilityRole="button"
+                  accessibilityLabel="Voltar passo anterior"
+                  hitSlop={8}
+                  style={{
+                    minWidth: 44,
+                    minHeight: 44,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: radius.full,
+                  }}
+                >
+                  <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+                </Pressable>
+              )}
 
-            <View style={{ gap: 2 }}>
-              <Text variant="bodySm" weight="bold" color={colors.text.primary}>
-                {stepTitle}
-              </Text>
-              <Text variant="caption" color={colors.text.secondary}>
-                {flow.barbershop?.name || 'Smart Barber'}
-              </Text>
+              <View style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                <Text variant="bodySm" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                  {stepTitle}
+                </Text>
+                <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+                  {flow.barbershop?.name || 'Smart Barber'}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          {currentStepIndex >= 0 && (
-            <Badge
-              label={`Passo ${currentStepIndex + 1} de 4`}
-              tone="neutral"
-            />
-          )}
+            {currentStepIndex >= 0 && (
+              <Badge
+                label={`Passo ${currentStepIndex + 1} de 4`}
+                tone="neutral"
+              />
+            )}
+          </View>
         </View>
-      </LiquidGlassView>
+      ) : (
+        <View testID="booking-header-unit">
+          <LiquidGlassView
+            variant="card"
+            elevated={false}
+            borderRadius={0}
+            borderColor={colors.border.default}
+            borderWidth={1}
+            contentStyle={{
+              paddingHorizontal: spacing[4],
+              paddingVertical: spacing[3],
+            }}
+          >
+            <View
+              style={{
+                maxWidth: 640,
+                width: '100%',
+                alignSelf: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+                {flow.step !== 'RESULT' && (
+                  <Pressable
+                    onPress={handleBack}
+                    accessibilityRole="button"
+                    accessibilityLabel="Voltar passo anterior"
+                    hitSlop={8}
+                    style={{
+                      minWidth: 44,
+                      minHeight: 44,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: radius.full,
+                    }}
+                  >
+                    <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+                  </Pressable>
+                )}
+
+                <View style={{ gap: 2 }}>
+                  <Text variant="bodySm" weight="bold" color={colors.text.primary}>
+                    {stepTitle}
+                  </Text>
+                  <Text variant="caption" color={colors.text.secondary}>
+                    {flow.barbershop?.name || 'Smart Barber'}
+                  </Text>
+                </View>
+              </View>
+
+              {currentStepIndex >= 0 && (
+                <Badge
+                  label={`Passo ${currentStepIndex + 1} de 4`}
+                  tone="neutral"
+                />
+              )}
+            </View>
+          </LiquidGlassView>
+        </View>
+      )}
 
       {/* Conteúdo do Passo */}
       <View

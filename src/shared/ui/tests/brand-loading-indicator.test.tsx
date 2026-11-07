@@ -71,4 +71,22 @@ describe('BrandLoadingIndicator', () => {
     const imgs = screen.getAllByRole('img');
     expect(imgs.length).toBeGreaterThan(0);
   });
+
+  it('quando a imagem animada falha (onError), aciona o fallback estático BrandMark', () => {
+    const { fireEvent } = require('@testing-library/react');
+    render(
+      <BrandLoadingIndicator
+        busy={true}
+        visible={true}
+        animatedSource={{ uri: 'invalid-image.gif' }}
+        accessibilityLabel="Carregando com falha"
+      />
+    );
+    const imgs = screen.getAllByRole('img');
+    fireEvent.error(imgs[imgs.length - 1]);
+
+    const indicator = screen.getByRole('progressbar', { name: 'Carregando com falha' });
+    expect(indicator).toBeDefined();
+    expect(screen.getAllByRole('img').length).toBeGreaterThan(0);
+  });
 });
