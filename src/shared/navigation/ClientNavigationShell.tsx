@@ -813,6 +813,8 @@ function ClientNavigationShellContent({
                       {
                         opacity: pressed ? 0.7 : 1,
                         backgroundColor: 'transparent',
+                        borderColor: 'transparent',
+                        borderWidth: 1,
                         borderRadius: radius.full,
                       },
                     ]}
@@ -852,6 +854,8 @@ function ClientNavigationShellContent({
                       {
                         opacity: pressed ? 0.85 : 1,
                         backgroundColor: colors.brand.primary,
+                        borderColor: 'transparent',
+                        borderWidth: 1,
                         borderRadius: radius.full,
                       },
                     ]}
@@ -881,8 +885,9 @@ function ClientNavigationShellContent({
 
               const isActive = item.route ? isRouteActive(pathname, item.route) : false;
               const iconName = isActive ? item.iconActive : item.iconInactive;
-              const activeBg = colors.brand.primary;
-              const activeTextColor = '#FFFFFF';
+              const activeBg = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
+              const activeBorderColor = isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.12)';
+              const activeTextColor = colors.text.primary;
               const inactiveTextColor = colors.text.secondary;
 
               return (
@@ -897,6 +902,8 @@ function ClientNavigationShellContent({
                     {
                       opacity: pressed && !isActive ? 0.7 : 1,
                       backgroundColor: isActive ? activeBg : 'transparent',
+                      borderColor: isActive ? activeBorderColor : 'transparent',
+                      borderWidth: 1,
                       borderRadius: radius.full,
                     },
                   ]}

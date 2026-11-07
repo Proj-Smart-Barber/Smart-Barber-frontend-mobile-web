@@ -154,6 +154,21 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       expect(exploreTab).toBeDefined();
     });
 
+    it('diferencia visualmente a aba selecionada do botão de ação Agendar (C-002)', () => {
+      renderShell();
+
+      const bookBtn = screen.getByRole('button', { name: /Agendar/i });
+      const activeTab = screen.getByRole('tab', { name: /Início, selecionado/i });
+      const inactiveTab = screen.getByRole('tab', { name: /Explorar, não selecionado/i });
+
+      // Agendar mantém o preenchimento de ação primária (Crimson)
+      // A aba selecionada usa tratamento secundário da família de vidro neutro (não Crimson)
+      const bookBg = bookBtn.style.backgroundColor;
+      const activeTabBg = activeTab.style.backgroundColor;
+      expect(activeTabBg).not.toBe(bookBg);
+      expect(activeTab.style.borderWidth).toBe('1px');
+    });
+
     it('seleciona Conta quando na rota de perfil', () => {
       mockPathname = '/(client)/profile';
       renderShell();

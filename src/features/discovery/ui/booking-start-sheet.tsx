@@ -8,11 +8,13 @@ import {
   StyleSheet,
   Platform,
   BackHandler,
+  useWindowDimensions,
   TextInput as RNTextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/shared/theme';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { BrandMark } from '@/shared/brand';
@@ -48,7 +50,13 @@ function BookingStartSheetModal({
   onClose: () => void;
 }) {
   const { colors, radius, spacing, isDark } = useTheme();
+  const insets = useAppSafeArea();
+  const { height: windowHeight } = useWindowDimensions();
   const router = useRouter();
+
+  const bottomPadding = Math.max(insets.bottom, 16);
+  const isCompactHeight = windowHeight > 0 && windowHeight <= 600;
+  const sheetMaxHeight = isCompactHeight ? '92%' : '85%';
 
   // Snapshot imutável capturado no momento da abertura
   const [activeSnapshot] = useState<BookingStart>(start);
@@ -157,6 +165,8 @@ function BookingStartSheetModal({
             styles.sheetContainer,
             {
               backgroundColor: isDark ? '#141416' : '#ffffff',
+              maxHeight: sheetMaxHeight,
+              paddingBottom: bottomPadding,
             },
           ]}
         >
@@ -216,6 +226,10 @@ function BookingStartSheetModal({
           {/* Body */}
           <ScrollView
             style={styles.sheetBody}
+            contentContainerStyle={[
+              styles.sheetBodyContent,
+              { paddingBottom: isCompactHeight ? 24 : 16 },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
@@ -504,6 +518,9 @@ const styles = StyleSheet.create({
   },
   sheetBody: {
     paddingVertical: 14,
+  },
+  sheetBodyContent: {
+    flexGrow: 1,
   },
   contextualContainer: {
     gap: 16,
