@@ -7,18 +7,14 @@ import { useAppSafeArea } from '../../shared/theme/use-app-safe-area';
 import { Text, EmptyState, Button, SegmentedFilter, LoadingRegion } from '../../shared/ui';
 import { useNavigation } from '../../shared/navigation';
 import { ClientNavbarMetricsContext } from '../../shared/navigation/ClientNavbarMetrics';
-import { useSession } from '../../features/auth';
-import {
-  ClientExploreTabs,
-  type ClientExploreSection,
-} from '../../features/discovery/ui/client-explore-tabs';
-import { useNextBooking } from '../../features/discovery/model/use-next-booking';
-import { ClientNextBookingCard } from '../../features/discovery/ui/ClientNextBookingCard';
-import { useOptionalClientExperienceContext } from '../../features/discovery/model/client-experience-context';
-import { useMyBookings } from '../../features/bookings/model/use-my-bookings';
-import { ClientBookingsSkeleton } from '../../features/bookings/ui/ClientBookingsSkeleton';
-import { BookingCard } from '../../features/bookings/ui/BookingCard';
-import type { BookingDto } from '../../features/bookings/api/bookings.dto';
+import { useSession } from '@/features/auth';
+import { useNextBooking } from '@/features/discovery/model/use-next-booking';
+import { ClientNextBookingCard } from '@/features/discovery/ui/ClientNextBookingCard';
+import { useOptionalClientExperienceContext } from '@/features/discovery/model/client-experience-context';
+import { useMyBookings } from '@/features/bookings/model/use-my-bookings';
+import { ClientBookingsSkeleton } from '@/features/bookings/ui/ClientBookingsSkeleton';
+import { BookingCard } from '@/features/bookings/ui/BookingCard';
+import type { BookingDto } from '@/features/bookings/api/bookings.dto';
 
 type TabFilter = 'upcoming' | 'past';
 
@@ -114,15 +110,6 @@ export default function ClientBookingsScreen() {
 
   const handleOpenDetail = (booking: BookingDto) => {
     router.push(`/(account)/bookings/${booking.id}` as any);
-  };
-
-  const handleSelectExploreSection = (section: ClientExploreSection) => {
-    if (section === 'bookings') return;
-    if (section === 'nearby') {
-      router.push('/(client)/explore?section=nearby' as any);
-      return;
-    }
-    router.push('/(client)/explore' as any);
   };
 
   const renderListHeader = () => {
@@ -332,12 +319,6 @@ export default function ClientBookingsScreen() {
         ]}
       >
         <View style={styles.contentConstraint}>
-          <ClientExploreTabs
-            active="bookings"
-            onSelect={handleSelectExploreSection}
-            style={{ marginBottom: spacing.md }}
-          />
-
           {isCompact ? (
             <View style={styles.compactHeader}>
               <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>

@@ -29,6 +29,7 @@ vi.mock('expo-router', () => ({
   }),
   useLocalSearchParams: () => mockSearchParams,
   usePathname: () => mockPathname,
+  Redirect: ({ href }: any) => <div data-testid="mock-redirect" data-href={href} />,
 }));
 
 vi.mock('@expo/vector-icons', () => ({
@@ -84,7 +85,7 @@ function renderTabs(active: ClientExploreSection, onSelect = vi.fn()) {
 }
 
 describe('ClientExploreTabs — Tarefa 5: Abas Superiores de Descoberta', () => {
-  it('renderiza exatamente os três acessos com rótulos completos: Explorar, Perto de você, Meus agendamentos', () => {
+  it('renderiza exatamente os dois acessos no topo: Explorar e Perto de você', () => {
     renderTabs('feed');
 
     const tablist = screen.getByRole('tablist', { name: /Seções de descoberta/i });
@@ -92,35 +93,20 @@ describe('ClientExploreTabs — Tarefa 5: Abas Superiores de Descoberta', () => 
 
     const feedTab = screen.getByRole('tab', { name: /^Explorar$/i });
     const nearbyTab = screen.getByRole('tab', { name: /^Perto de você$/i });
-    const bookingsTab = screen.getByRole('tab', { name: /^Meus agendamentos$/i });
 
     expect(feedTab).toBeTruthy();
     expect(nearbyTab).toBeTruthy();
-    expect(bookingsTab).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: /^Meus agendamentos$/i })).toBeNull();
 
     expect(feedTab.getAttribute('aria-selected')).toBe('true');
     expect(nearbyTab.getAttribute('aria-selected')).toBe('false');
-    expect(bookingsTab.getAttribute('aria-selected')).toBe('false');
   });
 
-  it('marca Perto de você como selecionado quando active="nearby" e Meus agendamentos quando active="bookings"', () => {
-    const { rerender } = render(
-      <ThemeProvider initialMode="dark">
-        <ClientExploreTabs active="nearby" onSelect={vi.fn()} />
-      </ThemeProvider>,
-    );
+  it('marca Perto de você como selecionado quando active="nearby"', () => {
+    renderTabs('nearby');
 
     expect(screen.getByRole('tab', { name: /^Perto de você$/i }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tab', { name: /^Explorar$/i }).getAttribute('aria-selected')).toBe('false');
-
-    rerender(
-      <ThemeProvider initialMode="dark">
-        <ClientExploreTabs active="bookings" onSelect={vi.fn()} />
-      </ThemeProvider>,
-    );
-
-    expect(screen.getByRole('tab', { name: /^Meus agendamentos$/i }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('tab', { name: /^Perto de você$/i }).getAttribute('aria-selected')).toBe('false');
   });
 
   it('aciona onSelect apenas quando o usuário toca em uma aba diferente da ativa (não empilha repetidamente a mesma rota)', () => {
@@ -134,10 +120,6 @@ describe('ClientExploreTabs — Tarefa 5: Abas Superiores de Descoberta', () => 
     // Tocar em 'Perto de você' dispara onSelect('nearby')
     fireEvent.click(screen.getByRole('tab', { name: /^Perto de você$/i }));
     expect(onSelect).toHaveBeenCalledWith('nearby');
-
-    // Tocar em 'Meus agendamentos' dispara onSelect('bookings')
-    fireEvent.click(screen.getByRole('tab', { name: /^Meus agendamentos$/i }));
-    expect(onSelect).toHaveBeenCalledWith('bookings');
   });
 
   it('resolve parâmetros de URL com segurança: section=nearby vai para nearby e qualquer valor inválido/ausente retorna ao feed', () => {
@@ -299,7 +281,7 @@ describe('ClientExploreTabs — Tarefa 5: Abas Superiores de Descoberta', () => 
       expect(feedSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('inclui ClientExploreTabs no cabeçalho da rota bookings com Meus agendamentos selecionado', () => {
+    it('não inclui ClientExploreTabs no cabeçalho da rota bookings', () => {
       mockPathname = '/(client)/bookings';
       const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
@@ -313,27 +295,12 @@ describe('ClientExploreTabs — Tarefa 5: Abas Superiores de Descoberta', () => 
         </QueryClientProvider>,
       );
 
-      const bookingsTab = screen.getByRole('tab', { name: /^Meus agendamentos$/i });
-      expect(bookingsTab.getAttribute('aria-selected')).toBe('true');
-
-      fireEvent.click(screen.getByRole('tab', { name: /^Perto de você$/i }));
-      expect(mockPush).toHaveBeenCalledWith('/(client)/explore?section=nearby');
+      expect(screen.queryByRole('tablist', { name: /Seções de descoberta/i })).toBeNull();
+      expect(screen.queryByRole('tab', { name: /^Meus agendamentos$/i })).toBeNull();
     });
 
-    it('preserva a página Início sem adicionar ClientExploreTabs', () => {
+    it('preserva a página Início como redirecionamento sem adicionar ClientExploreTabs', () => {
       mockPathname = '/(client)';
-      vi.spyOn(discoveryApi, 'searchAll').mockResolvedValue({
-        items: [],
-        page: 1,
-        limit: 20,
-        total: 0,
-        hasNext: false,
-        serverTime: '2026-11-06T12:00:00Z',
-      });
-      vi.spyOn(discoveryApi, 'fetchUpcomingBooking').mockResolvedValue({
-        booking: null,
-        serverTime: '2026-11-06T12:00:00Z',
-      });
 
       const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },

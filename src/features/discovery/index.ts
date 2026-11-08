@@ -12,6 +12,7 @@ export type {
   UseDiscoveryViewModel,
 } from './model/discovery.types';
 export * from './model/use-discovery';
+export * from './model/use-client-nearby-view-state';
 export * from './model/use-explore-feed';
 export * from './model/use-next-booking';
 export * from './ui/BarbershopCard';

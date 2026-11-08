@@ -38,13 +38,6 @@ interface ClientDrawerItem {
 
 const CLIENT_DRAWER_NAV_ITEMS: ClientDrawerItem[] = [
   {
-    id: 'home',
-    label: 'Início',
-    route: '/(client)',
-    iconActive: 'home',
-    iconInactive: 'home-outline',
-  },
-  {
     id: 'explore',
     label: 'Explorar',
     route: '/(client)/explore',
@@ -53,11 +46,11 @@ const CLIENT_DRAWER_NAV_ITEMS: ClientDrawerItem[] = [
   },
   {
     id: 'bookings',
-    label: 'Agendamentos',
-    compactLabel: 'Agenda',
+    label: 'Meus agendamentos',
+    compactLabel: 'Meus agendamentos',
     route: '/(client)/bookings',
-    iconActive: 'calendar',
-    iconInactive: 'calendar-outline',
+    iconActive: 'calendar-clear',
+    iconInactive: 'calendar-clear-outline',
   },
 ];
 
@@ -82,12 +75,12 @@ const CLIENT_CAPSULE_CONTROLS: ClientCapsuleControl[] = [
     iconInactive: 'menu-outline',
   },
   {
-    id: 'home',
+    id: 'explore',
     kind: 'tab',
-    label: 'Início',
-    route: '/(client)',
-    iconActive: 'home',
-    iconInactive: 'home-outline',
+    label: 'Explorar',
+    route: '/(client)/explore',
+    iconActive: 'compass',
+    iconInactive: 'compass-outline',
   },
   {
     id: 'book',
@@ -97,12 +90,12 @@ const CLIENT_CAPSULE_CONTROLS: ClientCapsuleControl[] = [
     iconInactive: 'calendar-outline',
   },
   {
-    id: 'explore',
+    id: 'bookings',
     kind: 'tab',
-    label: 'Explorar',
-    route: '/(client)/explore',
-    iconActive: 'compass',
-    iconInactive: 'compass-outline',
+    label: 'Meus agendamentos',
+    route: '/(client)/bookings',
+    iconActive: 'calendar-clear',
+    iconInactive: 'calendar-clear-outline',
   },
   {
     id: 'profile',
@@ -159,7 +152,7 @@ function ClientNavigationShellContent({
   onRequestBooking,
   interactionBlocked = false,
 }: ClientNavigationShellProps) {
-  const [measuredNavbarHeight,setMeasuredNavbarHeight]=useState(64);
+  const [measuredNavbarHeight, setMeasuredNavbarHeight] = useState(68);
   const { colors, spacing, radius, isDark } = useTheme();
   const { isExpanded, isCompact } = useAdaptiveLayout();
   const { width } = useWindowDimensions();
@@ -916,11 +909,11 @@ function ClientNavigationShellContent({
                   <Text
                     variant="caption"
                     weight={isActive ? 'bold' : 'medium'}
-                    numberOfLines={1}
+                    numberOfLines={2}
                     style={{
                       color: isActive ? activeTextColor : inactiveTextColor,
                       fontSize: 11,
-                      lineHeight: 14,
+                      lineHeight: 13,
                       marginTop: 2,
                       textAlign: 'center',
                     }}
@@ -1134,14 +1127,12 @@ const styles = StyleSheet.create({
   },
   capsuleWrapper: {
     width: '100%',
-    maxWidth: 380,
-    height: 64,
-    minHeight: 64,
+    maxWidth: 412,
+    minHeight: 68,
   },
   capsuleContent: {
     width: '100%',
-    height: 64,
-    minHeight: 64,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -1150,20 +1141,18 @@ const styles = StyleSheet.create({
   },
   tablistContainer: {
     flex: 1,
-    height: 52,
-    minHeight: 48,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
   },
   tabItem: {
     flex: 1,
-    height: 50,
-    minHeight: 48,
-    marginHorizontal: 3,
+    minHeight: 52,
+    marginHorizontal: 2,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
   },
 });

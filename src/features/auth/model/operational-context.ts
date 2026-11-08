@@ -92,11 +92,9 @@ export function resolveEntryDestination(
   }
 
   // CLIENT comum sem unidade
-  if (options?.clientEntry === 'explore') {
-    return '/(client)/explore';
-  }
-
-  return '/(client)';
+  // Na simplificação da navegação (08/11/2026), o cliente comum entra sempre em Explorar
+  // em todas as larguras. Opção legada 'home' ou 'explore' e valor default resolvem para /(client)/explore.
+  return '/(client)/explore';
 }
 
 export function resolveAccountDestination(

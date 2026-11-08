@@ -56,12 +56,6 @@ export default function ClientExploreScreen() {
         return;
       }
 
-      if (next === 'bookings') {
-        publishActiveMedia?.(null);
-        router.push('/(client)/bookings' as any);
-        return;
-      }
-
       if (next === 'nearby') {
         publishActiveMedia?.(null);
         if (typeof router.setParams === 'function') {

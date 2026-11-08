@@ -1,4 +1,4 @@
-import React, { useState, useRef, useContext } from 'react';
+import React, { useState, useRef, useContext, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -19,6 +19,10 @@ import { LoadingRegion } from '@/shared/ui/LoadingRegion';
 import { Spinner } from '@/shared/ui/Spinner';
 import { BrandMark } from '@/shared/brand';
 import { useDiscovery } from '../model/use-discovery';
+import {
+  useClientNearbyViewState,
+  type ClientNearbyViewState,
+} from '../model/use-client-nearby-view-state';
 import { locationStore } from '../model/location-provider';
 import type { LocationOnboardingStage } from '../model/use-client-location-onboarding';
 import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
@@ -29,6 +33,7 @@ import {
 import { BarbershopCard } from './BarbershopCard';
 import { NearbyResultsSkeleton } from './NearbyResultsSkeleton';
 import { LocationStatusPanel, type LocationPanelStatus } from './location-status-panel';
+import { DiscoveryMapModal } from './DiscoveryMapModal';
 
 const RADIUS_OPTIONS: readonly DiscoveryRadius[] = [5, 10, 25, 50];
 
@@ -40,6 +45,7 @@ export interface ClientNearbyViewProps {
   initialMode?: DiscoveryMode;
   initialRadius?: DiscoveryRadius;
   initialQuery?: string;
+  actorId?: string | null;
 }
 
 export function ClientNearbyView({
@@ -50,6 +56,7 @@ export function ClientNearbyView({
   initialMode = 'ALL',
   initialRadius = 10,
   initialQuery = '',
+  actorId,
 }: ClientNearbyViewProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
@@ -58,7 +65,22 @@ export function ClientNearbyView({
   const router = useRouter();
 
   const searchInputRef = useRef<React.ComponentRef<typeof RNTextInput>>(null);
-  const [regionFilter, setRegionFilter] = useState('');
+  const listRef = useRef<FlatList<PublicShop>>(null);
+
+  const { initialState, saveState } = useClientNearbyViewState(
+    {
+      mode: initialMode,
+      radiusKm: initialRadius,
+      searchQuery: initialQuery,
+      regionFilter: '',
+      scrollOffset: 0,
+    },
+    actorId,
+  );
+
+  const [regionFilter, setRegionFilter] = useState(initialState.regionFilter);
+  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
+  const scrollOffsetRef = useRef<number>(initialState.scrollOffset);
 
   const {
     filters,
@@ -78,9 +100,9 @@ export function ClientNearbyView({
     locationSession,
     requestLocation,
   } = useDiscovery({
-    initialMode,
-    initialRadius,
-    initialQuery,
+    initialMode: initialState.mode,
+    initialRadius: initialState.radiusKm,
+    initialQuery: initialState.searchQuery,
   });
 
   const hasValidCoordinates =
@@ -91,6 +113,56 @@ export function ClientNearbyView({
     hasValidCoordinates &&
     !isServiceUnavailable &&
     !regionFilter.trim();
+
+  // Preservação contínua de estado no QueryClient por ator
+  const currentStateRef = useRef<ClientNearbyViewState>({
+    mode: filters.mode,
+    radiusKm: filters.radiusKm,
+    searchQuery,
+    regionFilter,
+    scrollOffset: initialState.scrollOffset,
+  });
+
+  React.useEffect(() => {
+    currentStateRef.current = {
+      mode: filters.mode,
+      radiusKm: filters.radiusKm,
+      searchQuery,
+      regionFilter,
+      scrollOffset: scrollOffsetRef.current,
+    };
+    saveState(currentStateRef.current);
+  }, [filters.mode, filters.radiusKm, searchQuery, regionFilter, saveState]);
+
+  React.useEffect(() => {
+    return () => {
+      saveState({
+        ...currentStateRef.current,
+        scrollOffset: scrollOffsetRef.current,
+      });
+    };
+  }, [saveState]);
+
+  // Restauração de scroll
+  const hasRestoredScrollRef = useRef(false);
+  React.useEffect(() => {
+    if (
+      !hasRestoredScrollRef.current &&
+      initialState.scrollOffset > 0 &&
+      items.length > 0 &&
+      !isLoading
+    ) {
+      hasRestoredScrollRef.current = true;
+      try {
+        listRef.current?.scrollToOffset({
+          offset: initialState.scrollOffset,
+          animated: false,
+        });
+      } catch {
+        // no-op
+      }
+    }
+  }, [items.length, isLoading, initialState.scrollOffset]);
 
   // Resolve status of LocationStatusPanel without mixing denied, unavailable/timeout, and 503 service failure
   const locationPanelStatus: LocationPanelStatus = (() => {
@@ -182,6 +254,24 @@ export function ClientNearbyView({
           distanceMeters: null,
         },
   );
+
+  // Barbearias que possuem coordenadas válidas e finitas (-90..90 lat, -180..180 lng)
+  const mappableUnits = useMemo(() => {
+    return sanitizedItems.filter(
+      (shop) =>
+        shop.coordinates &&
+        typeof shop.coordinates.latitude === 'number' &&
+        Number.isFinite(shop.coordinates.latitude) &&
+        shop.coordinates.latitude >= -90 &&
+        shop.coordinates.latitude <= 90 &&
+        typeof shop.coordinates.longitude === 'number' &&
+        Number.isFinite(shop.coordinates.longitude) &&
+        shop.coordinates.longitude >= -180 &&
+        shop.coordinates.longitude <= 180,
+    );
+  }, [sanitizedItems]);
+
+  const isMapDisabled = isLoading || mappableUnits.length === 0;
 
   const bottomPadding = !isExpanded
     ? navbarOffset > 0
@@ -358,63 +448,95 @@ export function ClientNearbyView({
         </View>
       )}
 
-      {/* Identificação Clara do Contexto da Listagem (Proximidade vs Todas vs Busca Manual) */}
+      {/* Identificação Clara do Contexto da Listagem e Ação Secundária Mapa */}
       <View style={[styles.contextIdentificationRow, { marginTop: spacing[3] }]}>
-        {isProximityActive ? (
-          <View style={styles.contextIdentificationInline}>
-            <Ionicons
-              name="location-sharp"
-              size={14}
-              color={colors.brand.primary}
-            />
-            <Text variant="caption" weight="semibold" color={colors.text.secondary}>
-              {`Unidades em até ${filters.radiusKm} km${
-                locationSession.coords?.isApproximate ? ' (distância aproximada)' : ''
-              }`}
-            </Text>
-          </View>
-        ) : hasValidCoordinates && !isServiceUnavailable && !searchQuery.trim() ? (
-          <View style={styles.contextIdentificationInline}>
-            <Ionicons
-              name="globe-outline"
-              size={14}
-              color={colors.text.secondary}
-            />
-            <Text variant="caption" weight="semibold" color={colors.text.secondary}>
-              Exibindo todas as barbearias (use os filtros de raio acima para limitar a distância)
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.manualSearchBanner,
-              {
-                backgroundColor: isDark
-                  ? 'rgba(255, 255, 255, 0.04)'
-                  : colors.surface.input,
-                borderColor: colors.border.subtle,
-                borderRadius: radius.md,
-              },
-            ]}
-          >
-            <Ionicons
-              name="search-outline"
-              size={15}
-              color={colors.text.secondary}
-            />
-            <Text
-              variant="caption"
-              weight="semibold"
-              color={colors.text.secondary}
-              style={{ flex: 1 }}
+        <View style={{ flex: 1, marginRight: spacing[2] }}>
+          {isProximityActive ? (
+            <View style={styles.contextIdentificationInline}>
+              <Ionicons
+                name="location-sharp"
+                size={14}
+                color={colors.brand.primary}
+              />
+              <Text variant="caption" weight="semibold" color={colors.text.secondary}>
+                {`Unidades em até ${filters.radiusKm} km${
+                  locationSession.coords?.isApproximate ? ' (distância aproximada)' : ''
+                }`}
+              </Text>
+            </View>
+          ) : hasValidCoordinates && !isServiceUnavailable && !searchQuery.trim() ? (
+            <View style={styles.contextIdentificationInline}>
+              <Ionicons
+                name="globe-outline"
+                size={14}
+                color={colors.text.secondary}
+              />
+              <Text variant="caption" weight="semibold" color={colors.text.secondary}>
+                Exibindo todas as barbearias (use os filtros de raio acima para limitar a distância)
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.manualSearchBanner,
+                {
+                  backgroundColor: isDark
+                    ? 'rgba(255, 255, 255, 0.04)'
+                    : colors.surface.input,
+                  borderColor: colors.border.subtle,
+                  borderRadius: radius.md,
+                },
+              ]}
             >
-              {searchQuery.trim()
-                ? `Busca manual por nome ou bairro: "${searchQuery.trim()}"`
-                : 'Busca manual por nome ou bairro (sem ordenação pela sua posição)'}
-            </Text>
-          </View>
-        )}
+              <Ionicons
+                name="search-outline"
+                size={15}
+                color={colors.text.secondary}
+              />
+              <Text
+                variant="caption"
+                weight="semibold"
+                color={colors.text.secondary}
+                style={{ flex: 1 }}
+              >
+                {searchQuery.trim()
+                  ? `Busca manual por nome ou bairro: "${searchQuery.trim()}"`
+                  : 'Busca manual por nome ou bairro (sem ordenação pela sua posição)'}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Botão Secundário Mapa (min 44x44) */}
+        <Button
+          variant="outline"
+          title="Mapa"
+          leftIcon={
+            <Ionicons
+              name="map-outline"
+              size={18}
+              color={isMapDisabled ? colors.text.muted : colors.text.primary}
+            />
+          }
+          onPress={() => setIsMapModalVisible(true)}
+          disabled={isMapDisabled}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir visualização de barbearias no mapa"
+          style={{ minHeight: 44, minWidth: 88 }}
+        />
       </View>
+
+      {/* Explicação honesta quando o botão Mapa estiver desabilitado */}
+      {isMapDisabled && (
+        <Text
+          variant="caption"
+          style={{ color: colors.text.muted, marginTop: 4 }}
+        >
+          {isLoading
+            ? 'Carregando estabelecimentos e coordenadas...'
+            : 'Nenhuma barbearia com localização disponível para o mapa.'}
+        </Text>
+      )}
     </View>
   );
 
@@ -538,8 +660,13 @@ export function ClientNearbyView({
           </View>
         ) : (
           <FlatList
+            ref={listRef}
             data={sanitizedItems}
             keyExtractor={(item) => item.id}
+            onScroll={(e) => {
+              scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+            }}
+            scrollEventThrottle={16}
             renderItem={({ item }) => (
               <View style={styles.contentConstraint}>
                 <BarbershopCard
@@ -609,6 +736,19 @@ export function ClientNearbyView({
           />
         )}
       </LoadingRegion>
+
+      <DiscoveryMapModal
+        visible={isMapModalVisible}
+        onClose={() => setIsMapModalVisible(false)}
+        items={sanitizedItems}
+        userCoordinates={hasValidCoordinates ? locationSession.coords : null}
+        hasNextPage={hasNextPage}
+        onFetchNextPage={fetchNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        resultKey={operationKey}
+        resultsError={error}
+        onRetryResults={() => refetch()}
+      />
     </View>
   );
 }
@@ -666,6 +806,10 @@ const styles = StyleSheet.create({
   },
   contextIdentificationRow: {
     width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   contextIdentificationInline: {
     flexDirection: 'row',

@@ -81,7 +81,7 @@ describe('Operational Context & Gates', () => {
     };
 
     const destination = resolveEntryDestination(snapshot);
-    expect(destination).toBe('/(client)');
+    expect(destination).toBe('/(client)/explore');
   });
 
   it('client_normal_compacto_com_opcao_explore_faz_fallback_para_explore', () => {
@@ -102,8 +102,8 @@ describe('Operational Context & Gates', () => {
     };
 
     expect(resolveEntryDestination(snapshot, null, { clientEntry: 'explore' })).toBe('/(client)/explore');
-    expect(resolveEntryDestination(snapshot, null, { clientEntry: 'home' })).toBe('/(client)');
-    expect(resolveEntryDestination(snapshot)).toBe('/(client)');
+    expect(resolveEntryDestination(snapshot, null, { clientEntry: 'home' })).toBe('/(client)/explore');
+    expect(resolveEntryDestination(snapshot)).toBe('/(client)/explore');
   });
 
   it('papeis_owner_barber_e_platform_preservam_destinos_mesmo_com_opcao_explore', () => {

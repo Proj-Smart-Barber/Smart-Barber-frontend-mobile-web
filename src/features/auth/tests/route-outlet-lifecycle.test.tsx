@@ -175,9 +175,9 @@ it('routes compact client to /(client)/explore on root entry fallback', () => {
   expect(fixture.replacedRoutes).toContain('/(client)/explore');
 });
 
-it('routes desktop client to /(client) on root entry fallback', () => {
+it('routes desktop client to /(client)/explore on root entry fallback', () => {
   fixture.segments = [];
   fixture.isCompact = false;
   render(<RootLayout />);
-  expect(fixture.replacedRoutes).toContain('/(client)');
+  expect(fixture.replacedRoutes).toContain('/(client)/explore');
 });

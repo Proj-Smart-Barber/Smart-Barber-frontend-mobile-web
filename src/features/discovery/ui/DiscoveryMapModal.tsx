@@ -27,6 +27,9 @@ export interface DiscoveryMapModalProps {
   hasNextPage?: boolean;
   onFetchNextPage?: () => void;
   isFetchingNextPage?: boolean;
+  resultKey?: string;
+  resultsError?: Error | null;
+  onRetryResults?: () => void;
 }
 
 export function DiscoveryMapModal({
@@ -37,20 +40,59 @@ export function DiscoveryMapModal({
   hasNextPage,
   onFetchNextPage,
   isFetchingNextPage,
+  resultKey,
+  resultsError,
+  onRetryResults,
 }: DiscoveryMapModalProps) {
   const { colors, radius } = useTheme();
   const router = useRouter();
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
 
-  // Filtrar apenas barbearias com coordenadas válidas
+  // Invalida seleção de marcador se a identidade da busca (resultKey) mudar
+  React.useEffect(() => {
+    setSelectedShopId(null);
+  }, [resultKey]);
+
+  // Filtrar apenas barbearias com coordenadas válidas e finitas (-90..90 lat, -180..180 lng)
   const mappedShops = useMemo(() => {
     return items.filter(
       (s) =>
         s.coordinates &&
         typeof s.coordinates.latitude === 'number' &&
-        typeof s.coordinates.longitude === 'number',
+        Number.isFinite(s.coordinates.latitude) &&
+        s.coordinates.latitude >= -90 &&
+        s.coordinates.latitude <= 90 &&
+        typeof s.coordinates.longitude === 'number' &&
+        Number.isFinite(s.coordinates.longitude) &&
+        s.coordinates.longitude >= -180 &&
+        s.coordinates.longitude <= 180,
     );
   }, [items]);
+
+  // Se a barbearia selecionada foi removida da lista filtrada, limpa a seleção
+  React.useEffect(() => {
+    if (selectedShopId && !mappedShops.some((s) => s.id === selectedShopId)) {
+      setSelectedShopId(null);
+    }
+  }, [mappedShops, selectedShopId]);
+
+  // Validação estrita de coordenadas do usuário (ignora valores inválidos sem inventar posição)
+  const sanitizedUserCoords = useMemo(() => {
+    if (
+      userCoordinates &&
+      typeof userCoordinates.latitude === 'number' &&
+      Number.isFinite(userCoordinates.latitude) &&
+      userCoordinates.latitude >= -90 &&
+      userCoordinates.latitude <= 90 &&
+      typeof userCoordinates.longitude === 'number' &&
+      Number.isFinite(userCoordinates.longitude) &&
+      userCoordinates.longitude >= -180 &&
+      userCoordinates.longitude <= 180
+    ) {
+      return userCoordinates;
+    }
+    return null;
+  }, [userCoordinates]);
 
   const hasPartialList = mappedShops.length < items.length;
 
@@ -135,10 +177,40 @@ export function DiscoveryMapModal({
                 setSelectedShopId(id);
                 handleOpenCatalog(id);
               }}
-              userCoordinates={userCoordinates}
+              userCoordinates={sanitizedUserCoords}
               height={200}
               testID="discovery-google-map"
             />
+          )}
+
+          {resultsError && (
+            <View style={[styles.noticeBanner, { borderColor: colors.feedback.error }]}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={16}
+                color={colors.feedback.error}
+                style={styles.noticeIcon}
+              />
+              <Text
+                variant="caption"
+                color={colors.feedback.error}
+                style={[styles.noticeText, { flex: 1 }]}
+              >
+                Erro ao atualizar estabelecimentos no mapa. Unidades carregadas continuam disponíveis.
+              </Text>
+              {onRetryResults && (
+                <Pressable
+                  onPress={onRetryResults}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tentar novamente carregar unidades no mapa"
+                  style={{ marginLeft: 8 }}
+                >
+                  <Text variant="caption" weight="bold" color={colors.brand.primary}>
+                    Tentar de novo
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           )}
 
           {/* Lista de Pins e Estabelecimentos */}
