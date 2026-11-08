@@ -254,7 +254,7 @@ describe('Fluxo do Cliente — Cadastro, Confirmação e Login', () => {
   });
 
   describe('Roteamento do cliente confirmado', () => {
-    it('deve rotear cliente verificado sem unidade para /(client)', () => {
+    it('deve rotear cliente verificado sem unidade para /(client)/explore', () => {
       const clientSnapshot: SessionSnapshot = {
         status: 'authenticated',
         identity: {
@@ -271,7 +271,7 @@ describe('Fluxo do Cliente — Cadastro, Confirmação e Login', () => {
       };
 
       const dest = resolveEntryDestination(clientSnapshot);
-      expect(dest).toBe('/(client)');
+      expect(dest).toBe('/(client)/explore');
     });
   });
 });

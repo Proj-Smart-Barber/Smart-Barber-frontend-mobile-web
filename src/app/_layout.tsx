@@ -46,7 +46,6 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
   const segments = useSegments();
   const router = useRouter();
   const { isDark } = useTheme();
-  const { isCompact } = useAdaptiveLayout();
   const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
@@ -83,7 +82,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
             accessToken: token,
           },
           identity?.onboardingIntent,
-          { clientEntry: isCompact ? 'explore' : 'home' },
+          { clientEntry: 'explore' },
         );
         router.replace(dest as any);
       } else if (inApp) {
@@ -97,7 +96,7 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
           } else if (identity?.accountType === 'BARBER') {
             router.replace('/(account)/invitations' as any);
           } else {
-            router.replace('/(client)' as any);
+            router.replace('/(client)/explore' as any);
           }
         }
       }
@@ -120,7 +119,6 @@ function AuthRouteGuard({ fontsLoaded }: { fontsLoaded: boolean }) {
     token,
     segments,
     router,
-    isCompact,
   ]);
 
   const inPublic = (segments[0] as string) === '(public)';

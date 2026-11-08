@@ -456,7 +456,7 @@ describe('ClientBookingsScreen — Tarefa 7: Meus Agendamentos e Paginação', (
     expect(screen.queryByText('Serviço Exclusivo User 1')).toBeNull();
   });
 
-  it('12. Navegação para detalhe, Agendar integrado e abas superiores preservadas', async () => {
+  it('12. Navegação para detalhe preservada e sem abas superiores de descoberta', async () => {
     vi.spyOn(bookingsApi, 'fetchMyBookings').mockResolvedValue([sampleFutureBooking]);
 
     renderScreen(queryClient);
@@ -470,9 +470,7 @@ describe('ClientBookingsScreen — Tarefa 7: Meus Agendamentos e Paginação', (
     fireEvent.click(card);
     expect(mockPush).toHaveBeenCalledWith('/(account)/bookings/b-future-1');
 
-    // Toque em Perto de você nas abas superiores navega para a seção correspondente
-    const nearbyTab = screen.getByText('Perto de você');
-    fireEvent.click(nearbyTab);
-    expect(mockPush).toHaveBeenCalledWith('/(client)/explore?section=nearby');
+    // Abas de descoberta (Perto de você e Explorar) não estão na tela de agendamentos
+    expect(screen.queryByText('Perto de você')).toBeNull();
   });
 });

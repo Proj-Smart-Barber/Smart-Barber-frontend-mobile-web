@@ -10,7 +10,7 @@ import {
 import { useTheme, useReducedMotion } from '@/shared/theme';
 import { Text } from '@/shared/ui/Text';
 
-export type ClientExploreSection = 'feed' | 'nearby' | 'bookings';
+export type ClientExploreSection = 'feed' | 'nearby';
 
 export interface ClientExploreTabsProps {
   active: ClientExploreSection;
@@ -24,7 +24,6 @@ const EXPLORE_TAB_ITEMS: ReadonlyArray<{
 }> = [
   { id: 'feed', label: 'Explorar' },
   { id: 'nearby', label: 'Perto de você' },
-  { id: 'bookings', label: 'Meus agendamentos' },
 ];
 
 export function resolveClientExploreSection(

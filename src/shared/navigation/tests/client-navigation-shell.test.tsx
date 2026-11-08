@@ -91,7 +91,7 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
   });
 
   describe('Cápsula inferior mobile (5 controles)', () => {
-    it('renderiza exatamente os 5 controles na ordem: Menu, Início, Agendar, Explorar, Conta', () => {
+    it('renderiza exatamente os 5 controles na ordem: Menu, Explorar, Agendar, Meus agendamentos, Conta', () => {
       renderShell();
 
       const tablist = screen.getByRole('tablist', { name: /Navegação principal do cliente/i });
@@ -100,11 +100,11 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       const items = Array.from(tablist.children);
       expect(items.length).toBe(5);
 
-      // Ordem exata: Menu | Início | Agendar | Explorar | Conta
+      // Ordem exata adotada no handoff: Menu | Explorar | Agendar | Meus agendamentos | Conta
       expect(items[0].textContent).toContain('Menu');
-      expect(items[1].textContent).toContain('Início');
+      expect(items[1].textContent).toContain('Explorar');
       expect(items[2].textContent).toContain('Agendar');
-      expect(items[3].textContent).toContain('Explorar');
+      expect(items[3].textContent).toMatch(/Meus[\s\n]*agendamentos/);
       expect(items[4].textContent).toContain('Conta');
     });
 
@@ -143,23 +143,24 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       expect(onRequestBooking).toHaveBeenCalledTimes(1);
     });
 
-    it('não seleciona Início quando na rota Explorar', () => {
+    it('seleciona Explorar na rota explore e mantém Meus agendamentos não selecionado', () => {
       mockPathname = '/(client)/explore';
       renderShell();
 
-      const homeTab = screen.getByRole('tab', { name: /Início, não selecionado/i });
-      expect(homeTab).toBeDefined();
-
       const exploreTab = screen.getByRole('tab', { name: /Explorar, selecionado/i });
       expect(exploreTab).toBeDefined();
+
+      const bookingsTab = screen.getByRole('tab', { name: /Meus agendamentos, não selecionado/i });
+      expect(bookingsTab).toBeDefined();
     });
 
     it('diferencia visualmente a aba selecionada do botão de ação Agendar (C-002)', () => {
+      mockPathname = '/(client)/explore';
       renderShell();
 
       const bookBtn = screen.getByRole('button', { name: /Agendar/i });
-      const activeTab = screen.getByRole('tab', { name: /Início, selecionado/i });
-      const inactiveTab = screen.getByRole('tab', { name: /Explorar, não selecionado/i });
+      const activeTab = screen.getByRole('tab', { name: /Explorar, selecionado/i });
+      const inactiveTab = screen.getByRole('tab', { name: /Meus agendamentos, não selecionado/i });
 
       // Agendar mantém o preenchimento de ação primária (Crimson)
       // A aba selecionada usa tratamento secundário da família de vidro neutro (não Crimson)
@@ -177,13 +178,13 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       expect(profileTab).toBeDefined();
     });
 
-    it('navega para /(client) ao clicar em Início', () => {
+    it('navega para /(client)/bookings ao clicar em Meus agendamentos', () => {
       mockPathname = '/(client)/explore';
       renderShell();
 
-      const homeTab = screen.getByRole('tab', { name: /Início/i });
-      fireEvent.click(homeTab);
-      expect(mockPush).toHaveBeenCalledWith('/(client)');
+      const bookingsTab = screen.getByRole('tab', { name: /Meus agendamentos/i });
+      fireEvent.click(bookingsTab);
+      expect(mockPush).toHaveBeenCalledWith('/(client)/bookings');
     });
 
     it('desabilita interação e oculta acessibilidade da cápsula quando interactionBlocked está ativo', () => {
@@ -198,16 +199,18 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
   });
 
   describe('Drawer lateral mobile', () => {
-    it('preserva Agendamentos, Notificações, Minha Conta e Sair no drawer', () => {
+    it('preserva Explorar, Meus agendamentos, Notificações, Minha Conta e Sair no drawer', () => {
       mockDrawerVisible = true;
       mockDrawerOpen = true;
 
       renderShell();
 
-      expect(screen.getByText('Agendamentos')).toBeDefined();
-      expect(screen.getByText('Notificações')).toBeDefined();
-      expect(screen.getByText('Minha Conta')).toBeDefined();
-      expect(screen.getByText('Sair da Conta')).toBeDefined();
+      expect(screen.queryByText('Início')).toBeNull();
+      expect(screen.getByRole('menuitem', { name: 'Explorar' })).toBeDefined();
+      expect(screen.getByRole('menuitem', { name: 'Meus agendamentos' })).toBeDefined();
+      expect(screen.getByRole('menuitem', { name: 'Notificações' })).toBeDefined();
+      expect(screen.getByRole('menuitem', { name: 'Minha Conta' })).toBeDefined();
+      expect(screen.getByRole('menuitem', { name: 'Sair da Conta' })).toBeDefined();
     });
 
     it('não inclui a ação Agendar como rota dentro do drawer', () => {
@@ -227,7 +230,7 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
 
       renderShell();
 
-      const bookingsItem = screen.getByText('Agendamentos');
+      const bookingsItem = screen.getByRole('menuitem', { name: 'Meus agendamentos' });
       fireEvent.click(bookingsItem);
 
       expect(mockCloseDrawer).toHaveBeenCalled();

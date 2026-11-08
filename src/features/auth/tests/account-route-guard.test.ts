@@ -27,9 +27,9 @@ describe('G1 — Governança de Sessão, Guards e Recursos de Conta', () => {
     expect(getOperationalContext(clientSnapshot)).toBeNull();
 
     // Destino padrão de entrada
-    expect(resolveEntryDestination(clientSnapshot)).toBe('/(client)');
+    expect(resolveEntryDestination(clientSnapshot)).toBe('/(client)/explore');
     expect(resolveEntryDestination(clientSnapshot, null, { clientEntry: 'explore' })).toBe('/(client)/explore');
-    expect(resolveEntryDestination(clientSnapshot, null, { clientEntry: 'home' })).toBe('/(client)');
+    expect(resolveEntryDestination(clientSnapshot, null, { clientEntry: 'home' })).toBe('/(client)/explore');
 
     // Destinos de conta são permitidos e links diretos são preservados
     expect(resolveAccountDestination('/notifications')).toBe('/(account)/notifications');

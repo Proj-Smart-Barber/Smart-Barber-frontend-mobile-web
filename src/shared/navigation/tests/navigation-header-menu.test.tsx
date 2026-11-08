@@ -145,9 +145,10 @@ describe('ClientHeader & Bottom Navigation UX Improvements', () => {
         </ClientNavigationShell>,
       );
 
-      expect(screen.getByText('Início')).toBeDefined();
+      expect(screen.queryByText('Início')).toBeNull();
       expect(screen.getByText('Explorar')).toBeDefined();
       expect(screen.getByText('Agendar')).toBeDefined();
+      expect(screen.getByText('Meus agendamentos')).toBeDefined();
       expect(screen.getByText('Conta')).toBeDefined();
       expect(screen.getByText('Menu')).toBeDefined();
     });
