@@ -93,6 +93,7 @@ const CLIENT_CAPSULE_CONTROLS: ClientCapsuleControl[] = [
     id: 'bookings',
     kind: 'tab',
     label: 'Meus agendamentos',
+    compactLabel: 'Agenda',
     route: '/(client)/bookings',
     iconActive: 'calendar-clear',
     iconInactive: 'calendar-clear-outline',
@@ -887,7 +888,7 @@ function ClientNavigationShellContent({
                 <Pressable
                   key={item.id}
                   accessibilityRole="tab"
-                  accessibilityLabel={`${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`}
+                  accessibilityLabel={`${item.compactLabel ? `${item.compactLabel}, ` : ''}${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`}
                   accessibilityState={{ selected: isActive }}
                   onPress={() => item.route && handleNavigate(item.route)}
                   style={({ pressed }) => [
@@ -918,7 +919,7 @@ function ClientNavigationShellContent({
                       textAlign: 'center',
                     }}
                   >
-                    {item.label}
+                    {item.compactLabel ?? item.label}
                   </Text>
                 </Pressable>
               );

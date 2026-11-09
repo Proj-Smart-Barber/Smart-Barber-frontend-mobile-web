@@ -104,7 +104,8 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       expect(items[0].textContent).toContain('Menu');
       expect(items[1].textContent).toContain('Explorar');
       expect(items[2].textContent).toContain('Agendar');
-      expect(items[3].textContent).toMatch(/Meus[\s\n]*agendamentos/);
+      expect(items[3].textContent).toContain('Agenda');
+      expect(items[3].getAttribute('aria-label')).toContain('Meus agendamentos');
       expect(items[4].textContent).toContain('Conta');
     });
 
