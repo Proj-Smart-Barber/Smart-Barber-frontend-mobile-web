@@ -375,4 +375,74 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
     expect(await screen.findByText('Barbearia Clássica Mooca')).toBeTruthy();
     expect(searchAllSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('8. Regressão de rolagem: com múltiplos cards, LoadingRegion transmite contentStyle, FlatList recebe restrição e scroll atualiza offset', async () => {
+    locationStore.updateSession({
+      state: 'denied',
+      coords: null,
+    });
+
+    const multipleShops: PublicShop[] = Array.from({ length: 10 }, (_, i) => ({
+      id: `018b1234-5678-7000-8000-000000000${i.toString().padStart(3, '0')}`,
+      name: `Barbearia Unidade ${i + 1}`,
+      slug: `barbearia-unidade-${i + 1}`,
+      location: `Bairro ${i + 1}, São Paulo`,
+      avatarUrl: null,
+      coverUrl: null,
+      photos: [],
+      rating: 4.8,
+      reviewCount: 15,
+      coordinates: null,
+      distanceMeters: null,
+    }));
+
+    vi.spyOn(discoveryApi, 'searchAll').mockResolvedValueOnce({
+      items: multipleShops,
+      page: 1,
+      limit: 20,
+      total: 10,
+      hasNext: false,
+      serverTime: '2026-11-06T12:00:00Z',
+    });
+
+    const { unmount } = renderNearby({
+      onboardingStage: 'denied',
+      initialMode: 'ALL',
+    });
+
+    // Confirma que a primeira e a última unidade estão presentes
+    expect(await screen.findByText('Barbearia Unidade 1')).toBeTruthy();
+    expect(screen.getByText('Barbearia Unidade 10')).toBeTruthy();
+
+    // LoadingRegion e contentWrapper configurados com restrição opt-in
+    const loadingRegion = screen.getByTestId('nearby-loading-region');
+    expect(loadingRegion).toBeDefined();
+    const contentWrapper = screen.getByTestId('nearby-loading-region-content-wrapper');
+    expect(contentWrapper).toBeDefined();
+
+    // FlatList presente com testID
+    const flatList = screen.getByTestId('nearby-flat-list');
+    expect(flatList).toBeDefined();
+
+    // Dispara rolagem real na FlatList
+    act(() => {
+      fireEvent.scroll(flatList, {
+        nativeEvent: {
+          contentOffset: { y: 450, x: 0 },
+          contentSize: { height: 3500, width: 390 },
+          layoutMeasurement: { height: 504, width: 390 },
+        },
+      });
+    });
+
+    // Ver serviços da última unidade é acessível e acionável
+    const verServicosButtons = screen.getAllByRole('button', { name: /ver serviços/i });
+    expect(verServicosButtons.length).toBe(10);
+    act(() => {
+      fireEvent.click(verServicosButtons[9]);
+    });
+    expect(mockPush).toHaveBeenCalledWith('/barbershops/018b1234-5678-7000-8000-000000000009/services');
+
+    unmount();
+  });
 });

@@ -143,19 +143,20 @@ export function ClientNearbyView({
     };
   }, [saveState]);
 
-  // Restauração de scroll
+  // Restauração de scroll com guarda única e respeitando conteúdo
   const hasRestoredScrollRef = useRef(false);
   React.useEffect(() => {
-    if (
-      !hasRestoredScrollRef.current &&
-      initialState.scrollOffset > 0 &&
-      items.length > 0 &&
-      !isLoading
-    ) {
+    if (hasRestoredScrollRef.current) return;
+    if (initialState.scrollOffset <= 0) {
       hasRestoredScrollRef.current = true;
+      return;
+    }
+    if (items.length > 0 && !isLoading && listRef.current) {
+      hasRestoredScrollRef.current = true;
+      const safeOffset = Math.max(0, initialState.scrollOffset);
       try {
-        listRef.current?.scrollToOffset({
-          offset: initialState.scrollOffset,
+        listRef.current.scrollToOffset({
+          offset: safeOffset,
           animated: false,
         });
       } catch {
@@ -557,6 +558,7 @@ export function ClientNearbyView({
       </View>
 
       <LoadingRegion
+        testID="nearby-loading-region"
         operationKey={operationKey}
         active={isLoading}
         phase={isLoading && sanitizedItems.length === 0 ? 'initial' : 'refresh'}
@@ -572,7 +574,8 @@ export function ClientNearbyView({
             <NearbyResultsSkeleton count={3} />
           </View>
         }
-        style={{ flex: 1 }}
+        style={styles.resultsRegion}
+        contentStyle={styles.resultsContentWrapper}
       >
         {error && sanitizedItems.length === 0 && !isServiceUnavailable ? (
           <View style={styles.centerBox}>
@@ -660,7 +663,9 @@ export function ClientNearbyView({
           </View>
         ) : (
           <FlatList
+            testID="nearby-flat-list"
             ref={listRef}
+            style={styles.resultsList}
             data={sanitizedItems}
             keyExtractor={(item) => item.id}
             onScroll={(e) => {
@@ -851,5 +856,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 16,
+  },
+  resultsRegion: {
+    flex: 1,
+    minHeight: 0,
+  },
+  resultsContentWrapper: {
+    flex: 1,
+    minHeight: 0,
+  },
+  resultsList: {
+    flex: 1,
+    minHeight: 0,
   },
 });

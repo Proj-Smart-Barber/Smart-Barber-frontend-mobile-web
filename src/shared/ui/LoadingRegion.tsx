@@ -13,6 +13,12 @@ export type LoadingRegionProps = Partial<LoadingFeedbackInput> & {
   children?: React.ReactNode;
   longWaitMessage?: string;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Estilo opcional transmitido exclusivamente ao contentWrapper interno quando hasContent=true.
+   * Permite propagar restrições verticais (ex.: flex: 1, minHeight: 0) para elementos roláveis filhos,
+   * preservando o dimensionamento automático dos demais consumidores sem opt-in.
+   */
+  contentStyle?: StyleProp<ViewStyle>;
   testID?: string;
 };
 
@@ -38,6 +44,7 @@ export function LoadingRegion({
   children,
   longWaitMessage,
   style,
+  contentStyle,
   testID,
 }: LoadingRegionProps) {
   const { colors, spacing } = useTheme();
@@ -100,7 +107,10 @@ export function LoadingRegion({
           (children as React.ReactElement) || null
         )
       ) : (
-        <View style={styles.contentWrapper}>
+        <View
+          testID={testID ? `${testID}-content-wrapper` : 'loading-region-content-wrapper'}
+          style={[styles.contentWrapper, contentStyle]}
+        >
           {children}
           {active && showIndicator && (
             <View
