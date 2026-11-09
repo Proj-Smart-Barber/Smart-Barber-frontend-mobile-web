@@ -52,7 +52,29 @@ export function ExploreVideo({
     const subscription = AppState.addEventListener('change', (state) => {
       if (state !== 'active') player.pause();
     });
-    return () => subscription.remove();
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        player.pause();
+      }
+    };
+    const handlePageHide = () => {
+      player.pause();
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', handlePageHide);
+    }
+    return () => {
+      subscription.remove();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pagehide', handlePageHide);
+      }
+    };
   }, [player]);
 
   return (

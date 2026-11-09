@@ -638,6 +638,7 @@ export function ClientNearbyView({
         isLocationAvailable={hasValidCoordinates}
         locationStatus={locationPanelStatus}
         canAskAgain={canAskAgain}
+        scopeKey={effectiveActor ?? 'anonymous'}
         onClose={() => setIsFiltersSheetVisible(false)}
         onApply={handleApplyFilters}
         onRecoverPermission={handleRecoverPermission}
@@ -654,6 +655,7 @@ export function ClientNearbyView({
         onFetchNextPage={fetchNextPage}
         isFetchingNextPage={isFetchingNextPage}
         resultKey={operationKey}
+        scopeKey={effectiveActor ?? 'anonymous'}
         resultsError={error}
         onRetryResults={() => refetch()}
       />

@@ -224,4 +224,33 @@ describe('N4 — DiscoveryMapModal: Visualização de Mapa com Contratos Estrito
     expect(onCloseMock).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith('/barbershops/shop-1/services');
   });
+
+  it('desmonta o GoogleMapCanvas e remove o modal quando a animação de saída é cancelada ou quando scopeKey (ator) muda', () => {
+    const { rerender } = render(
+      <ThemeProvider initialMode="dark">
+        <DiscoveryMapModal
+          visible={true}
+          onClose={vi.fn()}
+          items={mockShops}
+          scopeKey="actor-1"
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId('google-map-canvas')).toBeDefined();
+
+    // Troca de ator durante fechamento desmonta imediatamente o canvas e o modal
+    rerender(
+      <ThemeProvider initialMode="dark">
+        <DiscoveryMapModal
+          visible={false}
+          onClose={vi.fn()}
+          items={mockShops}
+          scopeKey="actor-2"
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByTestId('google-map-canvas')).toBeNull();
+  });
 });

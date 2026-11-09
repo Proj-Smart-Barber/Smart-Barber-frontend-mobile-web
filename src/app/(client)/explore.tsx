@@ -1,7 +1,16 @@
 import { useScreenTransition } from '@/shared/ui/use-screen-transition';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Animated, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import {
+  Animated,
+  AppState,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Platform,
+} from 'react-native';
+import * as ExpoRouter from 'expo-router';
+import { useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
@@ -15,11 +24,89 @@ import {
   type ExploreFeedHandle,
 } from '@/features/discovery';
 
+function useSafeRouteFocus(pathname: string): boolean {
+  let routerFocused = true;
+  try {
+    const maybeUseIsFocused = (ExpoRouter as any).useIsFocused;
+    if (typeof maybeUseIsFocused === 'function') {
+      routerFocused = Boolean(maybeUseIsFocused());
+    }
+  } catch {
+    routerFocused = true;
+  }
+  const matchesExplorePath =
+    !pathname ||
+    pathname === '/(client)/explore' ||
+    pathname === '/explore' ||
+    pathname.startsWith('/(client)/explore/') ||
+    pathname.startsWith('/explore/');
+  return routerFocused && matchesExplorePath;
+}
+
+function useDocumentAndAppActive(): boolean {
+  const [isActive, setIsActive] = useState<boolean>(() => {
+    if (
+      Platform.OS === 'web' &&
+      typeof document !== 'undefined' &&
+      typeof document.visibilityState === 'string'
+    ) {
+      return document.visibilityState !== 'hidden';
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    const syncVisibility = () => {
+      if (
+        Platform.OS === 'web' &&
+        typeof document !== 'undefined' &&
+        typeof document.visibilityState === 'string'
+      ) {
+        setIsActive(document.visibilityState !== 'hidden');
+        return;
+      }
+      setIsActive(AppState.currentState ? AppState.currentState === 'active' : true);
+    };
+
+    let removeWebListeners: (() => void) | null = null;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const onPageShow = () => setIsActive(true);
+      const onPageHide = () => setIsActive(false);
+      window.addEventListener('pageshow', onPageShow);
+      window.addEventListener('pagehide', onPageHide);
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', syncVisibility);
+      }
+      removeWebListeners = () => {
+        window.removeEventListener('pageshow', onPageShow);
+        window.removeEventListener('pagehide', onPageHide);
+        if (typeof document !== 'undefined') {
+          document.removeEventListener('visibilitychange', syncVisibility);
+        }
+      };
+    }
+
+    const appStateSub =
+      typeof AppState?.addEventListener === 'function'
+        ? AppState.addEventListener('change', (nextState) => {
+            setIsActive(nextState === 'active');
+          })
+        : null;
+
+    return () => {
+      removeWebListeners?.();
+      appStateSub?.remove?.();
+    };
+  }, []);
+
+  return isActive;
+}
+
 /**
  * Tela Explorar do Cliente
  * Integra os acessos superiores Explorar | Perto de você | Meus agendamentos,
  * preserva a instância do feed após a primeira abertura, pausa mídia/toques/paginação
- * quando oculto e publica a mídia efetivamente visível para a ação Agendar.
+ * quando oculto ou sem foco de rota e publica a mídia efetivamente visível para a ação Agendar.
  */
 export default function ClientExploreScreen() {
   const { colors } = useTheme();
@@ -27,10 +114,16 @@ export default function ClientExploreScreen() {
   const isDesktopVariant = Platform.OS === 'web' && isExpanded;
   const insets = useAppSafeArea();
   const router = useRouter();
+  const pathname = usePathname();
   const params = useLocalSearchParams<{ section?: string | string[] }>();
   const clientExperience = useOptionalClientExperienceContext();
 
+  const isRouteFocused = useSafeRouteFocus(pathname);
+  const isDocumentActive = useDocumentAndAppActive();
   const activeSection = resolveClientExploreSection(params?.section);
+  const isFeedEffectiveVisible =
+    activeSection === 'feed' && isRouteFocused && isDocumentActive;
+
   const sectionOpacity = useScreenTransition(activeSection);
   const [hasVisitedFeed, setHasVisitedFeed] = useState<boolean>(
     () => activeSection === 'feed',
@@ -47,10 +140,10 @@ export default function ClientExploreScreen() {
   const publishActiveMedia = clientExperience?.publishActiveMedia;
 
   useEffect(() => {
-    if (activeSection !== 'feed') {
+    if (!isFeedEffectiveVisible) {
       publishActiveMedia?.(null);
     }
-  }, [activeSection, publishActiveMedia]);
+  }, [isFeedEffectiveVisible, publishActiveMedia]);
 
   const handleSelectSection = useCallback(
     (next: ClientExploreSection) => {
@@ -145,16 +238,16 @@ export default function ClientExploreScreen() {
             styles.feedLayer,
             activeSection !== 'feed' && styles.hiddenFeedLayer,
           ]}
-          pointerEvents={activeSection === 'feed' ? 'auto' : 'none'}
-          aria-hidden={activeSection !== 'feed'}
-          accessibilityElementsHidden={activeSection !== 'feed'}
+          pointerEvents={isFeedEffectiveVisible ? 'auto' : 'none'}
+          aria-hidden={!isFeedEffectiveVisible}
+          accessibilityElementsHidden={!isFeedEffectiveVisible}
           importantForAccessibility={
-            activeSection === 'feed' ? 'auto' : 'no-hide-descendants'
+            isFeedEffectiveVisible ? 'auto' : 'no-hide-descendants'
           }
         >
           <ExploreFeedView
             ref={feedRef}
-            isVisible={activeSection === 'feed'}
+            isVisible={isFeedEffectiveVisible}
             topOffset={isDesktopVariant ? 0 : feedTopOffset}
             onActiveMediaChange={publishActiveMedia}
             presentation={isDesktopVariant ? 'desktop' : 'immersive'}

@@ -70,7 +70,27 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
     scrollCollapseProgress.setValue(0);
   }, [pathname, scrollCollapseProgress]);
 
+  const drawerGeneration = useRef(0);
+  const drawerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDrawerTimer = useCallback(() => {
+    if (drawerTimerRef.current !== null) {
+      clearTimeout(drawerTimerRef.current);
+      drawerTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      drawerGeneration.current++;
+      clearDrawerTimer();
+      currentAnimation.current?.stop();
+    };
+  }, [clearDrawerTimer]);
+
   const openDrawer = useCallback(() => {
+    const epoch = ++drawerGeneration.current;
+    clearDrawerTimer();
     setIsDrawerOpen(true);
     setIsDrawerVisible(true);
 
@@ -90,12 +110,24 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
       useNativeDriver: Platform.OS !== 'web',
     });
     currentAnimation.current = anim;
+    drawerTimerRef.current = setTimeout(() => {
+      if (drawerGeneration.current === epoch) {
+        currentAnimation.current = null;
+        drawerProgress.setValue(1);
+      }
+    }, 380);
     anim.start(() => {
-      currentAnimation.current = null;
+      if (drawerGeneration.current === epoch) {
+        clearDrawerTimer();
+        currentAnimation.current = null;
+        drawerProgress.setValue(1);
+      }
     });
-  }, [reducedMotion, drawerProgress]);
+  }, [reducedMotion, drawerProgress, clearDrawerTimer]);
 
   const closeDrawer = useCallback(() => {
+    const epoch = ++drawerGeneration.current;
+    clearDrawerTimer();
     setIsDrawerOpen(false);
 
     if (currentAnimation.current) {
@@ -108,6 +140,14 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
       return;
     }
 
+    const finalizeClose = () => {
+      if (drawerGeneration.current !== epoch) return;
+      clearDrawerTimer();
+      currentAnimation.current = null;
+      drawerProgress.setValue(0);
+      setIsDrawerVisible(false);
+    };
+
     const anim = Animated.timing(drawerProgress, {
       toValue: 0,
       duration: 200,
@@ -115,13 +155,11 @@ export function NavigationProvider({ children }: NavigationProviderProps) {
       useNativeDriver: Platform.OS !== 'web',
     });
     currentAnimation.current = anim;
-    anim.start(({ finished }) => {
-      currentAnimation.current = null;
-      if (finished) {
-        setIsDrawerVisible(false);
-      }
+    drawerTimerRef.current = setTimeout(finalizeClose, 320);
+    anim.start(() => {
+      finalizeClose();
     });
-  }, [reducedMotion, drawerProgress]);
+  }, [reducedMotion, drawerProgress, clearDrawerTimer]);
 
   const toggleDrawer = useCallback(() => {
     if (isDrawerOpen) {

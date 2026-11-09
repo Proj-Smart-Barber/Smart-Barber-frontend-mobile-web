@@ -31,6 +31,7 @@ export interface NearbyFiltersSheetProps {
   isLocationAvailable: boolean;
   locationStatus: LocationPanelStatus;
   canAskAgain: boolean;
+  scopeKey?: string;
   onClose: () => void;
   onApply: (value: NearbyFilterSelection) => void;
   onRecoverPermission: () => void | Promise<void>;
@@ -44,6 +45,7 @@ export function NearbyFiltersSheet({
   isLocationAvailable,
   locationStatus,
   canAskAgain,
+  scopeKey,
   onClose,
   onApply,
   onRecoverPermission,
@@ -51,7 +53,20 @@ export function NearbyFiltersSheet({
   onManualSearch,
 }: NearbyFiltersSheetProps) {
   const reducedMotion = useReducedMotion();
-  const presence = usePresenceTransition(visible, { enterDuration: motion.slow, exitDuration: motion.standard, reducedMotion });
+  const presence = usePresenceTransition(visible, {
+    enterDuration: motion.slow,
+    exitDuration: motion.standard,
+    reducedMotion,
+    scopeKey,
+    onExited: () => {
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const activeEl = document.activeElement as HTMLElement | null;
+        if (activeEl && typeof activeEl.blur === 'function' && activeEl !== document.body) {
+          activeEl.blur();
+        }
+      }
+    },
+  });
   const { colors, spacing, radius, isDark } = useTheme();
   const { isExpanded } = useAdaptiveLayout();
   const insets = useAppSafeArea();

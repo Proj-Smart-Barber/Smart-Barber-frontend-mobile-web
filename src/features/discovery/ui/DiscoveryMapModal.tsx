@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,7 @@ export interface DiscoveryMapModalProps {
   onFetchNextPage?: () => void;
   isFetchingNextPage?: boolean;
   resultKey?: string;
+  scopeKey?: string;
   resultsError?: Error | null;
   onRetryResults?: () => void;
 }
@@ -44,11 +46,26 @@ export function DiscoveryMapModal({
   onFetchNextPage,
   isFetchingNextPage,
   resultKey,
+  scopeKey,
   resultsError,
   onRetryResults,
 }: DiscoveryMapModalProps) {
   const reducedMotion = useReducedMotion();
-  const presence = usePresenceTransition(visible, { enterDuration: motion.slow, exitDuration: motion.standard, reducedMotion });
+  const presence = usePresenceTransition(visible, {
+    enterDuration: motion.slow,
+    exitDuration: motion.standard,
+    reducedMotion,
+    scopeKey,
+    onExited: () => {
+      setSelectedShopId(null);
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        const activeEl = document.activeElement as HTMLElement | null;
+        if (activeEl && typeof activeEl.blur === 'function' && activeEl !== document.body) {
+          activeEl.blur();
+        }
+      }
+    },
+  });
   const { colors, radius } = useTheme();
   const router = useRouter();
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);

@@ -95,11 +95,11 @@ export function ClientLayoutContent() {
           },
         }}
       >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="explore" />
-        <Stack.Screen name="bookings" />
-        <Stack.Screen name="notifications" />
-        <Stack.Screen name="profile" />
+        <Stack.Screen name="index" dangerouslySingular />
+        <Stack.Screen name="explore" dangerouslySingular />
+        <Stack.Screen name="bookings" dangerouslySingular />
+        <Stack.Screen name="notifications" dangerouslySingular />
+        <Stack.Screen name="profile" dangerouslySingular />
       </Stack>
       </Animated.View>
 
