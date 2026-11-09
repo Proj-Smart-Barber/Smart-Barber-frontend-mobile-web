@@ -133,12 +133,22 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
     expect(searchAllSpy).toHaveBeenCalled();
     expect(nearbySpy).not.toHaveBeenCalled();
 
+    // Resumo indica Todas as distâncias
+    expect(screen.getByText('Todas as distâncias')).toBeTruthy();
+
+    // Abre gaveta de filtros
+    const openFiltersBtn = screen.getByRole('button', { name: /Abrir filtros de distância/i });
+    fireEvent.click(openFiltersBtn);
+
     const allDistancesBtn = screen.getByRole('button', { name: /Todas as distâncias/i });
     expect(allDistancesBtn.getAttribute('aria-selected')).toBe('true');
 
-    // Limita o raio apenas quando o usuário aciona o filtro de raio (ex.: 25 km)
+    // Limita o raio acionando o filtro de raio (ex.: 25 km) no rascunho e aplicando
     const radius25Btn = screen.getByRole('button', { name: /Raio de 25 quilômetros/i });
     fireEvent.click(radius25Btn);
+
+    const applyFiltersBtn = screen.getByRole('button', { name: /Aplicar filtros/i });
+    fireEvent.click(applyFiltersBtn);
 
     await waitFor(() => {
       expect(nearbySpy).toHaveBeenCalledWith(
@@ -444,5 +454,127 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
     expect(mockPush).toHaveBeenCalledWith('/barbershops/018b1234-5678-7000-8000-000000000009/services');
 
     unmount();
+  });
+
+  it('9. H3: Abrir, editar no rascunho e cancelar filtros adiciona zero requests de rede; Aplicar envia query única', async () => {
+    locationStore.updateSession({
+      state: 'granted',
+      coords: {
+        latitude: -23.561,
+        longitude: -46.655,
+        accuracyMeters: 10,
+        timestamp: Date.now(),
+        isApproximate: false,
+      },
+    });
+
+    const searchAllSpy = vi.spyOn(discoveryApi, 'searchAll').mockResolvedValue({
+      items: [sampleNearbyShop],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasNext: false,
+      serverTime: '2026-11-06T12:00:00Z',
+    });
+
+    const nearbySpy = vi.spyOn(discoveryApi, 'searchNearby').mockResolvedValue({
+      items: [sampleNearbyShop],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasNext: false,
+      serverTime: '2026-11-06T12:00:00Z',
+    });
+
+    renderNearby({
+      onboardingStage: 'ready',
+    });
+
+    expect(await screen.findByText('Barbearia Imperial Paulista')).toBeTruthy();
+    const initialAllCalls = searchAllSpy.mock.calls.length;
+    const initialNearbyCalls = nearbySpy.mock.calls.length;
+
+    // Abre gaveta de filtros
+    const openFiltersBtn = screen.getByRole('button', { name: /Abrir filtros de distância/i });
+    fireEvent.click(openFiltersBtn);
+
+    // Altera seleção para 50km no rascunho
+    const radius50Btn = screen.getByRole('button', { name: /Raio de 50 quilômetros/i });
+    fireEvent.click(radius50Btn);
+
+    // Descarta rascunho fechando via X
+    const closeButtons = screen.getAllByRole('button', { name: /Fechar filtros/i });
+    fireEvent.click(closeButtons[0]);
+
+    // Zero requests adicionais disparadas
+    expect(searchAllSpy.mock.calls.length).toBe(initialAllCalls);
+    expect(nearbySpy.mock.calls.length).toBe(initialNearbyCalls);
+
+    // Reabre e aplica 10km
+    const reOpenFiltersBtn = screen.getByRole('button', { name: /Abrir filtros de distância/i });
+    fireEvent.click(reOpenFiltersBtn);
+    const radius10Btn = await screen.findByRole('button', { name: /Raio de 10 quilômetros/i });
+    fireEvent.click(radius10Btn);
+
+    const applyBtn = screen.getByRole('button', { name: /Aplicar filtros/i });
+    fireEvent.click(applyBtn);
+
+    await waitFor(() => {
+      expect(nearbySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          radiusKm: 10,
+        }),
+      );
+    });
+  });
+
+  it('10. H3: Exclusão mútua de overlays e reset em troca de ator', async () => {
+    locationStore.updateSession({
+      state: 'granted',
+      coords: {
+        latitude: -23.561,
+        longitude: -46.655,
+        accuracyMeters: 10,
+        timestamp: Date.now(),
+        isApproximate: false,
+      },
+    });
+
+    vi.spyOn(discoveryApi, 'searchAll').mockResolvedValue({
+      items: [sampleNearbyShop],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasNext: false,
+      serverTime: '2026-11-06T12:00:00Z',
+    });
+
+    const { rerender } = renderNearby({
+      onboardingStage: 'ready',
+      actorId: 'actor-1',
+    });
+
+    expect(await screen.findByText('Barbearia Imperial Paulista')).toBeTruthy();
+
+    // Abre gaveta de filtros
+    const openFiltersBtn = screen.getByRole('button', { name: /Abrir filtros de distância/i });
+    fireEvent.click(openFiltersBtn);
+    expect(screen.getByTestId('nearby-filters-modal')).toBeTruthy();
+
+    // Abre mapa -> deve fechar a gaveta de filtros
+    const openMapBtn = screen.getByRole('button', { name: /Abrir mapa de barbearias/i });
+    fireEvent.click(openMapBtn);
+    expect(screen.queryByTestId('nearby-filters-modal')).toBeNull();
+
+    // Troca de ator fecha quaisquer overlays
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider initialMode="dark">
+          <ClientNearbyView onboardingStage="ready" actorId="actor-2" />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByTestId('nearby-filters-modal')).toBeNull();
   });
 });
