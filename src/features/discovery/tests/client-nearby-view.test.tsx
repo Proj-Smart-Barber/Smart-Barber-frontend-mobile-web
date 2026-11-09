@@ -86,7 +86,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
     return render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider initialMode="dark">
-          <ClientNearbyView {...props} />
+          <ClientNearbyView initialQuery="Mooca" {...props} />
         </ThemeProvider>
       </QueryClientProvider>,
     );
@@ -125,22 +125,23 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
 
     renderNearby({
       onboardingStage: 'ready',
+      initialQuery: '',
       canAskAgain: true,
     });
 
     // Por padrão exibe todas as barbearias sem limitar pelo raio
     expect(await screen.findByText('Barbearia Imperial Paulista')).toBeTruthy();
-    expect(searchAllSpy).toHaveBeenCalled();
-    expect(nearbySpy).not.toHaveBeenCalled();
+    expect(searchAllSpy).not.toHaveBeenCalled();
+    expect(nearbySpy).toHaveBeenCalledWith(expect.objectContaining({radiusKm: null}));
 
     // Resumo indica Todas as distâncias
-    expect(screen.getByText('Todas as distâncias')).toBeTruthy();
+    expect(screen.getByText('Mais próximas de você · sem limite de distância')).toBeTruthy();
 
     // Abre gaveta de filtros
     const openFiltersBtn = screen.getByRole('button', { name: /Abrir filtros de distância/i });
     fireEvent.click(openFiltersBtn);
 
-    const allDistancesBtn = screen.getByRole('button', { name: /Todas as distâncias/i });
+    const allDistancesBtn = screen.getByRole('button', { name: /Sem limite de distância/i });
     expect(allDistancesBtn.getAttribute('aria-selected')).toBe('true');
 
     // Limita o raio acionando o filtro de raio (ex.: 25 km) no rascunho e aplicando
@@ -259,7 +260,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
 
     renderNearby({
       onboardingStage: 'ready',
-      initialMode: 'NEARBY',
+      initialMode: 'NEARBY', initialQuery: '',
     });
 
     expect(await screen.findByText('Serviço temporariamente indisponível')).toBeTruthy();
@@ -287,7 +288,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
       onboardingStage: 'denied',
     });
 
-    const input = screen.getByLabelText(/Buscar barbearia por nome ou bairro/i);
+    const input = screen.getByLabelText(/Buscar barbearia, endereço ou cidade/i);
     expect(input).toBeTruthy();
 
     fireEvent.change(input, { target: { value: 'Mooca' } });
@@ -327,7 +328,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
 
     renderNearby({
       onboardingStage: 'ready',
-      initialMode: 'NEARBY',
+      initialMode: 'NEARBY', initialQuery: '',
     });
 
     expect(
@@ -540,7 +541,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
       },
     });
 
-    vi.spyOn(discoveryApi, 'searchAll').mockResolvedValue({
+    vi.spyOn(discoveryApi, 'searchNearby').mockResolvedValue({
       items: [sampleNearbyShop],
       page: 1,
       limit: 20,

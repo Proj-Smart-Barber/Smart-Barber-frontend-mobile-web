@@ -1,7 +1,10 @@
+import { usePresenceTransition } from '@/shared/ui/use-presence-transition';
+import { useReducedMotion, motion } from '@/shared/theme';
 import React, { useMemo, useState } from 'react';
 import {
   View,
   Modal,
+  Animated,
   StyleSheet,
   Pressable,
   ScrollView,
@@ -44,6 +47,8 @@ export function DiscoveryMapModal({
   resultsError,
   onRetryResults,
 }: DiscoveryMapModalProps) {
+  const reducedMotion = useReducedMotion();
+  const presence = usePresenceTransition(visible, { enterDuration: motion.slow, exitDuration: motion.standard, reducedMotion });
   const { colors, radius } = useTheme();
   const router = useRouter();
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
@@ -114,12 +119,12 @@ export function DiscoveryMapModal({
 
   return (
     <Modal
-      visible={visible}
-      animationType="slide"
+      visible={presence.mounted}
+      animationType="none"
       transparent
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <Animated.View style={[styles.modalOverlay, { opacity: presence.progress }]}>
         <LiquidGlassView
           variant="card"
           borderRadius={radius.xl}
@@ -169,7 +174,7 @@ export function DiscoveryMapModal({
           )}
 
           {/* Superfície de Mapa sob demanda */}
-          {visible && mappedShops.length > 0 && (
+          {presence.mounted && mappedShops.length > 0 && (
             <GoogleMapCanvas
               markers={mapMarkers}
               selectedMarkerId={selectedShopId}
@@ -293,7 +298,7 @@ export function DiscoveryMapModal({
             />
           </View>
         </LiquidGlassView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

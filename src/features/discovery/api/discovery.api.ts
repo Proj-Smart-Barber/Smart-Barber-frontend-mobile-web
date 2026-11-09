@@ -15,7 +15,7 @@ export interface SearchAllParams {
 export interface SearchNearbyParams {
   latitude: number;
   longitude: number;
-  radiusKm: 5 | 10 | 25 | 50;
+  radiusKm: 5 | 10 | 25 | 50 | null;
   q?: string;
   page?: number;
   limit?: number;

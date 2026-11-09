@@ -15,6 +15,8 @@ export function useDiscovery(initialParams?: {
   initialMode?: DiscoveryMode;
   initialRadius?: DiscoveryRadius;
   initialQuery?: string;
+  proximityOnly?: boolean;
+  actorId?: string | null;
 }): UseDiscoveryViewModel {
   const [filters, setFilters] = useState<DiscoveryFilters>(() => {
     const currentLoc = locationStore.getSession();
@@ -63,13 +65,13 @@ export function useDiscovery(initialParams?: {
     if (session.state === 'granted' && session.coords !== null) {
       setFilters((prev) => ({
         ...prev,
-        mode: 'NEARBY',
+        mode: initialParams?.proximityOnly ? prev.mode : 'NEARBY',
         radiusKm: prev.radiusKm || 10,
       }));
     } else {
       setFilters((prev) => (prev.mode === 'NEARBY' ? { ...prev, mode: 'ALL' } : prev));
     }
-  }, []);
+  }, [initialParams?.proximityOnly]);
 
   const setSearchQuery = useCallback((query: string) => {
     setFilters((prev) => ({ ...prev, searchQuery: query }));
@@ -89,13 +91,16 @@ export function useDiscovery(initialParams?: {
   }, []);
 
   const isNearbyEligible =
-    filters.mode === 'NEARBY' &&
+    (initialParams?.proximityOnly || filters.mode === 'NEARBY') &&
     !proximityUnavailable &&
     locationSession.state === 'granted' &&
     locationSession.coords !== null;
 
   // Chave de query estritamente opaca e estável (coordenadas discretizadas em ~1km para permitir cache compartilhado)
   const queryKey = useMemo(() => {
+    if (initialParams?.proximityOnly) {
+      return ['discovery', 'user-proximity', initialParams.actorId ?? 'anon', locationSession.generationId, filters.mode === 'ALL' ? null : filters.radiusKm, debouncedQuery.trim()] as const;
+    }
     if (isNearbyEligible && locationSession.coords) {
       const latBucket = Math.round(locationSession.coords.latitude * 100) / 100;
       const lngBucket = Math.round(locationSession.coords.longitude * 100) / 100;
@@ -111,6 +116,10 @@ export function useDiscovery(initialParams?: {
     return ['discovery', 'all', debouncedQuery.trim()] as const;
   }, [
     isNearbyEligible,
+    initialParams?.proximityOnly,
+    initialParams?.actorId,
+    locationSession.generationId,
+    filters.mode,
     filters.radiusKm,
     debouncedQuery,
     locationSession.coords?.latitude,
@@ -127,6 +136,7 @@ export function useDiscovery(initialParams?: {
     refetch,
   } = useInfiniteQuery({
     queryKey,
+    enabled: !initialParams?.proximityOnly || isNearbyEligible || debouncedQuery.trim().length > 0,
     queryFn: async ({ pageParam = 1 }) => {
       const expectedGeneration = serverClock.getGeneration();
       if (isNearbyEligible && locationSession.coords) {
@@ -134,7 +144,7 @@ export function useDiscovery(initialParams?: {
           const page = await discoveryApi.searchNearby({
             latitude: locationSession.coords.latitude,
             longitude: locationSession.coords.longitude,
-            radiusKm: filters.radiusKm,
+            radiusKm: initialParams?.proximityOnly && filters.mode === 'ALL' ? null : filters.radiusKm,
             q: debouncedQuery.trim() || undefined,
             page: pageParam,
             limit: 20,
@@ -147,7 +157,7 @@ export function useDiscovery(initialParams?: {
           const is503 =
             (err as any)?.isServiceUnavailable === true ||
             (err as any)?.statusCode === 503;
-          if (is503) {
+          if (is503 && !initialParams?.proximityOnly) {
             setProximityUnavailable(true);
             setFilters((prev) => ({ ...prev, mode: 'ALL' }));
             const fallbackPage = await discoveryApi.searchAll({

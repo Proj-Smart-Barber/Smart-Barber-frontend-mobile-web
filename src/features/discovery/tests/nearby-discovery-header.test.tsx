@@ -52,7 +52,7 @@ describe('NearbyDiscoveryHeader — Cabeçalho rolável de controles (H1)', () =
     const mapBtn = screen.getByRole('button', { name: /Abrir mapa de barbearias/i });
     expect(mapBtn).toBeDefined();
 
-    const searchInput = screen.getByLabelText(/Buscar barbearia por nome ou bairro/i);
+    const searchInput = screen.getByLabelText(/Buscar barbearia, endereço ou cidade/i);
     expect(searchInput).toBeDefined();
   });
 
@@ -85,7 +85,7 @@ describe('NearbyDiscoveryHeader — Cabeçalho rolável de controles (H1)', () =
       </ThemeProvider>,
     );
 
-    const inputNodeBefore = screen.getByLabelText(/Buscar barbearia por nome ou bairro/i) as HTMLInputElement;
+    const inputNodeBefore = screen.getByLabelText(/Buscar barbearia, endereço ou cidade/i) as HTMLInputElement;
     expect(inputNodeBefore.value).toBe('Corte');
 
     // Dispara digitação
@@ -110,7 +110,7 @@ describe('NearbyDiscoveryHeader — Cabeçalho rolável de controles (H1)', () =
       </ThemeProvider>,
     );
 
-    const inputNodeAfter = screen.getByLabelText(/Buscar barbearia por nome ou bairro/i) as HTMLInputElement;
+    const inputNodeAfter = screen.getByLabelText(/Buscar barbearia, endereço ou cidade/i) as HTMLInputElement;
     expect(inputNodeAfter).toBe(inputNodeBefore);
     expect(inputNodeAfter.value).toBe('Corte Degradê');
   });

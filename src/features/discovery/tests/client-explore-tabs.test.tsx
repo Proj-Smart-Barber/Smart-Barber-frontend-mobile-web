@@ -262,7 +262,7 @@ describe('ClientExploreTabs — Tarefa 5: Abas Superiores de Descoberta', () => 
       );
 
       // O painel de proximidade aparece e o feed continua montado em camada oculta (sem nova requisição de montagem)
-      expect(screen.getByLabelText(/Buscar barbearia por nome ou bairro/i)).toBeTruthy();
+      expect(screen.getByLabelText(/Buscar barbearia, endereço ou cidade/i)).toBeTruthy();
       expect(feedSpy).toHaveBeenCalledTimes(1);
 
       // Retorna para Explorar

@@ -72,8 +72,8 @@ export const NearbyDiscoveryHeader = forwardRef<
             ref={resolvedRef}
             value={searchQuery}
             onChangeText={onSearchChange}
-            placeholder="Buscar por nome, bairro ou região..."
-            accessibilityLabel="Buscar barbearia por nome ou bairro"
+            placeholder="Buscar barbearia, endereço ou cidade..."
+            accessibilityLabel="Buscar barbearia, endereço ou cidade"
             returnKeyType="search"
             leftIcon={
               <Ionicons
