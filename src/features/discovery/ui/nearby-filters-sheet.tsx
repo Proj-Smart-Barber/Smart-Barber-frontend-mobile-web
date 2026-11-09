@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { usePresenceTransition } from '@/shared/ui/use-presence-transition';
+import { useReducedMotion, motion } from '@/shared/theme';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
   Modal,
+  Animated,
   Pressable,
   ScrollView,
   Platform,
@@ -47,6 +50,8 @@ export function NearbyFiltersSheet({
   onRetryPosition,
   onManualSearch,
 }: NearbyFiltersSheetProps) {
+  const reducedMotion = useReducedMotion();
+  const presence = usePresenceTransition(visible, { enterDuration: motion.slow, exitDuration: motion.standard, reducedMotion });
   const { colors, spacing, radius, isDark } = useTheme();
   const { isExpanded } = useAdaptiveLayout();
   const insets = useAppSafeArea();
@@ -56,10 +61,12 @@ export function NearbyFiltersSheet({
     normalizeNearbyFilterSelection(value),
   );
 
+  const wasVisible = useRef(false);
   useEffect(() => {
-    if (visible) {
+    if (visible && !wasVisible.current) {
       setDraft(normalizeNearbyFilterSelection(value));
     }
+    wasVisible.current = visible;
   }, [visible, value]);
 
   // Tecla Escape no ambiente Web
@@ -92,19 +99,20 @@ export function NearbyFiltersSheet({
     onClose();
   };
 
-  if (!visible) return null;
+  if (!presence.mounted) return null;
 
   return (
     <Modal
-      visible={visible}
+      visible={presence.mounted}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
       accessibilityViewIsModal
       testID="nearby-filters-modal"
     >
-      <View
+      <Animated.View
         style={[
+          { opacity: presence.progress },
           styles.overlay,
           isExpanded ? styles.overlayDesktop : styles.overlayMobile,
         ]}
@@ -117,8 +125,9 @@ export function NearbyFiltersSheet({
           accessibilityLabel="Fechar filtros"
         />
 
-        <View
+        <Animated.View
           style={[
+            { transform: [{ translateY: presence.progress.interpolate({ inputRange: [0, 1], outputRange: [reducedMotion ? 0 : 24, 0] }) }] },
             styles.sheetContainer,
             isExpanded ? styles.sheetDesktop : styles.sheetMobile,
             {
@@ -162,129 +171,6 @@ export function NearbyFiltersSheet({
             contentContainerStyle={styles.sheetBodyContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Opções de modo de distância */}
-            <View style={styles.section}>
-              <Text
-                variant="bodySm"
-                weight="semibold"
-                color={colors.text.secondary}
-                style={{ marginBottom: spacing[2] }}
-              >
-                Distância
-              </Text>
-
-              {/* Botão: Todas as distâncias */}
-              <Pressable
-                onPress={() => handleSelectMode('ALL')}
-                accessibilityRole="button"
-                accessibilityLabel="Todas as distâncias"
-                accessibilityState={{ selected: draft.mode === 'ALL' }}
-                aria-selected={draft.mode === 'ALL'}
-                style={[
-                  styles.optionRow,
-                  {
-                    borderRadius: radius.md,
-                    borderColor:
-                      draft.mode === 'ALL'
-                        ? colors.brand.primary
-                        : colors.border.subtle,
-                    backgroundColor:
-                      draft.mode === 'ALL'
-                        ? isDark
-                          ? 'rgba(235, 94, 40, 0.12)'
-                          : 'rgba(235, 94, 40, 0.08)'
-                        : colors.surface.input,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text
-                    variant="body"
-                    weight={draft.mode === 'ALL' ? 'bold' : 'regular'}
-                    color={
-                      draft.mode === 'ALL'
-                        ? colors.brand.primary
-                        : colors.text.primary
-                    }
-                  >
-                    Todas as distâncias
-                  </Text>
-                  <Text variant="caption" color={colors.text.muted}>
-                    Exibe barbearias sem restrição de raio geográfico
-                  </Text>
-                </View>
-                <Ionicons
-                  name={
-                    draft.mode === 'ALL'
-                      ? 'radio-button-on'
-                      : 'radio-button-off'
-                  }
-                  size={20}
-                  color={
-                    draft.mode === 'ALL'
-                      ? colors.brand.primary
-                      : colors.text.muted
-                  }
-                />
-              </Pressable>
-
-              {/* Botão: Perto da minha localização */}
-              <Pressable
-                onPress={() => handleSelectMode('NEARBY')}
-                accessibilityRole="button"
-                accessibilityLabel="Perto da minha localização"
-                accessibilityState={{ selected: draft.mode === 'NEARBY' }}
-                aria-selected={draft.mode === 'NEARBY'}
-                style={[
-                  styles.optionRow,
-                  {
-                    marginTop: spacing[2],
-                    borderRadius: radius.md,
-                    borderColor:
-                      draft.mode === 'NEARBY'
-                        ? colors.brand.primary
-                        : colors.border.subtle,
-                    backgroundColor:
-                      draft.mode === 'NEARBY'
-                        ? isDark
-                          ? 'rgba(235, 94, 40, 0.12)'
-                          : 'rgba(235, 94, 40, 0.08)'
-                        : colors.surface.input,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text
-                    variant="body"
-                    weight={draft.mode === 'NEARBY' ? 'bold' : 'regular'}
-                    color={
-                      draft.mode === 'NEARBY'
-                        ? colors.brand.primary
-                        : colors.text.primary
-                    }
-                  >
-                    Perto da minha localização
-                  </Text>
-                  <Text variant="caption" color={colors.text.muted}>
-                    Limita os resultados a um raio em torno de você
-                  </Text>
-                </View>
-                <Ionicons
-                  name={
-                    draft.mode === 'NEARBY'
-                      ? 'radio-button-on'
-                      : 'radio-button-off'
-                  }
-                  size={20}
-                  color={
-                    draft.mode === 'NEARBY'
-                      ? colors.brand.primary
-                      : colors.text.muted
-                  }
-                />
-              </Pressable>
-            </View>
-
             {/* Seleção de Raio (ativo quando modo é NEARBY ou elegível) */}
             <View style={[styles.section, { marginTop: spacing[4] }]}>
               <Text
@@ -297,6 +183,10 @@ export function NearbyFiltersSheet({
               </Text>
 
               <View style={styles.radiusPillsRow}>
+            <Pressable onPress={() => handleSelectMode('ALL')} accessibilityRole="button" accessibilityLabel="Sem limite de distância" accessibilityState={{ selected: draft.mode === 'ALL' }} aria-selected={draft.mode === 'ALL'} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Text color={draft.mode === 'ALL' ? colors.brand.primary : colors.text.primary}>Sem limite</Text>
+            </Pressable>
+
                 {VALID_DISCOVERY_RADII.map((radiusOpt) => {
                   const isSelected =
                     draft.mode === 'NEARBY' && draft.radiusKm === radiusOpt;
@@ -374,13 +264,14 @@ export function NearbyFiltersSheet({
             <Button
               variant="primary"
               title="Aplicar filtros"
+            disabled={draft.mode === 'NEARBY' && !isLocationAvailable}
               accessibilityLabel="Aplicar filtros"
               onPress={handleApply}
               style={{ flex: 1, minHeight: 44 }}
             />
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

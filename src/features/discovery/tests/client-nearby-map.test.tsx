@@ -100,7 +100,7 @@ describe('N4 — ClientNearbyView + Mapa: Integração sem Consultas Extras', ()
     render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider initialMode="dark">
-          <ClientNearbyView />
+          <ClientNearbyView initialQuery="Vila Mariana" />
         </ThemeProvider>
       </QueryClientProvider>,
     );

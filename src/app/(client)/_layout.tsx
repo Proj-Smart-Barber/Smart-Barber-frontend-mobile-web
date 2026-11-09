@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
+import { Animated } from 'react-native';
+import { useScreenTransition } from '@/shared/ui/use-screen-transition';
 import { useTheme } from '@/shared/theme';
 import { useSession } from '@/features/auth';
 import {
@@ -72,6 +74,7 @@ function ClientLocationOnboardingCoordinator({
 }
 
 export function ClientLayoutContent() {
+  const routeOpacity = useScreenTransition(usePathname());
   const { colors } = useTheme();
   const { identity } = useSession();
   const { bookingStart, requestBooking, closeBooking } = useClientExperienceContext();
@@ -82,9 +85,11 @@ export function ClientLayoutContent() {
       onRequestBooking={requestBooking}
       interactionBlocked={Boolean(bookingStart) || isOnboardingBlocked}
     >
+      <Animated.View style={{ flex: 1, minHeight: 0, opacity: routeOpacity }}>
       <Stack
         screenOptions={{
           headerShown: false,
+          animation: 'none',
           contentStyle: {
             backgroundColor: colors.background.primary,
           },
@@ -96,6 +101,7 @@ export function ClientLayoutContent() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="profile" />
       </Stack>
+      </Animated.View>
 
       <ClientLocationOnboardingCoordinator
         actorId={identity?.id ?? null}

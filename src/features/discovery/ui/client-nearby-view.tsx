@@ -16,7 +16,7 @@ import { Button } from '@/shared/ui/Button';
 import { LoadingRegion } from '@/shared/ui/LoadingRegion';
 import { Spinner } from '@/shared/ui/Spinner';
 import { BrandMark } from '@/shared/brand';
-import { useDiscovery } from '../model/use-discovery';
+import { useNearbyDiscovery } from '../model/use-nearby-discovery';
 import {
   useClientNearbyViewState,
   type ClientNearbyViewState,
@@ -118,7 +118,8 @@ export function ClientNearbyView({
     refetch,
     locationSession,
     requestLocation,
-  } = useDiscovery({
+  } = useNearbyDiscovery({
+    actorId: effectiveActor,
     initialMode: initialState.mode,
     initialRadius: initialState.radiusKm,
     initialQuery: initialState.searchQuery,
@@ -130,8 +131,7 @@ export function ClientNearbyView({
   const isProximityActive =
     effectiveMode === 'NEARBY' &&
     hasValidCoordinates &&
-    !isServiceUnavailable &&
-    !regionFilter.trim();
+    !isServiceUnavailable;
 
   // Preservação contínua de estado no QueryClient por ator
   const currentStateRef = useRef<ClientNearbyViewState>({
@@ -220,13 +220,13 @@ export function ClientNearbyView({
     }
     if (locationStoreHasCoords()) {
       setRegionFilter('');
-      setMode('NEARBY');
+      setMode(filters.mode);
     }
   };
 
   const handleRetryPosition = async () => {
     if (isServiceUnavailable) {
-      setMode('NEARBY');
+      setMode(filters.mode);
       refetch();
       return;
     }
@@ -237,7 +237,7 @@ export function ClientNearbyView({
     }
     if (locationStoreHasCoords()) {
       setRegionFilter('');
-      setMode('NEARBY');
+      setMode(filters.mode);
     }
   };
 
@@ -303,6 +303,9 @@ export function ClientNearbyView({
 
   // Resumo compacto e verdadeiro dos filtros aplicados
   const headerSummary = useMemo(() => {
+    if (isProximityActive && filters.mode === 'ALL') {
+      return 'Mais próximas de você · sem limite de distância';
+    }
     if (isProximityActive) {
       if (locationSession.coords?.formattedLocation) {
         return `Até ${filters.radiusKm} km de ${locationSession.coords.formattedLocation}`;
@@ -323,6 +326,7 @@ export function ClientNearbyView({
     return 'Busca manual por nome ou bairro';
   }, [
     isProximityActive,
+    filters.mode,
     filters.radiusKm,
     locationSession.coords,
     hasValidCoordinates,
@@ -384,7 +388,7 @@ export function ClientNearbyView({
         }}
         onOpenFilters={handleOpenFilters}
         onOpenMap={handleOpenMap}
-        activeFilterCount={isProximityActive ? 1 : 0}
+        activeFilterCount={isProximityActive && filters.mode === 'NEARBY' ? 1 : 0}
         summary={headerSummary}
         mapDisabled={isMapDisabled}
         mapDisabledReason={
@@ -496,7 +500,7 @@ export function ClientNearbyView({
           >
             {searchQuery.trim()
               ? 'Nenhum resultado para sua busca'
-              : isProximityActive
+              : isProximityActive && filters.mode === 'NEARBY'
                 ? 'Nenhuma barbearia encontrada neste raio'
                 : 'Nenhuma barbearia encontrada'}
           </Text>
@@ -508,13 +512,13 @@ export function ClientNearbyView({
           >
             {searchQuery.trim()
               ? `Não encontramos unidades para "${searchQuery.trim()}". Tente outro nome ou bairro.`
-              : isProximityActive
+              : isProximityActive && filters.mode === 'NEARBY'
                 ? `Não há unidades cadastradas a menos de ${filters.radiusKm} km da sua posição.`
                 : 'Use o campo acima para pesquisar pelo nome da barbearia ou bairro.'}
           </Text>
 
           <View style={[styles.emptyActionsRow, { marginTop: spacing[4] }]}>
-            {isProximityActive && filters.radiusKm < 50 && (
+            {isProximityActive && filters.mode === 'NEARBY' && filters.radiusKm < 50 && (
               <Button
                 variant="outline"
                 title="Expandir para 50 km"
@@ -534,10 +538,10 @@ export function ClientNearbyView({
                 }}
               />
             )}
-            {isProximityActive && (
+            {isProximityActive && filters.mode === 'NEARBY' && (
               <Button
                 variant="primary"
-                title="Buscar em todas as regiões"
+                title="Remover limite de distância"
                 onPress={() => {
                   setMode('ALL');
                   scrollOffsetRef.current = 0;
@@ -628,7 +632,7 @@ export function ClientNearbyView({
       <NearbyFiltersSheet
         visible={isFiltersSheetVisible}
         value={{
-          mode: effectiveMode,
+          mode: filters.mode,
           radiusKm: filters.radiusKm,
         }}
         isLocationAvailable={hasValidCoordinates}

@@ -113,7 +113,7 @@ describe('NearbyFiltersSheet — Gaveta com rascunho sem efeitos remotos (H2)', 
     expect(onClose).not.toHaveBeenCalled();
 
     // Confirma que a opção "Todas as distâncias" passou a estar selecionada no draft
-    const allDistancesBtn = screen.getByRole('button', { name: /Todas as distâncias/i });
+    const allDistancesBtn = screen.getByRole('button', { name: /Sem limite de distância/i });
     expect(allDistancesBtn.getAttribute('aria-selected')).toBe('true');
 
     // Ao clicar em Aplicar, confirma ALL com 10km

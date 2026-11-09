@@ -1,5 +1,6 @@
+import { useScreenTransition } from '@/shared/ui/use-screen-transition';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { Animated, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
@@ -30,6 +31,7 @@ export default function ClientExploreScreen() {
   const clientExperience = useOptionalClientExperienceContext();
 
   const activeSection = resolveClientExploreSection(params?.section);
+  const sectionOpacity = useScreenTransition(activeSection);
   const [hasVisitedFeed, setHasVisitedFeed] = useState<boolean>(
     () => activeSection === 'feed',
   );
@@ -81,8 +83,9 @@ export default function ClientExploreScreen() {
     headerHeight > 0 ? headerHeight + 8 : topSafePadding + 56;
 
   return (
-    <View
+    <Animated.View
       style={[
+        { opacity: sectionOpacity },
         styles.screenContainer,
         {
           backgroundColor:
@@ -176,7 +179,7 @@ export default function ClientExploreScreen() {
           />
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
