@@ -115,7 +115,7 @@ describe('N4 — ClientNearbyView + Mapa: Integração sem Consultas Extras', ()
     const initialQueryCount = searchAllSpy.mock.calls.length;
 
     // Localiza e clica no botão "Mapa"
-    const mapBtn = screen.getByRole('button', { name: /Abrir visualização de barbearias no mapa/i });
+    const mapBtn = screen.getByRole('button', { name: /Abrir mapa de barbearias/i });
     expect(mapBtn).toBeDefined();
 
     fireEvent.click(mapBtn);
@@ -136,7 +136,7 @@ describe('N4 — ClientNearbyView + Mapa: Integração sem Consultas Extras', ()
     expect(await screen.findByText('Barbearia Alfa Mapeável')).toBeDefined();
 
     // Abre mapa
-    const mapBtn = screen.getByRole('button', { name: /Abrir visualização de barbearias no mapa/i });
+    const mapBtn = screen.getByRole('button', { name: /Abrir mapa de barbearias/i });
     fireEvent.click(mapBtn);
 
     expect(screen.getByTestId('google-map-canvas')).toBeDefined();
@@ -158,7 +158,7 @@ describe('N4 — ClientNearbyView + Mapa: Integração sem Consultas Extras', ()
 
     expect(await screen.findByText('Barbearia Alfa Mapeável')).toBeDefined();
 
-    const mapBtn = screen.getByRole('button', { name: /Abrir visualização de barbearias no mapa/i });
+    const mapBtn = screen.getByRole('button', { name: /Abrir mapa de barbearias/i });
     fireEvent.click(mapBtn);
 
     const userCoords = await screen.findByTestId('map-user-coords');
@@ -192,7 +192,7 @@ describe('N4 — ClientNearbyView + Mapa: Integração sem Consultas Extras', ()
     expect(await screen.findByText('Sem Localização')).toBeDefined();
 
     // Botão Mapa deve estar desabilitado
-    const mapBtn = screen.getByRole('button', { name: /Abrir visualização de barbearias no mapa/i });
+    const mapBtn = screen.getByRole('button', { name: /Abrir mapa de barbearias/i });
     expect(mapBtn.getAttribute('aria-disabled')).toBe('true');
 
     // Mensagem de explicação
