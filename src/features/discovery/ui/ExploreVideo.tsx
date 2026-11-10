@@ -91,6 +91,7 @@ export function ExploreVideo({
         style={{ flex: 1 }}
         contentFit={contentFit}
         nativeControls={nativeControls}
+        playsInline
       />
       {!nativeControls && (
         <View style={{ position: 'absolute', top: '35%', left: 16, gap: 12 }}>

@@ -7,6 +7,7 @@ import {
   ExploreFeedSlide,
   type ExploreFeedSlideHandle,
 } from '../ui/ExploreFeedSlide';
+import { ExploreVideo } from '../ui/ExploreVideo';
 import type { ExploreFeedItem } from '../api/explore-feed.contract';
 
 const mockPush = vi.fn();
@@ -16,6 +17,19 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@expo/vector-icons', () => ({
   Ionicons: (props: any) => <span data-testid={`icon-${props.name}`} {...props} />,
+}));
+
+vi.mock('@/shared/ui', () => ({ Text: ({ children }: React.PropsWithChildren) => <span>{children}</span> }));
+
+const mockVideoPlayer = {
+  play: vi.fn(),
+  pause: vi.fn(),
+  addListener: vi.fn(() => ({ remove: vi.fn() })),
+};
+
+vi.mock('expo-video', () => ({
+  useVideoPlayer: () => mockVideoPlayer,
+  VideoView: ({ playsInline }: { playsInline?: boolean }) => <video playsInline={playsInline} />,
 }));
 
 const mockItem: ExploreFeedItem = {
@@ -90,6 +104,16 @@ const mockItem: ExploreFeedItem = {
 };
 
 describe('D2 — ExploreFeedSlide & ExploreVideo (Mídia Proporcional e Controle Compatível)', () => {
+  it('solicita reprodução inline para o vídeo do feed', () => {
+    const { container } = render(
+      <ThemeProvider>
+        <ExploreVideo url="/fixture.mp4" active />
+      </ThemeProvider>,
+    );
+
+    expect(container.querySelector('video')?.hasAttribute('playsinline')).toBe(true);
+  });
+
   it('no modo desktop, renderiza a mídia limpa sem sobrepor caption mobile ou action rail', () => {
     render(
       <ThemeProvider>

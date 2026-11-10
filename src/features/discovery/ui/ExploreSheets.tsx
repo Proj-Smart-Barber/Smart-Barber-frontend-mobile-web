@@ -23,6 +23,9 @@ import { locationStore } from '../model/location-provider';
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
 import type { DiscoveryMode, DiscoveryRadius } from '../model/discovery.types';
 
+// React Native Web depende de animationend para liberar a camada modal.
+const sheetAnimation = Platform.OS === 'web' ? 'none' : 'fade';
+
 // ==========================================
 // 1. Sheet: Detalhes do Serviço Ativo
 // ==========================================
@@ -67,7 +70,7 @@ export function ExploreServiceSheet({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={sheetAnimation}
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
@@ -188,7 +191,7 @@ export function ExploreCatalogSheet({ visible, item, onClose }: ExploreCatalogSh
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={sheetAnimation}
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
@@ -347,7 +350,7 @@ export function ExploreAboutSheet({ visible, item, onClose }: ExploreAboutSheetP
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={sheetAnimation}
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
@@ -465,7 +468,7 @@ export function ExploreReviewsSheet({ visible, item, onClose }: ExploreReviewsSh
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={sheetAnimation}
       onRequestClose={onClose}
       accessibilityViewIsModal
     >
@@ -582,7 +585,7 @@ export function ExploreFilterSheet({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={sheetAnimation}
       onRequestClose={onClose}
       accessibilityViewIsModal
     >

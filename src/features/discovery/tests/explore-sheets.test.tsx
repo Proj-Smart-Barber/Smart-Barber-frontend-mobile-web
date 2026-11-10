@@ -123,6 +123,25 @@ describe('ExploreSheets', () => {
     expect(screen.getByText('Agendar este serviço')).toBeTruthy();
   });
 
+  it('remove a camada do painel na web mesmo sem evento de fim da animação', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <ThemeProvider>
+        <ExploreAboutSheet visible item={mockItem} onClose={onClose} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText('Como chegar (Abrir no GPS / Maps)')).toBeTruthy();
+
+    rerender(
+      <ThemeProvider>
+        <ExploreAboutSheet visible={false} item={mockItem} onClose={onClose} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByText('Como chegar (Abrir no GPS / Maps)')).toBeNull();
+  });
+
   it('ExploreAboutSheet deve exibir endereço e botão para abrir Maps', () => {
     const onClose = vi.fn();
     renderWithProviders(
