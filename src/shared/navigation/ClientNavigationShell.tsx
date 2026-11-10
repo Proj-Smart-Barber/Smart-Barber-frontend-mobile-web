@@ -179,6 +179,9 @@ function ClientNavigationShellContent({
     if (isDrawerOpen) {
       closeDrawer();
     }
+    if (isRouteActive(pathname, route)) {
+      return;
+    }
     router.push(route as any);
   };
 

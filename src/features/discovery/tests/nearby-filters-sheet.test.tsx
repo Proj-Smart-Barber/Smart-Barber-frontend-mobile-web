@@ -158,4 +158,22 @@ describe('NearbyFiltersSheet — Gaveta com rascunho sem efeitos remotos (H2)', 
     fireEvent.click(recoverBtn);
     expect(onRecoverPermission).toHaveBeenCalledTimes(1);
   });
+
+  it('desmonta imediatamente a gaveta de filtros ao trocar scopeKey (ator) com visible=false', () => {
+    const { rerender } = render(
+      <ThemeProvider initialMode="dark">
+        <NearbyFiltersSheet {...defaultProps} visible={true} scopeKey="actor-1" />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByTestId('nearby-filters-modal')).toBeDefined();
+
+    rerender(
+      <ThemeProvider initialMode="dark">
+        <NearbyFiltersSheet {...defaultProps} visible={false} scopeKey="actor-2" />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByTestId('nearby-filters-modal')).toBeNull();
+  });
 });
