@@ -49,3 +49,15 @@ export const categories = [
   { value: 'PAYROLL', label: 'Salário' },
   { value: 'OTHER', label: 'Outra' },
 ] as const;
+
+export function shiftDate(date: string, days: number): string {
+  const parsed = new Date(`${date}T12:00:00Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+export function dateRange(anchor: string, mode: 'day' | 'week') {
+  if (mode === 'day') return { from: anchor, to: anchor };
+  const weekday = new Date(`${anchor}T12:00:00Z`).getUTCDay();
+  const from = shiftDate(anchor, -((weekday + 6) % 7));
+  return { from, to: shiftDate(from, 6) };
+}

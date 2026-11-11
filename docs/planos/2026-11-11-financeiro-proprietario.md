@@ -90,3 +90,26 @@ na branch feat/financeiro-proprietario de cada repositório.
 Os testes de navegador utilizam respostas controladas e não comprovam integração com
 produção ou dispositivo físico. As migrations foram executadas apenas no PostgreSQL
 descartável, sem alteração do banco compartilhado. O módulo financeiro ainda não foi publicado.
+
+
+## Revisão de cabeçalho e filtros
+
+O cabeçalho operacional foi reduzido a logo, nome da unidade e data no fuso da barbearia.
+O menu inferior mantém o acesso à navegação no mobile. O atalho de novo agendamento
+permanece no desktop.
+
+O resumo financeiro usa totais do intervalo em um gráfico comparativo único.
+Os blocos semanais fixos foram substituídos por filtros de mês, semana, dia e intervalo
+personalizado. A semana vai de segunda a domingo. O intervalo personalizado inclui
+as duas datas informadas e pode atravessar meses e anos. A API filtra as reservas
+pela data civil da unidade, despesas por vencimento e caixa por data do pagamento.
+A explicação dos indicadores fica disponível por uma ação de ajuda.
+
+A API deve ser publicada antes do frontend desta revisão. A mudança usa a tabela
+financeira existente e não exige migration adicional.
+
+A revisão de períodos passou em 79 testes frontend seletivos e 13 testes backend,
+incluindo PostgreSQL isolado. Chromium e WebKit confirmaram mês, semana, dia,
+intervalo entre meses, cadastros e pagamentos com dados controlados.
+TypeScript frontend e exportação web passaram. A API mantém os cinco erros
+preexistentes de TypeScript documentados anteriormente.

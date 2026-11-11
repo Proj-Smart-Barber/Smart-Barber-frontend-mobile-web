@@ -28,6 +28,8 @@ import {
   monthLabel,
   parseMoney,
   shiftMonth,
+  shiftDate,
+  dateRange,
 } from '../model/finance.helpers';
 
 export function FinanceScreen() {
@@ -67,8 +69,21 @@ function FinanceContent({
   const { isCompact, contentMaxWidth } = useAdaptiveLayout();
   const queryClient = useQueryClient();
   const [month, setMonth] = useState<string>();
+  const [periodMode, setPeriodMode] = useState<'month' | 'week' | 'day' | 'custom'>('month');
+  const [anchor, setAnchor] = useState('');
+  const [custom, setCustom] = useState<{ from: string; to: string }>();
+  const [draftFrom, setDraftFrom] = useState('');
+  const [draftTo, setDraftTo] = useState('');
+  const metadata = useRef<FinancePeriod | undefined>(undefined);
+  const range =
+    periodMode === 'week' || periodMode === 'day'
+      ? dateRange(anchor, periodMode)
+      : periodMode === 'custom'
+        ? custom
+        : undefined;
   const [section, setSection] = useState<'overview' | 'expenses' | 'bookings'>('overview');
   const [showForm, setShowForm] = useState(false);
+  const [showValueInfo, setShowValueInfo] = useState(false);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [due, setDue] = useState('');
@@ -80,14 +95,55 @@ function FinanceContent({
   const [notice, setNotice] = useState('');
   const saving = useRef(false);
   const requests = useRef(new Map<string, string>());
-  const key = ['finance', actorId, shopId, month ?? 'current'];
+  const key = ['finance', actorId, shopId, month ?? 'current', range?.from, range?.to];
   const query = useQuery({
     queryKey: key,
-    queryFn: ({ signal }) => financeApi.period(shopId, month, signal),
+    queryFn: ({ signal }) => financeApi.period(shopId, range ? undefined : month, signal, range),
     staleTime: 30_000,
     retry: 1,
   });
   const data = query.data;
+  if (data) metadata.current = data;
+  const controls = data ?? metadata.current;
+  function selectPeriod(mode: typeof periodMode) {
+    if (!controls) return;
+    setShowForm(false);
+    setError('');
+    const reference =
+      periodMode === 'month'
+        ? controls.month === controls.today.slice(0, 7)
+          ? controls.today
+          : (controls.from ?? controls.month + '-01')
+        : periodMode === 'custom'
+          ? (custom?.from ?? controls.today)
+          : anchor;
+    setAnchor(reference);
+    if (mode === 'month') setMonth(reference.slice(0, 7));
+    if (mode === 'custom') {
+      const from = controls.from ?? controls.month + '-01';
+      const to = controls.to ?? controls.today;
+      setDraftFrom(displayDate(from));
+      setDraftTo(displayDate(to));
+      setCustom({ from, to });
+    }
+    setPeriodMode(mode);
+  }
+  function movePeriod(delta: number) {
+    if (!controls) return;
+    setShowForm(false);
+    if (periodMode === 'month') setMonth(shiftMonth(month ?? controls.month, delta));
+    else setAnchor(shiftDate(anchor, delta * (periodMode === 'week' ? 7 : 1)));
+  }
+  function applyCustom() {
+    const from = civilDate(draftFrom),
+      to = civilDate(draftTo);
+    if (!from || !to || from > to) {
+      setError('Informe datas válidas, com início anterior ou igual ao fim.');
+      return;
+    }
+    setError('');
+    setCustom({ from, to });
+  }
   function requestId(signature: string) {
     let id = requests.current.get(signature);
     if (!id) {
@@ -168,6 +224,7 @@ function FinanceContent({
         setShowForm(false);
         setSection('expenses');
         setMonth(dueOn.slice(0, 7));
+        setPeriodMode('month');
       },
     );
   }
@@ -203,36 +260,82 @@ function FinanceContent({
             disabled={busy || !data}
           />
         </View>
-        {data ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Button
-              title=""
-              accessibilityLabel="Mês anterior"
-              variant="outline"
-              disabled={busy || data.month <= '0001-01'}
-              leftIcon={<Ionicons name="chevron-back" size={20} color={colors.text.primary} />}
-              onPress={() => {
-                setShowForm(false);
-                setMonth(shiftMonth(data.month, -1));
-              }}
+        {controls ? (
+          <View style={{ gap: 12 }}>
+            <SegmentedFilter
+              options={[
+                { value: 'month', label: 'Mês' },
+                { value: 'week', label: 'Semana' },
+                { value: 'day', label: 'Dia' },
+                { value: 'custom', label: 'Período' },
+              ]}
+              value={periodMode}
+              onChange={selectPeriod}
+              disabled={busy || query.isFetching}
             />
-            <Text
-              weight="semibold"
-              style={{ flex: 1, textAlign: 'center', textTransform: 'capitalize' }}
-            >
-              {monthLabel(data.month)}
-            </Text>
-            <Button
-              title=""
-              accessibilityLabel="Próximo mês"
-              variant="outline"
-              disabled={busy || data.month >= '9999-12'}
-              leftIcon={<Ionicons name="chevron-forward" size={20} color={colors.text.primary} />}
-              onPress={() => {
-                setShowForm(false);
-                setMonth(shiftMonth(data.month, 1));
-              }}
-            />
+            {periodMode === 'custom' ? (
+              <Card>
+                <FormField label="Início" helperText="DD/MM/AAAA">
+                  <TextInput
+                    accessibilityLabel="Início do período"
+                    value={draftFrom}
+                    maxLength={10}
+                    editable={!busy}
+                    onChangeText={setDraftFrom}
+                  />
+                </FormField>
+                <FormField label="Fim" helperText="DD/MM/AAAA">
+                  <TextInput
+                    accessibilityLabel="Fim do período"
+                    value={draftTo}
+                    maxLength={10}
+                    editable={!busy}
+                    onChangeText={setDraftTo}
+                  />
+                </FormField>
+                <Button
+                  title="Aplicar período"
+                  variant="outline"
+                  onPress={applyCustom}
+                  disabled={busy || query.isFetching}
+                />
+              </Card>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Button
+                  title=""
+                  accessibilityLabel={periodMode === 'month' ? 'Mês anterior' : 'Período anterior'}
+                  variant="outline"
+                  disabled={busy || query.isFetching || (month ?? controls.month) <= '0001-01'}
+                  leftIcon={<Ionicons name="chevron-back" size={20} color={colors.text.primary} />}
+                  onPress={() => movePeriod(-1)}
+                />
+                <Text weight="semibold" style={{ flex: 1, textAlign: 'center' }}>
+                  {periodMode === 'month'
+                    ? monthLabel(month ?? controls.month)
+                    : range
+                      ? range.from === range.to
+                        ? displayDate(range.from)
+                        : `${displayDate(range.from)} – ${displayDate(range.to)}`
+                      : ''}
+                </Text>
+                <Button
+                  title=""
+                  accessibilityLabel={periodMode === 'month' ? 'Próximo mês' : 'Próximo período'}
+                  variant="outline"
+                  disabled={busy || query.isFetching || (month ?? controls.month) >= '9999-12'}
+                  leftIcon={
+                    <Ionicons name="chevron-forward" size={20} color={colors.text.primary} />
+                  }
+                  onPress={() => movePeriod(1)}
+                />
+              </View>
+            )}
+            {periodMode === 'custom' && range ? (
+              <Text variant="caption" color={colors.text.secondary}>
+                Consultando {displayDate(range.from)} – {displayDate(range.to)}
+              </Text>
+            ) : null}
           </View>
         ) : null}
         {error ? <Alert variant="error" title="Registro não concluído" message={error} /> : null}
@@ -361,7 +464,7 @@ function FinanceContent({
                     ['Agendado', data.summary.forecastInCents],
                     ['Recebido', data.summary.receivedInCents],
                     ['Despesas pagas', data.summary.paidInCents],
-                    ['A pagar no mês', data.summary.payableInCents],
+                    ['A pagar no período', data.summary.payableInCents],
                     ['Saldo do período', data.summary.balanceInCents],
                   ].map(([label, value]) => (
                     <Card
@@ -387,10 +490,27 @@ function FinanceContent({
                     </Card>
                   ))}
                 </View>
-                <Text variant="caption" color={colors.text.secondary}>
-                  Recebido considera os registros deste módulo pela data do pagamento. Serviços
-                  concluídos e agendados seguem a data do atendimento.
-                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showValueInfo }}
+                  onPress={() => setShowValueInfo(!showValueInfo)}
+                  style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={18}
+                    color={colors.text.secondary}
+                  />
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Sobre os valores
+                  </Text>
+                </Pressable>
+                {showValueInfo ? (
+                  <Text variant="caption" color={colors.text.secondary}>
+                    Recebimentos e despesas pagas seguem a data do pagamento. Serviços seguem a data
+                    do atendimento.
+                  </Text>
+                ) : null}
                 <FinanceChart data={data} />
               </>
             ) : null}
@@ -568,51 +688,49 @@ function FinanceContent({
 
 function FinanceChart({ data }: { data: FinancePeriod }) {
   const { colors } = useTheme();
-  const groups = [];
-  for (let start = 0; start < data.summary.daily.length; start += 7) {
-    const days = data.summary.daily.slice(start, start + 7);
-    groups.push({
-      label: `${start + 1}–${start + days.length}`,
-      completed: days.reduce((sum, day) => sum + day.completedInCents, 0),
-      forecast: days.reduce((sum, day) => sum + day.forecastInCents, 0),
-      paid: days.reduce((sum, day) => sum + day.paidInCents, 0),
-    });
-  }
-  const largest = Math.max(
-    1,
-    ...groups.flatMap((group) => [group.completed, group.forecast, group.paid]),
-  );
+  const series = [
+    { label: 'Concluídos', amount: data.summary.completedInCents, color: colors.brand.primary },
+    { label: 'Agendados', amount: data.summary.forecastInCents, color: colors.text.secondary },
+    { label: 'Recebido', amount: data.summary.receivedInCents, color: colors.feedback.success },
+    { label: 'Despesas pagas', amount: data.summary.paidInCents, color: colors.feedback.error },
+  ];
+  const largest = Math.max(...series.map((item) => item.amount));
   return (
     <Card>
       <Text variant="h3" weight="bold">
-        Movimento por semana
+        Totais do período
       </Text>
-      {groups.map((group) => (
-        <View key={group.label} style={{ marginTop: 20, gap: 8 }}>
-          <Text weight="semibold">Dias {group.label}</Text>
-          {[
-            { label: 'Concluídos', amount: group.completed, color: colors.brand.primary },
-            { label: 'Agendados', amount: group.forecast, color: colors.text.secondary },
-            { label: 'Despesas pagas', amount: group.paid, color: colors.feedback.error },
-          ].map((series) => (
-            <View key={series.label} style={{ gap: 4 }}>
-              <Text variant="caption" color={colors.text.secondary}>
-                {series.label} · {money(series.amount)}
-              </Text>
-              <View style={{ height: 6, backgroundColor: colors.surface.input, borderRadius: 3 }}>
-                <View
-                  style={{
-                    height: 6,
-                    width: `${(series.amount / largest) * 100}%`,
-                    backgroundColor: series.color,
-                    borderRadius: 3,
-                  }}
-                />
-              </View>
+      {largest === 0 ? (
+        <Text color={colors.text.secondary} style={{ marginTop: 12 }}>
+          Nenhuma movimentação neste período.
+        </Text>
+      ) : (
+        series.map((item) => (
+          <View key={item.label} style={{ marginTop: 20, gap: 8 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                gap: 8,
+              }}
+            >
+              <Text color={colors.text.secondary}>{item.label}</Text>
+              <Text weight="semibold">{money(item.amount)}</Text>
             </View>
-          ))}
-        </View>
-      ))}
+            <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.surface.input }}>
+              <View
+                style={{
+                  height: 8,
+                  borderRadius: 4,
+                  width: `${(item.amount / largest) * 100}%`,
+                  backgroundColor: item.color,
+                }}
+              />
+            </View>
+          </View>
+        ))
+      )}
     </Card>
   );
 }

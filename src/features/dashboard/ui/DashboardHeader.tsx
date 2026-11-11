@@ -1,11 +1,10 @@
 import React from 'react';
-import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Badge, Button, Text } from '@/shared/ui';
-import { useNavigation } from '@/shared/navigation';
+import { Button, Text } from '@/shared/ui';
 import { useSession } from '@/features/auth';
 import type { Staff } from '@/entities/staff';
 
@@ -15,10 +14,9 @@ interface DashboardHeaderProps {
   isOwner: boolean;
 }
 
-export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderProps) {
+export function DashboardHeader({ greeting }: DashboardHeaderProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
-  const { openDrawer } = useNavigation();
   const router = useRouter();
   const { barbershop } = useSession();
   const [failedLogo, setFailedLogo] = React.useState<string | null>(null);
@@ -30,18 +28,10 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    timeZone: barbershop?.timezone,
   }).format(new Date());
 
   const capitalizedDate = formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1);
-
-  const initials = staff?.name
-    ? staff.name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((p) => p[0].toUpperCase())
-        .join('')
-    : 'SB';
 
   return (
     <View
@@ -61,28 +51,28 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
           : null,
       ]}
     >
-      {/* Lado Esquerdo: Hamburger (no mobile) + BrandMark + Saudação & Data */}
-      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
-        {!isExpanded ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Abrir menu de navegação"
-            onPress={openDrawer}
-            style={({ pressed }) => [
-              styles.menuButton,
-              {
-                borderRadius: radius.md,
-                backgroundColor: pressed ? colors.surface.selected : colors.surface.input,
-                borderColor: colors.border.default,
-                flexShrink: 0,
-              },
-            ]}
-          >
-            <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
-          </Pressable>
-        ) : null}
-
-        <View style={{ width: shopName ? 56 : 32, height: shopName ? 56 : 32, padding: shopName ? 4 : 0, flexShrink: 0, borderRadius: radius.md, backgroundColor: shopName ? colors.surface.elevated : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Identidade da unidade e data de referência do painel. */}
+      <View
+        style={{
+          flex: 1,
+          minWidth: 0,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing[3],
+        }}
+      >
+        <View
+          style={{
+            width: shopName ? 48 : 32,
+            height: shopName ? 48 : 32,
+            padding: shopName ? 4 : 0,
+            flexShrink: 0,
+            borderRadius: radius.md,
+            backgroundColor: shopName ? colors.surface.elevated : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {showLogo ? (
             <Image
               source={{ uri: logoUrl! }}
@@ -93,31 +83,50 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
             />
           ) : shopName ? (
             <Text variant="subhead" weight="bold" color={colors.text.primary}>
-              {shopName.split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase()}
+              {shopName
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((word) => word[0])
+                .join('')
+                .toUpperCase()}
             </Text>
           ) : (
-            <BrandMark variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'} size={32} decorative={false} accessibilityLabel="Smart Barber Logo" />
+            <BrandMark
+              variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
+              size={32}
+              decorative={false}
+              accessibilityLabel="Smart Barber Logo"
+            />
           )}
         </View>
 
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2] }}>
-            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={shopName && !isExpanded ? 3 : 2} style={{ flexShrink: 1, ...(shopName ? { width: '100%' } : {}) }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: spacing[2],
+            }}
+          >
+            <Text
+              variant="subhead"
+              weight="bold"
+              color={colors.text.primary}
+              numberOfLines={shopName && !isExpanded ? 3 : 2}
+              style={{ flexShrink: 1, ...(shopName ? { width: '100%' } : {}) }}
+            >
               {shopName || greeting}
             </Text>
-            <Badge
-              label={isOwner ? 'Proprietário' : 'Barbeiro'}
-              tone={isOwner ? 'brand' : 'success'}
-            />
           </View>
-          {shopName ? <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>{greeting}</Text> : null}
           <Text variant="caption" color={colors.text.muted} numberOfLines={1}>
-            {capitalizedDate} · Painel do dia
+            {capitalizedDate}
           </Text>
         </View>
       </View>
 
-      {/* Lado Direito: Ação Rápida no Desktop + Avatar do profissional */}
+      {/* Ação rápida de agendamento no desktop. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
         {isExpanded ? (
           <Button
@@ -125,26 +134,9 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
             variant="primary"
             leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
             onPress={() => router.push('/(app)/new-booking' as any)}
-            style={{ minHeight: 40, paddingHorizontal: spacing[4] }}
+            style={{ minHeight: 44, paddingHorizontal: spacing[4] }}
           />
         ) : null}
-
-        <View
-          accessibilityLabel={`Perfil de ${staff?.name ?? 'Profissional'}`}
-          style={[
-            styles.avatar,
-            {
-              borderRadius: radius.full,
-              backgroundColor: colors.surface.elevated,
-              borderColor: colors.brand.primary,
-              flexShrink: 0,
-            },
-          ]}
-        >
-          <Text variant="caption" color={colors.text.primary} weight="bold">
-            {initials}
-          </Text>
-        </View>
       </View>
     </View>
   );
@@ -157,19 +149,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  menuButton: {
-    width: 42,
-    height: 42,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
