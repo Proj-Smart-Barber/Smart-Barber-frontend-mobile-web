@@ -27,7 +27,31 @@ export class MediaApi {
     fileBlob: Blob | ArrayBuffer,
     contentType: string,
     signal?: AbortSignal,
+    onProgress?: (progress: number) => void,
   ): Promise<void> {
+    if (onProgress) {
+      await new Promise<void>((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        const abort = () => request.abort();
+        const cleanup = () => signal?.removeEventListener('abort', abort);
+        request.open('PUT', uploadUrl);
+        request.setRequestHeader('Content-Type', contentType);
+        request.upload.onprogress = (event) => {
+          if (event.lengthComputable) onProgress(event.loaded / event.total);
+        };
+        request.onload = () => {
+          cleanup();
+          if (request.status >= 200 && request.status < 300) resolve();
+          else reject(new Error(`Falha no upload: status ${request.status}`));
+        };
+        request.onerror = () => { cleanup(); reject(new Error('Falha de conexão ao enviar a imagem.')); };
+        request.onabort = () => { cleanup(); reject(new Error('Envio cancelado.')); };
+        if (signal?.aborted) { reject(new Error('Envio cancelado.')); return; }
+        signal?.addEventListener('abort', abort, { once: true });
+        request.send(fileBlob);
+      });
+      return;
+    }
     const send = Platform.OS === 'web' ? fetch : (await import('expo/fetch')).fetch;
     const response = await send(uploadUrl, {
       method: 'PUT',
@@ -47,9 +71,10 @@ export class MediaApi {
     intent: InitiateUploadResponseDto,
     file: Blob,
     contentType: string,
+    onProgress?: (progress: number) => void,
   ): Promise<ConfirmUploadResponseDto> {
     try {
-      await this.uploadToPresignedUrl(intent.uploadUrl, file, contentType);
+      await this.uploadToPresignedUrl(intent.uploadUrl, file, contentType, undefined, onProgress);
     } catch (error) {
       // Libera a intenção que falhou sem substituir o erro original do envio.
       await httpClient.delete<void>(`/api/media/${encodeURIComponent(intent.mediaId)}`).catch(() => undefined);

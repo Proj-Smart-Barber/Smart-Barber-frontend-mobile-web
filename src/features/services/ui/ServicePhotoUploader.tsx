@@ -222,12 +222,12 @@ export function ServicePhotoUploader({
             ? `Enviando/processando… ${Math.round(progress*100)}%`
             : serviceId
               ? (videoEnabled?'Enviar foto ou vídeo do serviço':'Enviar foto do serviço')
-              : 'Enviar vídeo da barbearia'
+              : 'Enviar mídias da barbearia'
         }
         disabled={busy||(!serviceId&&!videoEnabled)}
         onPress={() => void pick()}
       />
-      {!serviceId&&!videoEnabled&&<Text>Envio de vídeos em preparação.</Text>}
+
       {busy && <Button title="Cancelar envio" onPress={() => controller.current?.abort()} />}{' '}
       {error && <Text accessibilityRole="alert">{error}</Text>}
     </View>

@@ -16,6 +16,29 @@ describe('Envio de imagens e liberação de vagas', () => {
     objectKey: 'staging/fixture',
   };
 
+  it('informa os bytes enviados antes de concluir o upload', async () => {
+    const progress = vi.fn();
+    class UploadRequest {
+      status = 200;
+      upload = { onprogress: (_event: { lengthComputable: boolean; loaded: number; total: number }) => {} };
+      onload = () => {};
+      open() {}
+      setRequestHeader() {}
+      send() {
+        this.upload.onprogress({ lengthComputable: true, loaded: 50, total: 100 });
+        this.upload.onprogress({ lengthComputable: true, loaded: 100, total: 100 });
+        this.onload();
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', UploadRequest);
+    try {
+      await new MediaApi().uploadToPresignedUrl(intent.uploadUrl, new Blob(['fixture']), 'image/png', undefined, progress);
+      expect(progress.mock.calls).toEqual([[0.5], [1]]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('cancela a intenção quando o PUT falha e preserva o erro original', async () => {
     const api = new MediaApi();
     const failure = new TypeError('Failed to fetch');
