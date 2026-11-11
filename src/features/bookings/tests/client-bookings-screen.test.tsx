@@ -5,12 +5,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockPush = vi.fn();
-let mockSearchParams: { tab?: string } = {};
+const mockDismissTo = vi.fn();
+let mockSearchParams: { tab?: string; bookingId?: string; agendaTab?: string } = {};
 let mockSessionIdentity: { id: string; name: string } | null = { id: 'user-1', name: 'Lucas Mendes' };
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
     push: mockPush,
+    dismissTo: mockDismissTo,
     replace: vi.fn(),
   }),
   useLocalSearchParams: () => mockSearchParams,
@@ -47,9 +49,11 @@ vi.mock('@/features/auth', () => ({
 
 import { ThemeProvider } from '@/shared/theme';
 import ClientBookingsScreen from '@/app/(client)/bookings';
+import AccountBookingDetailScreen from '@/app/(account)/bookings/[bookingId]';
 import * as bookingsApi from '../api/bookings.api';
 import { discoveryApi } from '@/features/discovery/api/discovery.api';
 import { ClientExperienceProvider } from '@/features/discovery/model/client-experience-context';
+import { reviewsApi } from '@/features/reviews/api/reviews.api';
 import { bookingQueryKeys } from '../model/booking-query-keys';
 import type { BookingDto } from '../api/bookings.dto';
 import type { NextBookingItem } from '@/features/discovery/api/discovery.contract';
@@ -123,6 +127,7 @@ describe('ClientBookingsScreen — Tarefa 7: Meus Agendamentos e Paginação', (
     });
 
     vi.spyOn(bookingsApi, 'fetchMyBookings').mockResolvedValue([]);
+    vi.spyOn(reviewsApi, 'getBookingReview').mockResolvedValue({ review: null });
   });
 
   it('1. tab=history abre Histórico, ausência e valor inválido mantêm Próximos', async () => {
@@ -456,6 +461,24 @@ describe('ClientBookingsScreen — Tarefa 7: Meus Agendamentos e Paginação', (
     expect(screen.queryByText('Serviço Exclusivo User 1')).toBeNull();
   });
 
+  it.each(['cartão', 'chamada'])('abre o detalhe do próximo agendamento pelo %s', async (target) => {
+    vi.spyOn(discoveryApi, 'fetchUpcomingBooking').mockResolvedValue({
+      booking: sampleUpcomingAuthoritative,
+      serverTime: '2026-11-07T12:00:00.000Z',
+    });
+
+    renderScreen(queryClient);
+
+    const shopName = await screen.findByText('Barbearia Vintage');
+    fireEvent.click(target === 'cartão' ? shopName : screen.getByText('Ver agendamento'));
+
+    expect(mockPush).toHaveBeenCalledOnce();
+    expect(mockPush).toHaveBeenCalledWith({
+      pathname: '/(account)/bookings/[bookingId]',
+      params: { bookingId: sampleUpcomingAuthoritative.id, agendaTab: 'upcoming' },
+    });
+  });
+
   it('12. Navegação para detalhe preservada e sem abas superiores de descoberta', async () => {
     vi.spyOn(bookingsApi, 'fetchMyBookings').mockResolvedValue([sampleFutureBooking]);
 
@@ -465,12 +488,49 @@ describe('ClientBookingsScreen — Tarefa 7: Meus Agendamentos e Paginação', (
       expect(screen.getByText('Barba Terapia')).toBeDefined();
     });
 
-    // Toque no card navega para detalhe /(account)/bookings/:id
-    const card = screen.getByText('Barba Terapia');
-    fireEvent.click(card);
-    expect(mockPush).toHaveBeenCalledWith('/(account)/bookings/b-future-1');
+    fireEvent.click(screen.getByText('Barba Terapia'));
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith({
+      pathname: '/(account)/bookings/[bookingId]',
+      params: { bookingId: sampleFutureBooking.id, agendaTab: 'upcoming' },
+    });
 
     // Abas de descoberta (Perto de você e Explorar) não estão na tela de agendamentos
     expect(screen.queryByText('Perto de você')).toBeNull();
+  });
+
+  it('abre o agendamento do histórico pelo botão Ver detalhes', async () => {
+    mockSearchParams = { tab: 'history' };
+    vi.spyOn(bookingsApi, 'fetchMyBookings').mockResolvedValue([
+      { ...samplePastBooking, status: 'CANCELLED' },
+    ]);
+    renderScreen(queryClient);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver detalhes' }));
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith({
+      pathname: '/(account)/bookings/[bookingId]',
+      params: { bookingId: samplePastBooking.id, agendaTab: 'history' },
+    });
+  });
+
+  it('carrega detalhes no escopo pessoal e volta para o histórico da Agenda', async () => {
+    mockSearchParams = { bookingId: samplePastBooking.id, agendaTab: 'history' };
+    const getBookingById = vi.spyOn(bookingsApi, 'getBookingById').mockResolvedValue(samplePastBooking);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider initialMode="dark">
+          <AccountBookingDetailScreen />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('Detalhes do Agendamento');
+    expect(getBookingById).toHaveBeenCalledExactlyOnceWith(samplePastBooking.id, 'PERSONAL');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
+    expect(mockDismissTo).toHaveBeenCalledExactlyOnceWith({
+      pathname: '/(client)/bookings',
+      params: { tab: 'history' },
+    });
   });
 });

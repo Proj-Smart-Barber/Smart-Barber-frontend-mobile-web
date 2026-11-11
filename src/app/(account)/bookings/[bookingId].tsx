@@ -7,8 +7,20 @@ import { BookingDetailView } from '../../../features/bookings/ui/BookingDetailVi
 
 export default function AccountBookingDetailScreen() {
   const { colors, spacing } = useTheme();
-  const { bookingId, scope } = useLocalSearchParams<{ bookingId: string; scope?: string }>();
+  const { bookingId, scope, agendaTab } = useLocalSearchParams<{
+    bookingId: string;
+    scope?: string;
+    agendaTab?: string;
+  }>();
   const router = useRouter();
+
+  const handleBack = () => {
+    if (scope !== 'UNIT' && (agendaTab === 'upcoming' || agendaTab === 'history')) {
+      router.dismissTo({ pathname: '/(client)/bookings', params: { tab: agendaTab } });
+      return;
+    }
+    router.back();
+  };
 
   if (!bookingId || typeof bookingId !== 'string') {
     return (
@@ -20,7 +32,7 @@ export default function AccountBookingDetailScreen() {
           title="Voltar"
           variant="outline"
           style={{ marginTop: spacing.md }}
-          onPress={() => router.back()}
+          onPress={handleBack}
         />
       </View>
     );
@@ -33,7 +45,7 @@ export default function AccountBookingDetailScreen() {
       <BookingDetailView
         bookingId={bookingId}
         scope={resolvedScope}
-        onBack={() => router.back()}
+        onBack={handleBack}
       />
     </View>
   );

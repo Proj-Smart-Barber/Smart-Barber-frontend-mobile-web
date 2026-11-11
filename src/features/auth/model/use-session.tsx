@@ -44,7 +44,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => engine.getSnapshot());
+  // A primeira renderização precede o efeito que lê a sessão persistida.
+  const [snapshot, setSnapshot] = useState<SessionSnapshot>(() => ({
+    ...engine.getSnapshot(),
+    status: 'restoring',
+  }));
   const [normalizedError, setNormalizedError] = useState<any>(null);
 
   useEffect(() => {
