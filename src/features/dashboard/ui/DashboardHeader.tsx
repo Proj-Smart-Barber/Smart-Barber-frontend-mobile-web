@@ -102,7 +102,7 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
 
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2] }}>
-            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={2} style={{ flexShrink: 1, ...(shopName ? { width: '100%' } : {}) }}>
+            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={shopName && !isExpanded ? 3 : 2} style={{ flexShrink: 1, ...(shopName ? { width: '100%' } : {}) }}>
               {shopName || greeting}
             </Text>
             <Badge
