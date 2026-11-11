@@ -76,10 +76,7 @@ export function useAvatarUpload() {
         });
 
         // 2. Upload direto para a URL pré-assinada
-        await mediaApi.uploadToPresignedUrl(intent.uploadUrl, file, mimeType);
-
-        // 3. Confirmar upload
-        await mediaApi.confirmUpload(intent.mediaId);
+        await mediaApi.uploadImage(intent, file, mimeType);
 
         // 4. Associar ao perfil do usuário
         const { avatarUrl } = await mediaApi.updateUserAvatar(intent.mediaId);
@@ -144,8 +141,7 @@ export function useBarbershopMedia(shopId: string) {
           barbershopId: shopId,
         });
 
-        await mediaApi.uploadToPresignedUrl(intent.uploadUrl, file, mimeType);
-        await mediaApi.confirmUpload(intent.mediaId);
+        await mediaApi.uploadImage(intent, file, mimeType);
         const { avatarUrl } = await mediaApi.updateBarbershopLogo(shopId, intent.mediaId);
 
         return avatarUrl || '';
@@ -202,8 +198,7 @@ export function useBarbershopMedia(shopId: string) {
           barbershopId: shopId,
         });
 
-        await mediaApi.uploadToPresignedUrl(intent.uploadUrl, file, mimeType);
-        await mediaApi.confirmUpload(intent.mediaId);
+        await mediaApi.uploadImage(intent, file, mimeType);
         const { item } = await mediaApi.addGalleryPhoto(
           shopId,
           intent.mediaId,
