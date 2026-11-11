@@ -526,6 +526,9 @@ describe('ClientBookingsScreen — Tarefa 7: Meus Agendamentos e Paginação', (
 
     await screen.findByText('Detalhes do Agendamento');
     expect(getBookingById).toHaveBeenCalledExactlyOnceWith(samplePastBooking.id, 'PERSONAL');
+    expect(screen.queryByText('Histórico e Auditoria')).toBeNull();
+    expect(screen.queryByText(/Contrato de auditoria detalhada/i)).toBeNull();
+    expect(screen.queryByText('Versão do Registro')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Voltar' }));
     expect(mockDismissTo).toHaveBeenCalledExactlyOnceWith({
