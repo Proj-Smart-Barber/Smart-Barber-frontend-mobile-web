@@ -9,7 +9,8 @@ export type AppDestination =
   | 'availability'
   | 'services'
   | 'settings'
-  | 'team';
+  | 'team'
+  | 'finance';
 
 export interface NavigationItem {
   id: AppDestination;

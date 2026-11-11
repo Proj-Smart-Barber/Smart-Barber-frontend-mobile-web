@@ -26,6 +26,7 @@ export default function AppLayoutGroup() {
         <Stack.Screen name="team/[membershipId]" />
         <Stack.Screen name="barbershop-setup" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="finance" />
       </Stack>
     </NavigationShell>
   );
