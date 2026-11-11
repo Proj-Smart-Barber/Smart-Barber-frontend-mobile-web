@@ -82,9 +82,53 @@ describe('Financeiro do proprietário', () => {
   it('exibe recebimentos registrados separadamente dos serviços concluídos', async () => {
     renderFinance();
     await screen.findByText('Serviços concluídos');
-    expect(screen.getByText('Recebido')).toBeDefined();
+    expect(screen.getAllByText('Recebido').length).toBeGreaterThan(0);
     expect(screen.getByText('Saldo do período')).toBeDefined();
   });
+  it('consulta semana, dia e intervalo personalizado com datas efetivas', async () => {
+    renderFinance();
+    await screen.findByText('Serviços concluídos');
+    fireEvent.click(screen.getByRole('tab', { name: 'Semana' }));
+    await waitFor(() =>
+      expect(financeApi.period).toHaveBeenLastCalledWith(
+        'shop',
+        undefined,
+        expect.any(AbortSignal),
+        { from: '2026-11-09', to: '2026-11-15' },
+      ),
+    );
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Dia' }).getAttribute('aria-disabled')).not.toBe('true'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Dia' }));
+    await waitFor(() =>
+      expect(financeApi.period).toHaveBeenLastCalledWith(
+        'shop',
+        undefined,
+        expect.any(AbortSignal),
+        { from: '2026-11-11', to: '2026-11-11' },
+      ),
+    );
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Período' }).getAttribute('aria-disabled')).not.toBe('true'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Período' }));
+    fireEvent.change(screen.getByLabelText('Início do período'), {
+      target: { value: '20/10/2026' },
+    });
+    fireEvent.change(screen.getByLabelText('Fim do período'), { target: { value: '10/11/2026' } });
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Aplicar período' }).getAttribute('aria-disabled'),
+      ).not.toBe('true'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar período' }));
+    await waitFor(() =>
+      expect(financeApi.period).toHaveBeenLastCalledWith(
+        'shop',
+        undefined,
+        expect.any(AbortSignal),
+        { from: '2026-10-20', to: '2026-11-10' },
+      ),
+    );
+  });
+
   it('reutiliza a chave após falha de criação e envia valores em centavos', async () => {
     const create = vi
       .spyOn(financeApi, 'create')

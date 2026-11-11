@@ -31,6 +31,8 @@ const daySchema = z.object({
 });
 const periodSchema = z.object({
   month: z.string(),
+  from: z.string().optional(),
+  to: z.string().optional(),
   today: z.string(),
   timezone: z.string(),
   serverTime: z.string(),
@@ -61,8 +63,18 @@ export interface ExpenseInput {
 }
 const base = (shopId: string) => `/api/barbershops/${encodeURIComponent(shopId)}/finance`;
 export const financeApi = {
-  async period(shopId: string, month?: string, signal?: AbortSignal): Promise<FinancePeriod> {
-    return periodSchema.parse(await httpClient.get(base(shopId), { params: { month }, signal }));
+  async period(
+    shopId: string,
+    month?: string,
+    signal?: AbortSignal,
+    range?: { from: string; to: string },
+  ): Promise<FinancePeriod> {
+    const result = periodSchema.parse(
+      await httpClient.get(base(shopId), { params: range ? range : { month }, signal }),
+    );
+    if (range && (result.from !== range.from || result.to !== range.to))
+      throw new Error('A API precisa ser atualizada para consultar este período.');
+    return result;
   },
   async create(shopId: string, values: ExpenseInput) {
     return entrySchema.parse(await httpClient.post(base(shopId) + '/entries', values));
