@@ -310,6 +310,15 @@ export function LeftDrawer() {
               isActive={activeDestination === 'services'}
               onPress={() => handleNavigate('/(app)/services')}
             />
+            {isOwnerActive ? (
+              <DrawerMenuItem
+                label="Financeiro"
+                icon="wallet-outline"
+                activeIcon="wallet"
+                isActive={activeDestination === 'finance'}
+                onPress={() => handleNavigate('/(app)/finance')}
+              />
+            ) : null}
             {isOwnerActive && (
               <DrawerMenuItem
                 label="Equipe"

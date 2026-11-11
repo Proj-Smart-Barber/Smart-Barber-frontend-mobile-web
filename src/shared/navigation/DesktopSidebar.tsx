@@ -180,6 +180,15 @@ export function DesktopSidebar() {
               isActive={activeDestination === 'services'}
               onPress={() => handleNavigate('/(app)/services')}
             />
+            {isOwnerActive ? (
+              <SidebarItem
+                label="Financeiro"
+                icon="wallet-outline"
+                activeIcon="wallet"
+                isActive={activeDestination === 'finance'}
+                onPress={() => handleNavigate('/(app)/finance')}
+              />
+            ) : null}
             {isOwnerActive && (
               <SidebarItem
                 label="Equipe"
