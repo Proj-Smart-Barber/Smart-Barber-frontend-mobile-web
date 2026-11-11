@@ -1,11 +1,12 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BrandMark } from '@/shared/brand';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Badge, Button, Text } from '@/shared/ui';
 import { useNavigation } from '@/shared/navigation';
+import { useSession } from '@/features/auth';
 import type { Staff } from '@/entities/staff';
 
 interface DashboardHeaderProps {
@@ -19,6 +20,11 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const { openDrawer } = useNavigation();
   const router = useRouter();
+  const { barbershop } = useSession();
+  const [failedLogo, setFailedLogo] = React.useState<string | null>(null);
+  const shopName = barbershop?.name;
+  const logoUrl = barbershop?.avatarUrl;
+  const showLogo = Boolean(logoUrl && logoUrl !== failedLogo);
 
   const formattedDate = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'short',
@@ -76,25 +82,35 @@ export function DashboardHeader({ staff, greeting, isOwner }: DashboardHeaderPro
           </Pressable>
         ) : null}
 
-        <View style={{ flexShrink: 0 }}>
-          <BrandMark
-            variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'}
-            size={32}
-            decorative={false}
-            accessibilityLabel="Smart Barber Logo"
-          />
+        <View style={{ width: shopName ? 56 : 32, height: shopName ? 56 : 32, padding: shopName ? 4 : 0, flexShrink: 0, borderRadius: radius.md, backgroundColor: shopName ? colors.surface.elevated : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+          {showLogo ? (
+            <Image
+              source={{ uri: logoUrl! }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="contain"
+              accessibilityLabel={`Logotipo de ${shopName}`}
+              onError={() => setFailedLogo(logoUrl ?? null)}
+            />
+          ) : shopName ? (
+            <Text variant="subhead" weight="bold" color={colors.text.primary}>
+              {shopName.split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]).join('').toUpperCase()}
+            </Text>
+          ) : (
+            <BrandMark variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'} size={32} decorative={false} accessibilityLabel="Smart Barber Logo" />
+          )}
         </View>
 
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2] }}>
-            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
-              {greeting}
+            <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={shopName && !isExpanded ? 3 : 2} style={{ flexShrink: 1, ...(shopName ? { width: '100%' } : {}) }}>
+              {shopName || greeting}
             </Text>
             <Badge
               label={isOwner ? 'Proprietário' : 'Barbeiro'}
               tone={isOwner ? 'brand' : 'success'}
             />
           </View>
+          {shopName ? <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>{greeting}</Text> : null}
           <Text variant="caption" color={colors.text.muted} numberOfLines={1}>
             {capitalizedDate} · Painel do dia
           </Text>

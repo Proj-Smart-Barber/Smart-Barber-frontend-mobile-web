@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sessionStorage, barbershopStorage } from '@/shared/storage';
 import { httpClient } from '@/shared/api';
 import { authApi } from '../api/auth.api';
@@ -207,16 +207,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [snapshot.identity, snapshot.accessToken, engine]
   );
 
+  const activeMembership = snapshot.memberships.find((membership) => membership.id === snapshot.selectedShopId);
+  const { data: shopDetails } = useQuery({
+    queryKey: ['barbershop', snapshot.selectedShopId, 'session', snapshot.identity?.id],
+    queryFn: () => barbershopApi.getBarbershop(snapshot.selectedShopId!, snapshot.accessToken),
+    enabled: snapshot.status === 'authenticated' && Boolean(activeMembership),
+    staleTime: 60_000,
+  });
+
   const activeShop = useMemo<Barbershop | null>(() => {
     if (!snapshot.selectedShopId || snapshot.memberships.length === 0) return null;
     const found = snapshot.memberships.find((m) => m.id === snapshot.selectedShopId);
     if (!found) return null;
     return {
       id: found.id,
-      name: found.name,
-      timezone: found.timezone,
+      name: shopDetails?.name ?? found.name,
+      timezone: shopDetails?.timezone ?? found.timezone,
+      avatarUrl: shopDetails?.avatarUrl,
+      googleMapsUrl: shopDetails?.googleMapsUrl,
+      coverUrl: shopDetails?.coverUrl,
     };
-  }, [snapshot.selectedShopId, snapshot.memberships]);
+  }, [snapshot.selectedShopId, snapshot.memberships, shopDetails]);
 
   const staffPresentation = useMemo<Staff | null>(() => {
     if (!snapshot.identity) return null;
