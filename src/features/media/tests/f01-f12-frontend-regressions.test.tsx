@@ -63,6 +63,7 @@ vi.mock('expo-image-picker', () => ({
   MediaTypeOptions: { Images: 'Images' },
 }));
 vi.mock('@/shared/theme', () => ({
+  useAdaptiveLayout: () => ({ isCompact: true }),
   useTheme: () => ({
     colors: {
       text: { primary: '#fff', secondary: '#ccc' },

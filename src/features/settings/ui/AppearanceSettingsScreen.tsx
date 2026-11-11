@@ -12,7 +12,6 @@ import {
   GoogleProfileLink,
   useBarbershopMedia,
 } from '@/features/media';
-import { useNavigation } from '@/shared/navigation/navigation-context';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { ThemeMode, useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui';
@@ -47,8 +46,7 @@ export function AppearanceSettingsScreen() {
   const [galleryRevision, setGalleryRevision] = React.useState(0);
   const queryClient = useQueryClient();
   const { colors, spacing, radius, mode, setMode } = useTheme();
-  const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
-  const { openDrawer } = useNavigation();
+  const { contentMaxWidth, isCompact } = useAdaptiveLayout();
   const { barbershop, selectedShopId, memberships, identity, refreshIdentity } = useSession();
 
   const activeShopId = selectedShopId ?? barbershop?.id ?? null;
@@ -74,29 +72,6 @@ export function AppearanceSettingsScreen() {
           paddingHorizontal: spacing[isCompact ? 4 : 6],
         }}
       >
-        {!isExpanded ? (
-          <LiquidGlassView
-            variant="navigation"
-            borderRadius={radius.md}
-            elevated={false}
-            style={{ width: 44, height: 44 }}
-            contentStyle={{ padding: 0 }}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Abrir menu"
-              onPress={openDrawer}
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: radius.md,
-              }}
-            >
-              <Ionicons name="menu-outline" size={22} color={colors.text.primary} />
-            </Pressable>
-          </LiquidGlassView>
-        ) : null}
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h2" color={colors.text.primary} accessibilityRole="header">
             Configurações

@@ -116,6 +116,7 @@ export function useAvatarUpload() {
 }
 
 export function useBarbershopMedia(shopId: string) {
+  const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -179,6 +180,7 @@ export function useBarbershopMedia(shopId: string) {
       isCover?: boolean,
     ): Promise<GalleryItemDto> => {
       setIsUploading(true);
+      setProgress(0);
       setError(null);
 
       try {
@@ -198,7 +200,7 @@ export function useBarbershopMedia(shopId: string) {
           barbershopId: shopId,
         });
 
-        await mediaApi.uploadImage(intent, file, mimeType);
+        await mediaApi.uploadImage(intent, file, mimeType, setProgress);
         const { item } = await mediaApi.addGalleryPhoto(
           shopId,
           intent.mediaId,
@@ -224,5 +226,6 @@ export function useBarbershopMedia(shopId: string) {
     uploadLogo,
     removeLogo,
     uploadGalleryPhoto,
+    progress,
   };
 }

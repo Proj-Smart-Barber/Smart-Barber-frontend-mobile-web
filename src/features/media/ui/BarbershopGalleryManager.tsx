@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useTheme } from '@/shared/theme';
+import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { Badge } from '@/shared/ui/Badge';
@@ -33,10 +33,11 @@ export function BarbershopGalleryManager({
   onItemsChanged,
 }: BarbershopGalleryManagerProps) {
   const { colors, radius, spacing } = useTheme();
+  const { isCompact } = useAdaptiveLayout();
   const [items, setItems] = useState<GalleryItemDto[]>(initialItems ?? []);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const { isUploading, error, uploadGalleryPhoto } = useBarbershopMedia(shopId);
+  const { isUploading, error, uploadGalleryPhoto, progress } = useBarbershopMedia(shopId);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const activeShopIdRef = useRef<string>(shopId);
   activeShopIdRef.current = shopId;
@@ -217,7 +218,7 @@ export function BarbershopGalleryManager({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <View>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text variant="body" weight="bold">
             Fotos do Espaço
           </Text>
@@ -227,13 +228,25 @@ export function BarbershopGalleryManager({
         </View>
 
         <Button
-          title="Adicionar Foto"
+          title={isCompact ? '' : 'Adicionar Foto'}
+          accessibilityLabel="Adicionar foto do espaço"
+          leftIcon={isCompact ? <Ionicons name="add" size={22} color={colors.brand.primary} /> : undefined}
+          style={{ flexShrink: 0 }}
           variant="outline"
           onPress={handlePickPhoto}
           disabled={isMaxReached || isUploading}
           loading={isUploading}
         />
       </View>
+
+      {isUploading ? (
+        <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }} style={{ marginBottom: 12 }}>
+          <Text>{progress >= 1 ? 'Processando imagem…' : `Enviando imagem — ${Math.round(progress * 100)}%`}</Text>
+          <View style={{ height: 6, backgroundColor: colors.surface.input, borderRadius: 3, marginTop: 8 }}>
+            <View style={{ height: 6, width: `${Math.round(progress * 100)}%`, backgroundColor: colors.brand.primary, borderRadius: 3 }} />
+          </View>
+        </View>
+      ) : null}
 
       {isMaxReached ? (
         <Alert
