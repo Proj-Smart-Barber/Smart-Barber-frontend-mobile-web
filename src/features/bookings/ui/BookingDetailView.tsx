@@ -33,7 +33,6 @@ import {
   formatCentsToCurrency,
 } from '../lib/booking-time';
 import { BookingActionConfirm } from './BookingActionConfirm';
-import { BookingHistory } from './BookingHistory';
 import type { BookingActionType } from './BookingActionConfirm';
 
 interface BookingDetailViewProps {
@@ -428,26 +427,6 @@ export function BookingDetailView({
                 </View>
                 <Text variant="caption" style={{ color: colors.text.muted }}>
                   {statusConfig.description}
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.versionPill,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255, 255, 255, 0.04)'
-                      : 'rgba(0, 0, 0, 0.03)',
-                    borderColor: colors.border.subtle,
-                    borderRadius: radius.md,
-                  },
-                ]}
-              >
-                <Text variant="caption" style={{ color: colors.text.muted, fontSize: 11 }}>
-                  Versão do Registro
-                </Text>
-                <Text variant="bodySm" weight="bold" style={{ color: colors.text.primary }}>
-                  v{booking.version ?? 1}
                 </Text>
               </View>
             </View>
@@ -852,9 +831,6 @@ export function BookingDetailView({
               />
             </LiquidGlassView>
           ) : null}
-
-          {/* Audit History */}
-          <BookingHistory booking={booking} currentUserId={identity?.id} />
 
           {/* Action Buttons */}
           {hasAvailableActions ? (
