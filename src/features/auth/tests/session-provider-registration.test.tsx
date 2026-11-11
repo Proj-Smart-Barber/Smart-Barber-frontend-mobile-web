@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider, useSession } from '../model/use-session';
+import { barbershopApi } from '@/features/barbershop/api/barbershop.api';
 import { authApi } from '../api/auth.api';
 import { resolveEntryDestination, getOperationalContext } from '../model/operational-context';
 import { ApiError } from '@/shared/api';
@@ -295,4 +296,35 @@ describe('SessionProvider — Orquestração de Cadastro e Verificação com Tra
       message: 'CPF inválido.',
     });
   });
+  it('carrega a logo da unidade ativa e reflete atualização do cache após upload', async () => {
+    vi.spyOn(authApi, 'login').mockResolvedValue({
+      accessToken: 'fixture-access',
+      accessExpiresAt: new Date(Date.now() + 60000).toISOString(),
+    } as any);
+    vi.spyOn(authApi, 'getIdentity').mockResolvedValue({
+      id: 'fixture-owner', name: 'Responsável', email: 'owner@example.test',
+      accountType: 'OWNER', emailVerifiedAt: null,
+    });
+    vi.spyOn(authApi, 'getMemberships').mockResolvedValue([{
+      id: 'fixture-shop', name: 'Nome da lista', role: 'OWNER',
+      status: 'ACTIVE', state: 'ACTIVE', timezone: 'America/Sao_Paulo',
+    }]);
+    vi.spyOn(barbershopApi, 'getBarbershop').mockResolvedValue({
+      id: 'fixture-shop', name: 'Barbearia Identidade', ownerId: 'fixture-owner',
+      slug: 'fixture-shop', cnpj: '', location: '', timezone: 'America/Sao_Paulo',
+      status: 'ACTIVE', avatarUrl: 'https://media.example.test/logo.png',
+    });
+    const { result } = renderHook(() => useSession(), { wrapper });
+    await waitFor(() => expect(result.current.status).toBe('unauthenticated'));
+    await act(async () => { await result.current.signIn({ email: 'owner@example.test', password: 'fixture-password' }); });
+    await waitFor(() => expect(result.current.barbershop?.avatarUrl).toBe('https://media.example.test/logo.png'));
+    expect(result.current.barbershop?.name).toBe('Barbearia Identidade');
+
+    act(() => queryClient.setQueryData(
+      ['barbershop', 'fixture-shop', 'session', 'fixture-owner'],
+      (previous: any) => ({ ...previous, avatarUrl: null }),
+    ));
+    await waitFor(() => expect(result.current.barbershop?.avatarUrl).toBeNull());
+  });
+
 });

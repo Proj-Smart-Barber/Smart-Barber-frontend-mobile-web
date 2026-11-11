@@ -110,8 +110,13 @@ export function AppearanceSettingsScreen() {
                 </View>
                 <AvatarUploader
                   currentAvatarUrl={barbershop?.avatarUrl}
-                  onAvatarUpdated={() => {
+                  onAvatarUpdated={(avatarUrl) => {
                     if (activeShopId) {
+                      queryClient.setQueryData(
+                        ['barbershop', activeShopId, 'session', identity?.id],
+                        (previous: Record<string, unknown> | undefined) =>
+                          previous ? { ...previous, avatarUrl } : undefined,
+                      );
                       queryClient.invalidateQueries({ queryKey: ['barbershop', activeShopId] });
                     }
                     queryClient.invalidateQueries({ queryKey: ['discovery'] });
