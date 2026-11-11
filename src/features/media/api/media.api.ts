@@ -43,6 +43,22 @@ export class MediaApi {
     }
   }
 
+  async uploadImage(
+    intent: InitiateUploadResponseDto,
+    file: Blob,
+    contentType: string,
+  ): Promise<ConfirmUploadResponseDto> {
+    try {
+      await this.uploadToPresignedUrl(intent.uploadUrl, file, contentType);
+    } catch (error) {
+      // Libera a intenção que falhou sem substituir o erro original do envio.
+      await httpClient.delete<void>(`/api/media/${encodeURIComponent(intent.mediaId)}`).catch(() => undefined);
+      throw error;
+    }
+
+    return this.confirmUpload(intent.mediaId);
+  }
+
   async uploadMultipart(mediaId:string,file:Blob,type:string,signal?:AbortSignal,onProgress?:(progress:number)=>void):Promise<void>{
     const route=`/api/media/${encodeURIComponent(mediaId)}/multipart`;
     const session=await httpClient.post<{partSize:number;parts:Array<{part:number;size:number}>;complete:boolean}>(route,{}, {signal});
