@@ -87,8 +87,8 @@ export function BottomCapsuleBar() {
 
   return (
     <Animated.View
-
-      style={[[
+      pointerEvents={isDrawerOpen ? 'none' : 'box-none'}
+      style={[
         styles.outerContainer,
         {
           bottom: bottomInset,
@@ -96,7 +96,7 @@ export function BottomCapsuleBar() {
           opacity: capsuleOpacity,
           transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
         },
-      ], { pointerEvents: isDrawerOpen ? 'none' : 'box-none' }]}
+      ]}
     >
       <LiquidGlassView
         borderRadius={radius.full}

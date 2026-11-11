@@ -188,6 +188,44 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       expect(mockPush).toHaveBeenCalledWith('/(client)/bookings');
     });
 
+    it.each([
+      { label: 'toque sem click nativo', event: null, activates: true },
+      { label: 'gesto de rolagem', event: 'touchmove', activates: false },
+      { label: 'toque cancelado', event: 'touchcancel', activates: false },
+    ])('trata $label na aba Agenda', ({ event, activates }) => {
+      renderShell();
+      const agenda = screen.getByRole('tab', { name: /Meus agendamentos/i });
+      const touch = { identifier: 1, clientX: 100, clientY: 100 };
+      const hitTest = vi.spyOn(document, 'elementFromPoint').mockReturnValue(agenda);
+
+      try {
+        fireEvent.touchStart(agenda, { touches: [touch], changedTouches: [touch] });
+        if (event) {
+          const moved = { ...touch, clientX: 130 } as Touch;
+          fireEvent(agenda, new TouchEvent(event, {
+            bubbles: true,
+            touches: event === 'touchmove' ? [moved] : [],
+            changedTouches: [moved],
+          }));
+        }
+        const end = new TouchEvent('touchend', {
+          bubbles: true,
+          cancelable: true,
+          changedTouches: [touch as Touch],
+        });
+        fireEvent(agenda, end);
+
+        expect(end.defaultPrevented).toBe(activates);
+        if (activates) {
+          expect(mockPush).toHaveBeenCalledExactlyOnceWith('/(client)/bookings');
+        } else {
+          expect(mockPush).not.toHaveBeenCalled();
+        }
+      } finally {
+        hitTest.mockRestore();
+      }
+    });
+
     it('desabilita interação e oculta acessibilidade da cápsula quando interactionBlocked está ativo', () => {
       const onRequestBooking = vi.fn();
       renderShell({ onRequestBooking, interactionBlocked: true });
@@ -195,7 +233,13 @@ describe('ClientNavigationShell — Tarefa 2: Cápsula e Drawer do Cliente', () 
       // Quando interactionBlocked=true, cápsula tem aria-hidden="true" e pointerEvents: 'none'
       expect(screen.queryByRole('button', { name: /Agendar/i })).toBeNull();
       const hiddenBookBtn = screen.getByRole('button', { name: /Agendar/i, hidden: true });
-      expect(hiddenBookBtn).toBeDefined();
+      const capsule = hiddenBookBtn.closest<HTMLElement>('[aria-hidden="true"]');
+      // RNW precisa aplicar box-none por classe CSS, sem deixar um pointer-events inline.
+      expect(capsule?.style.pointerEvents).toBe('');
+      expect(hiddenBookBtn.getAttribute('aria-disabled')).toBe('true');
+      expect(hiddenBookBtn.tabIndex).toBe(-1);
+      fireEvent.click(hiddenBookBtn);
+      expect(onRequestBooking).not.toHaveBeenCalled();
     });
   });
 

@@ -19,6 +19,7 @@ import { Badge, Text } from '@/shared/ui';
 import { BrandMark } from '@/shared/brand';
 import { useSession } from '@/features/auth';
 import { LiquidGlassView } from './LiquidGlassView';
+import { bindClientCapsuleTouch } from './client-capsule-touch';
 import { NavigationProvider, useNavigation } from './navigation-context';
 
 export interface ClientNavigationShellProps {
@@ -163,6 +164,7 @@ function ClientNavigationShellContent({
   const { identity, signOut } = useSession();
   const reducedMotion = useReducedMotion();
   const lastBookingPressRef = React.useRef<number>(0);
+  const capsuleControlsRef = React.useRef<React.ComponentRef<typeof View>>(null);
   const {
     isDrawerOpen,
     isDrawerVisible,
@@ -171,6 +173,16 @@ function ClientNavigationShellContent({
     closeDrawer,
     scrollCollapseProgress,
   } = useNavigation();
+
+  const isCapsuleBlocked = isDrawerOpen || interactionBlocked;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || isExpanded || isCapsuleBlocked) return;
+    const controls = capsuleControlsRef.current;
+    if (controls instanceof HTMLElement) {
+      return bindClientCapsuleTouch(controls);
+    }
+  }, [isExpanded, isCapsuleBlocked]);
 
   const userName = identity?.name || 'Cliente';
   const initials = getInitials(userName);
@@ -755,20 +767,18 @@ function ClientNavigationShellContent({
           if (height > 0) setMeasuredNavbarHeight(height);
         }}
         style={[
-          [
-            styles.outerCapsuleContainer,
-            {
-              bottom: bottomInset,
-              paddingHorizontal: spacing[4],
-              opacity: capsuleOpacity,
-              transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
-            },
-          ],
-          { pointerEvents: isDrawerOpen || interactionBlocked ? 'none' : 'box-none' },
+          styles.outerCapsuleContainer,
+          {
+            bottom: bottomInset,
+            paddingHorizontal: spacing[4],
+            opacity: capsuleOpacity,
+            transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
+          },
         ]}
-        aria-hidden={isDrawerOpen || interactionBlocked}
-        accessibilityElementsHidden={isDrawerOpen || interactionBlocked}
-        importantForAccessibility={isDrawerOpen || interactionBlocked ? 'no-hide-descendants' : 'auto'}
+        pointerEvents={isCapsuleBlocked ? 'none' : 'box-none'}
+        aria-hidden={isCapsuleBlocked}
+        accessibilityElementsHidden={isCapsuleBlocked}
+        importantForAccessibility={isCapsuleBlocked ? 'no-hide-descendants' : 'auto'}
       >
         <LiquidGlassView
           variant="navigation"
@@ -779,6 +789,7 @@ function ClientNavigationShellContent({
           contentStyle={styles.capsuleContent}
         >
           <View
+            ref={capsuleControlsRef}
             accessibilityRole="tablist"
             accessibilityLabel="Navegação principal do cliente"
             style={styles.tablistContainer}
@@ -796,6 +807,7 @@ function ClientNavigationShellContent({
                 return (
                   <Pressable
                     key={item.id}
+                    disabled={isCapsuleBlocked}
                     accessibilityRole="button"
                     accessibilityLabel={
                       isDrawerOpen
@@ -843,6 +855,7 @@ function ClientNavigationShellContent({
                 return (
                   <Pressable
                     key={item.id}
+                    disabled={isCapsuleBlocked}
                     accessibilityRole="button"
                     accessibilityLabel="Agendar horário"
                     onPress={handleBookingPress}
@@ -890,6 +903,7 @@ function ClientNavigationShellContent({
               return (
                 <Pressable
                   key={item.id}
+                  disabled={isCapsuleBlocked}
                   accessibilityRole="tab"
                   accessibilityLabel={`${item.compactLabel ? `${item.compactLabel}, ` : ''}${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`}
                   accessibilityState={{ selected: isActive }}
