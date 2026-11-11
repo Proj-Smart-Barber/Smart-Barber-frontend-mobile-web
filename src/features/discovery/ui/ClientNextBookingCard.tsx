@@ -19,6 +19,7 @@ interface ClientNextBookingCardProps {
   serverTime: string | null;
   isLoading: boolean;
   isError: boolean;
+  onOpenBooking: (bookingId: string) => void;
   onRetry?: () => void;
   onFindBarbershop?: () => void;
 }
@@ -57,10 +58,11 @@ export function ClientNextBookingCard({
   serverTime,
   isLoading,
   isError,
+  onOpenBooking,
   onRetry,
   onFindBarbershop,
 }: ClientNextBookingCardProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, components, radius } = useTheme();
   const router = useRouter();
 
   const remaining = useMemo(() => {
@@ -169,60 +171,70 @@ export function ClientNextBookingCard({
   const serviceSummary = booking.services?.map((s) => s.title).join(', ') || 'Atendimento';
 
   return (
-    <LiquidGlassView
-      variant="card"
-      borderRadius={radius.lg}
-      borderColor={colors.brand.primary}
-      borderWidth={1.5}
-      style={styles.outerContainer}
-      contentStyle={styles.cardContent}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Ver agendamento em ${booking.barbershopName || 'Barbearia'}`}
+      onPress={() => onOpenBooking(booking.id)}
+      style={({ pressed }) => [styles.outerContainer, { opacity: pressed ? 0.85 : 1 }]}
     >
-      <View style={styles.headerRow}>
-        <View style={styles.tagBadge}>
-          <Text variant="caption" style={[styles.tagText, { color: colors.brand.primary }]}>
-            {remaining?.isOngoing ? 'EM ATENDIMENTO' : 'PRÓXIMO AGENDAMENTO'}
-          </Text>
-        </View>
+      <LiquidGlassView
+        variant="card"
+        borderRadius={radius.lg}
+        borderColor={colors.brand.primary}
+        borderWidth={1.5}
+        contentStyle={styles.cardContent}
+      >
+        <View style={styles.headerRow}>
+          <View style={styles.tagBadge}>
+            <Text variant="caption" style={[styles.tagText, { color: colors.brand.primary }]}>
+              {remaining?.isOngoing ? 'EM ATENDIMENTO' : 'PRÓXIMO AGENDAMENTO'}
+            </Text>
+          </View>
 
-        {remaining && !remaining.isOngoing && remaining.minutes > 0 && remaining.minutes <= 180 && (
-          <Text variant="caption" color={colors.text.secondary} style={styles.countdownText}>
-            em {remaining.minutes} min
-          </Text>
-        )}
-      </View>
-
-      <View style={styles.bodyRow}>
-        <View style={styles.datetimeBadge}>
-          <Text variant="h3" weight="bold" style={[styles.timeText, { color: colors.text.primary }]}>
-            {timeStr}
-          </Text>
-          <Text variant="caption" color={colors.text.secondary} style={styles.dateText}>
-            {dateStr}
-          </Text>
-        </View>
-
-        <View style={styles.infoCol}>
-          <Text variant="body" weight="medium" numberOfLines={1} style={styles.shopName}>
-            {booking.barbershopName || 'Barbearia'}
-          </Text>
-          <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
-            {serviceSummary}
-          </Text>
-          {booking.barbermanName && (
-            <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
-              com {booking.barbermanName}
+          {remaining && !remaining.isOngoing && remaining.minutes > 0 && remaining.minutes <= 180 && (
+            <Text variant="caption" color={colors.text.secondary} style={styles.countdownText}>
+              em {remaining.minutes} min
             </Text>
           )}
         </View>
-      </View>
 
-      <Button
-        title="Ver agendamento"
-        variant="primary"
-        onPress={() => router.push('/(client)/bookings')}
-        style={styles.ctaButton}
-      />
-    </LiquidGlassView>
+        <View style={styles.bodyRow}>
+          <View style={styles.datetimeBadge}>
+            <Text variant="h3" weight="bold" style={[styles.timeText, { color: colors.text.primary }]}>
+              {timeStr}
+            </Text>
+            <Text variant="caption" color={colors.text.secondary} style={styles.dateText}>
+              {dateStr}
+            </Text>
+          </View>
+
+          <View style={styles.infoCol}>
+            <Text variant="body" weight="medium" numberOfLines={1} style={styles.shopName}>
+              {booking.barbershopName || 'Barbearia'}
+            </Text>
+            <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+              {serviceSummary}
+            </Text>
+            {booking.barbermanName && (
+              <Text variant="caption" color={colors.text.secondary} numberOfLines={1}>
+                com {booking.barbermanName}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.bookingCta,
+            { backgroundColor: components.button.primary.background, borderRadius: radius.md },
+          ]}
+        >
+          <Text color={components.button.primary.foreground} weight="medium">
+            Ver agendamento
+          </Text>
+        </View>
+      </LiquidGlassView>
+    </Pressable>
   );
 }
 
@@ -284,6 +296,11 @@ const styles = StyleSheet.create({
   },
   ctaButton: {
     width: '100%',
+  },
+  bookingCta: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyContent: {
     flexDirection: 'row',

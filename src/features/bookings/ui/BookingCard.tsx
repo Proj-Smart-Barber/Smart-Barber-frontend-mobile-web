@@ -87,16 +87,8 @@ export function BookingCard({
   const validBarbershopPhone = extractValidPhone(booking.barbershopPhone);
   const isSingleService = booking.services.length === 1;
 
-  const content = (
-    <Card
-      style={[
-        styles.card,
-        isFeatured && {
-          borderColor: colors.brand.primary,
-          borderWidth: 1.5,
-        },
-      ]}
-    >
+  const summary = (
+    <>
       {isFeatured ? (
         <View style={[styles.featuredHeader, { marginBottom: spacing.xs }]}>
           <Text variant="caption" style={{ color: colors.brand.primary, fontWeight: '700' }}>
@@ -173,6 +165,24 @@ export function BookingCard({
           {priceLabel}
         </Text>
       </View>
+    </>
+  );
+
+  return (
+    <Card
+      style={[
+        styles.card,
+        isFeatured && {
+          borderColor: colors.brand.primary,
+          borderWidth: 1.5,
+        },
+      ]}
+    >
+      {onPress ? (
+        <TouchableOpacity activeOpacity={0.8} accessible={false} focusable={false} onPress={onPress}>
+          {summary}
+        </TouchableOpacity>
+      ) : summary}
 
       {booking.status?.toUpperCase() === 'COMPLETED' ? (
         <View style={{ marginTop: spacing.sm }}>
@@ -195,23 +205,16 @@ export function BookingCard({
         </View>
       ) : null}
 
-      {isFeatured && onPress ? (
-        <View style={{ marginTop: spacing.sm }}>
-          <Button title="Ver detalhes" variant="outline" onPress={onPress} />
-        </View>
+      {onPress ? (
+        <Button
+          title="Ver detalhes"
+          variant="outline"
+          onPress={onPress}
+          style={{ marginTop: spacing.sm }}
+        />
       ) : null}
     </Card>
   );
-
-  if (onPress) {
-    return (
-      <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
-        {content}
-      </TouchableOpacity>
-    );
-  }
-
-  return content;
 }
 
 const styles = StyleSheet.create({

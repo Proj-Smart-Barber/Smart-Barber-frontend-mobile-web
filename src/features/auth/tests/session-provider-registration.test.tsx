@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider, useSession } from '../model/use-session';
 import { authApi } from '../api/auth.api';
@@ -35,6 +35,18 @@ describe('SessionProvider — Orquestração de Cadastro e Verificação com Tra
       <SessionProvider>{children}</SessionProvider>
     </QueryClientProvider>
   );
+
+  it('inicia a rota em restauração antes de decidir se existe sessão', async () => {
+    const statuses: string[] = [];
+    const { result } = renderHook(() => {
+      const { status } = useSession();
+      statuses.push(status);
+      return status;
+    }, { wrapper });
+
+    expect(statuses[0]).toBe('bootstrapping');
+    await waitFor(() => expect(result.current).toBe('unauthenticated'));
+  });
 
   it('1. Um cadastro CLIENT -> um envio -> nenhuma sessão automática criada', async () => {
     const registerSpy = vi.spyOn(authApi, 'register').mockResolvedValue({

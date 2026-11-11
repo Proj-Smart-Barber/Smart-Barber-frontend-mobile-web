@@ -14,7 +14,6 @@ import { useOptionalClientExperienceContext } from '@/features/discovery/model/c
 import { useMyBookings } from '@/features/bookings/model/use-my-bookings';
 import { ClientBookingsSkeleton } from '@/features/bookings/ui/ClientBookingsSkeleton';
 import { BookingCard } from '@/features/bookings/ui/BookingCard';
-import type { BookingDto } from '@/features/bookings/api/bookings.dto';
 
 type TabFilter = 'upcoming' | 'past';
 
@@ -108,8 +107,11 @@ export default function ClientBookingsScreen() {
 
   const displayedItems = activeTab === 'upcoming' ? filteredUpcoming : past;
 
-  const handleOpenDetail = (booking: BookingDto) => {
-    router.push(`/(account)/bookings/${booking.id}` as any);
+  const handleOpenDetail = (bookingId: string) => {
+    router.push({
+      pathname: '/(account)/bookings/[bookingId]',
+      params: { bookingId, agendaTab: activeTab === 'past' ? 'history' : 'upcoming' },
+    });
   };
 
   const renderListHeader = () => {
@@ -126,6 +128,7 @@ export default function ClientBookingsScreen() {
             void refetchNextBooking();
           }}
           onFindBarbershop={handleNovaReserva}
+          onOpenBooking={handleOpenDetail}
         />
       </View>
     );
@@ -406,7 +409,7 @@ export default function ClientBookingsScreen() {
               <BookingCard
                 booking={item}
                 isFeatured={false}
-                onPress={() => handleOpenDetail(item)}
+                onPress={() => handleOpenDetail(item.id)}
               />
             </View>
           )}
