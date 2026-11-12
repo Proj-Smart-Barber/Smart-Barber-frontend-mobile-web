@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { OperationalContext } from '@/features/auth';
 import { fetchUnitBookings } from '../api/bookings.api';
@@ -72,12 +73,14 @@ export function useUnitBookings(
   );
 
   // 1. BOOTSTRAP TEMPORAL AUTORIZADO:
-  // Executa GET /barbershops/:shopId/bookings?limit=1 (sem date) para obter serverTime autoritativo
+  // Executa GET /barbershops/:shopId/bookings?limit=1&bootstrapOnly=true&includeSummary=false (sem date)
+  // apenas quando o relógio autoritativo ainda não possui referência válida.
+  const needsClockBootstrap = !serverClock.hasValidReference();
   const bootstrapQuery = useQuery({
     queryKey: isAuthorized && shopId
       ? bookingQueryKeys.unitBookingsBootstrap(shopId, userId, role, role === 'BARBERMAN' ? userId : undefined)
       : ['disabled-bootstrap'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!shopId) throw new Error('Unidade não informada');
       const sampleMonotonicMs = performance.now();
       const expectedClockGen = serverClock.getGeneration();
@@ -86,9 +89,11 @@ export function useUnitBookings(
         shopId,
         {
           limit: 1,
+          bootstrapOnly: true,
+          includeSummary: false,
           barbermanId: role === 'BARBERMAN' ? userId : undefined,
         },
-        { skipAutoSyncClock: true }
+        { skipAutoSyncClock: true, signal }
       );
       if (generationRef.current !== currentGen || serverClock.getGeneration() !== expectedClockGen) {
         return res;
@@ -105,7 +110,7 @@ export function useUnitBookings(
       }
       return res;
     },
-    enabled: isAuthorized && Boolean(shopId),
+    enabled: isAuthorized && Boolean(shopId) && needsClockBootstrap,
     staleTime: 60_000,
   });
 
@@ -163,6 +168,7 @@ export function useUnitBookings(
   // Reinicia estado de paginação e incrementa geração quando filtros mudam
   const currentFilterKey = `${userId}-${shopId}-${role}-${effectiveBarbermanId}-${selectedDate}-${initialFilter?.status}`;
   const prevFilterKeyRef = useRef(currentFilterKey);
+  const belongsToCurrentFilter = prevFilterKeyRef.current === currentFilterKey;
 
   useEffect(() => {
     if (prevFilterKeyRef.current !== currentFilterKey) {
@@ -196,7 +202,7 @@ export function useUnitBookings(
           role
         )
       : ['disabled-unit-bookings'],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!shopId) throw new Error('Unidade não informada');
       const requestFilter = currentFilterKey;
       const requestGeneration = beginRead(queryClient, requestFilter);
@@ -212,7 +218,7 @@ export function useUnitBookings(
           page: 1,
           limit: DEFAULT_PAGE_LIMIT,
         },
-        { skipAutoSyncClock: true }
+        { skipAutoSyncClock: true, signal }
       );
       // Cache belongs to the query, not to the observer that started its fetch.
       if (readRevision(queryClient, requestFilter) !== requestGeneration) throw new Error('Consulta substituída por uma leitura mais recente.');
@@ -226,7 +232,13 @@ export function useUnitBookings(
     },
     enabled: isAuthorized && Boolean(shopId) && Boolean(selectedDate),
     placeholderData: (prev) => prev,
-    refetchInterval: 60_000,
+    refetchInterval: () => {
+      if (AppState.currentState && AppState.currentState !== 'active') return false;
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+      return 60_000;
+    },
+    refetchIntervalInBackground: false,
   });
 
   // Atualiza páginas acumuladas com a página 1 da geração corrente.
@@ -259,7 +271,7 @@ export function useUnitBookings(
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
   const loadMore = useCallback(async () => {
-    if (!isAuthorized || !shopId || !selectedDate || !hasNext || isLoadingMore || page1Query.isFetching) {
+    if (!belongsToCurrentFilter || !isAuthorized || !shopId || !selectedDate || !hasNext || isLoadingMore || page1Query.isFetching) {
       return;
     }
 
@@ -278,6 +290,7 @@ export function useUnitBookings(
           status: initialFilter?.status,
           page: nextPage,
           limit: DEFAULT_PAGE_LIMIT,
+          includeSummary: false,
         },
         { skipAutoSyncClock: true }
       );
@@ -295,7 +308,7 @@ export function useUnitBookings(
       });
       setCurrentPage(nextPage);
       setHasNext(Boolean(res.hasNext));
-      if (typeof res.total === 'number') {
+      if (typeof res.total === 'number' && res.summary) {
         setTotalCount(res.total);
       }
     } catch (err: any) {
@@ -305,6 +318,7 @@ export function useUnitBookings(
       if (generationRef.current === currentGen && readRevision(queryClient, currentFilterKey) === pageRevision) setIsLoadingMore(false);
     }
   }, [
+    belongsToCurrentFilter,
     isAuthorized,
     shopId,
     selectedDate,
@@ -329,6 +343,7 @@ export function useUnitBookings(
 
   // Deduplicação e ordenação cronológica de todos os itens carregados
   const items = useMemo<BookingDto[]>(() => {
+    if (!belongsToCurrentFilter) return [];
     const itemMap = new Map<string, BookingDto>();
     // Percorre as páginas em ordem
     const sortedPages = Array.from(accumulatedPages.keys()).sort((a, b) => a - b);
@@ -348,7 +363,7 @@ export function useUnitBookings(
       return timeA.localeCompare(timeB);
     });
     return list;
-  }, [accumulatedPages]);
+  }, [accumulatedPages, belongsToCurrentFilter]);
 
   // isPartial é verdadeiro se o servidor tem mais páginas que ainda não carregamos
   // ou se o conjunto carregado for menor que o total indicado pelo servidor
@@ -479,11 +494,11 @@ export function useUnitBookings(
     items,
     page: currentPage,
     limit: DEFAULT_PAGE_LIMIT,
-    total: isAuthorized ? totalCount : 0,
-    hasNext,
-    hasNextPage: hasNext,
+    total: isAuthorized ? (belongsToCurrentFilter ? totalCount : null) : 0,
+    hasNext: belongsToCurrentFilter && hasNext,
+    hasNextPage: belongsToCurrentFilter && hasNext,
     isPartial,
-    summary: summaryData,
+    summary: belongsToCurrentFilter ? summaryData : null,
     clockStatus,
     unitTodayDate,
     selectedDate: selectedDate || unitTodayDate || '',
@@ -495,7 +510,7 @@ export function useUnitBookings(
     selectedBarbermanId: effectiveBarbermanId,
     selectedProfessionalId: effectiveBarbermanId,
     generation,
-    isLoading: page1Query.isLoading && !page1Query.isPlaceholderData,
+    isLoading: !belongsToCurrentFilter || (page1Query.isLoading && !page1Query.isPlaceholderData),
     isFetching: page1Query.isFetching || bootstrapQuery.isFetching,
     isRefreshing: (page1Query.isFetching || bootstrapQuery.isFetching) && !(page1Query.isLoading && !page1Query.isPlaceholderData),
     isLoadingMore,

@@ -67,10 +67,16 @@ export interface FetchUnitBookingsParams {
   date?: string;
   status?: string;
   barbermanId?: string;
+  includeSummary?: boolean;
+  bootstrapOnly?: boolean;
 }
 
 export interface FetchMyBookingsParams {
   page?: number;
+  limit?: number;
+  view?: 'all' | 'upcoming' | 'past';
+  filter?: string;
+  cursor?: string;
 }
 
 export interface CustomerLookupRequest {

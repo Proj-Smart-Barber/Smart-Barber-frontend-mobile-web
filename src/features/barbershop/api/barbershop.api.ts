@@ -39,7 +39,7 @@ export class BarbershopApi {
   ): Promise<BackendBarbershopEntityDto> {
     const response = await httpClient.get<GetBarbershopResponseDto>(
       `/api/barbershops/${encodeURIComponent(shopId)}`,
-      { token },
+      { token: null, publicRequest: true },
     );
 
     if (!response || !response.barbershop) {

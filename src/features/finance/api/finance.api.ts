@@ -37,6 +37,10 @@ const periodSchema = z.object({
   timezone: z.string(),
   serverTime: z.string(),
   entries: z.array(entrySchema),
+  entriesTotal: z.number().int().optional(),
+  bookingsTotal: z.number().int().optional(),
+  entriesLimit: z.number().int().optional(),
+  bookingsLimit: z.number().int().optional(),
   bookings: z.array(bookingSchema),
   summary: z.object({
     completedInCents: z.number().int(),
@@ -68,9 +72,10 @@ export const financeApi = {
     month?: string,
     signal?: AbortSignal,
     range?: { from: string; to: string },
+    options?: { view: 'summary' | 'entries' | 'bookings'; page?: number },
   ): Promise<FinancePeriod> {
     const result = periodSchema.parse(
-      await httpClient.get(base(shopId), { params: range ? range : { month }, signal }),
+      await httpClient.get(base(shopId), { params: { ...(range ? range : { month }), ...(options ? { view: options.view, ...(options.view === 'entries' ? { entriesPage: options.page ?? 1, entriesLimit: 30 } : options.view === 'bookings' ? { bookingsPage: options.page ?? 1, bookingsLimit: 30 } : {}) } : {}) }, signal }),
     );
     if (range && (result.from !== range.from || result.to !== range.to))
       throw new Error('A API precisa ser atualizada para consultar este período.');

@@ -1,3 +1,5 @@
+import { purgePersistedPublicCache, isAllowlistedPublicQueryKey } from '@/shared/cache/public-query-persister';
+import { registerWebServiceWorker, broadcastSessionLogoutAndClearSwCaches } from '@/shared/pwa/service-worker-registration';
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sessionStorage, barbershopStorage } from '@/shared/storage';
@@ -64,7 +66,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
+    let previousScope = '';
+    let previousActor: string | null = null;
     const unsubscribe = engine.subscribe((snap) => {
+      const scope=JSON.stringify([snap.identity?.id ?? null,snap.selectedShopId,
+        snap.memberships.map(member => [member.id,member.role,member.state,member.status,member.timezone]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),Boolean(snap.revocationPending)]);
+      if (previousScope && scope !== previousScope) {
+        if (!previousActor && snap.identity?.id) {
+          const privateOnly={predicate: (query: {queryKey: readonly unknown[]}) => !isAllowlistedPublicQueryKey(query.queryKey)};
+          void queryClient.cancelQueries(privateOnly);queryClient.removeQueries(privateOnly);
+        } else {
+          void queryClient.cancelQueries();queryClient.clear();void purgePersistedPublicCache();
+        }
+        httpClient.clearTelemetry();
+      }
+      previousScope=scope;
+      previousActor=snap.identity?.id ?? null;
       setSnapshot(snap);
       if (snap.error) {
         setNormalizedError(normalizeAuthError(snap.error));
@@ -73,13 +90,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const stopSync = registerWebServiceWorker(() => {
+      void queryClient.cancelQueries(); queryClient.clear();
+      void purgePersistedPublicCache();
+      void engine.signOut();
+    });
     engine.restore().catch(() => {});
 
     return () => {
       unsubscribe();
+      stopSync();
       httpClient.setSessionHooks(null);
     };
-  }, [engine]);
+  }, [engine,queryClient]);
 
   const clearError = useCallback(() => {
     setNormalizedError(null);
@@ -132,6 +155,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    void queryClient.cancelQueries();
+    queryClient.clear();
+    await purgePersistedPublicCache();
+    await broadcastSessionLogoutAndClearSwCaches();
     try {
       await engine.signOut();
       queryClient.clear();

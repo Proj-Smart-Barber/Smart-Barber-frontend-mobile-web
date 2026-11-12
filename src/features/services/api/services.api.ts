@@ -29,7 +29,7 @@ export class ServicesApi {
 
     return httpClient.get<ListServicesResponse>(
       `/api/barbershops/${encodeURIComponent(barbershopId)}/services`,
-      { params, token },
+      { params, token, publicRequest: options?.includeInactive !== true },
     );
   }
 

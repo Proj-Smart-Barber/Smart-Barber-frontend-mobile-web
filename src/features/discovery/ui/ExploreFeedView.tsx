@@ -703,12 +703,13 @@ export const ExploreFeedView = React.forwardRef<ExploreFeedHandle, ExploreFeedVi
         importantForAccessibility={isVisible ? 'auto' : 'no-hide-descendants'}
       >
         <BrandMark size={48} variant="symbol-crimson" decorative />
-        <Text style={styles.emptyTitle}>Nenhuma barbearia encontrada</Text>
+        <Text style={styles.emptyTitle}>{hasNextPage ? 'A busca continua' : 'Nenhuma barbearia encontrada'}</Text>
         <Text style={styles.emptySubtext}>
           {mode === 'NEARBY'
             ? `Não encontramos barbearias a menos de ${radiusKm} km. Tente expandir seu raio ou ver todas as unidades.`
             : 'Nenhum resultado para os termos pesquisados. Tente ajustar os filtros.'}
         </Text>
+        {hasNextPage ? <Button title="Continuar busca" disabled={isFetchingNextPage} onPress={() => void fetchNextPage()} /> : null}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
           {mode === 'NEARBY' && (
             <Button variant="outline" title="Expandir para 50 km" onPress={() => setRadius(50)} />

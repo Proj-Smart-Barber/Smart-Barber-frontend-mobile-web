@@ -11,7 +11,7 @@ export function useNotificationsFeed(
 ) {
   return useQuery<FetchNotificationsResponse>({
     queryKey: buildNotificationQueryKey(userId, params?.cursor),
-    queryFn: () => listNotifications(params),
+    queryFn: ({ signal }) => listNotifications(params, { signal }),
     enabled: Boolean(userId),
   });
 }
@@ -21,10 +21,34 @@ export function useMarkNotificationRead(userId: string | null | undefined) {
 
   return useMutation({
     mutationFn: (notificationId: string) => markNotificationRead(notificationId),
-    onSuccess: () => {
-      // Invalida o feed daquele usuário específico
+    onSuccess: (result, notificationId) => {
+      const userKey = userId || 'anonymous';
+      const readAtIso = result?.notification?.readAt ?? new Date().toISOString();
+
+      queryClient.setQueriesData<FetchNotificationsResponse>(
+        { queryKey: ['notifications', userKey] },
+        (oldData) => {
+          if (!oldData || !Array.isArray(oldData.notifications)) return oldData;
+          let wasUnread = false;
+          const updatedNotifications = oldData.notifications.map((item) => {
+            if (item.id === notificationId) {
+              if (!item.readAt) wasUnread = true;
+              return { ...item, readAt: item.readAt ?? readAtIso };
+            }
+            return item;
+          });
+          if (!wasUnread) return oldData;
+          return {
+            ...oldData,
+            notifications: updatedNotifications,
+            unreadCount: Math.max(0, (oldData.unreadCount ?? 1) - 1),
+          };
+        }
+      );
+
+      // Revalida em background o feed daquele usuário específico
       queryClient.invalidateQueries({
-        queryKey: ['notifications', userId || 'anonymous'],
+        queryKey: ['notifications', userKey],
       });
     },
   });

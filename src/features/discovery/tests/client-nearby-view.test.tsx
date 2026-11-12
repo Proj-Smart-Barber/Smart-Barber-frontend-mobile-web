@@ -132,7 +132,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
     // Por padrão exibe todas as barbearias sem limitar pelo raio
     expect(await screen.findByText('Barbearia Imperial Paulista')).toBeTruthy();
     expect(searchAllSpy).not.toHaveBeenCalled();
-    expect(nearbySpy).toHaveBeenCalledWith(expect.objectContaining({radiusKm: null}));
+    expect(nearbySpy).toHaveBeenCalledWith(expect.objectContaining({radiusKm: null}), expect.any(AbortSignal));
 
     // Resumo indica Todas as distâncias
     expect(screen.getByText('Mais próximas de você · sem limite de distância')).toBeTruthy();
@@ -155,8 +155,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
       expect(nearbySpy).toHaveBeenCalledWith(
         expect.objectContaining({
           radiusKm: 25,
-        }),
-      );
+        }), expect.any(AbortSignal));
     });
     expect(await screen.findByText(/650 m de você/i)).toBeTruthy();
 
@@ -298,8 +297,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
         expect(searchAllSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             q: 'Mooca',
-          }),
-        );
+          }), expect.any(AbortSignal));
       },
       { timeout: 1500 },
     );
@@ -524,8 +522,7 @@ describe('ClientNearbyView — Tarefa 5: Proximidade, Busca Editável e Recupera
       expect(nearbySpy).toHaveBeenCalledWith(
         expect.objectContaining({
           radiusKm: 10,
-        }),
-      );
+        }), expect.any(AbortSignal));
     });
   });
 

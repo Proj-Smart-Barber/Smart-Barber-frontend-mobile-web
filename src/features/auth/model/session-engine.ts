@@ -47,6 +47,32 @@ export class SessionEngine {
   private activeRefreshPromise: Promise<SessionGrant> | null = null;
   private currentRefreshToken: string | null = null;
   private generation: number = 0;
+  private refreshGeneration = -1;
+  private persistenceWrites: Promise<void> = Promise.resolve();
+
+  private saveSession(value: StoredSession, generation=this.generation): Promise<void> {
+    const next=this.persistenceWrites.catch(() => {}).then(async () => {
+      if (generation === this.generation) await this.deps.persistence.save(value);
+    });
+    this.persistenceWrites=next;
+    return next;
+  }
+
+  private markSessionLogout(generation=this.generation): Promise<void> {
+    const next=this.persistenceWrites.catch(() => {}).then(async () => {
+      if (generation === this.generation) await this.deps.persistence.markLogoutPending();
+    });
+    this.persistenceWrites=next;
+    return next;
+  }
+
+  private clearSession(generation=this.generation): Promise<void> {
+    const next=this.persistenceWrites.catch(() => {}).then(async () => {
+      if (generation === this.generation) await this.deps.persistence.clear();
+    });
+    this.persistenceWrites=next;
+    return next;
+  }
 
   constructor(private deps: SessionEngineDependencies) {}
 
@@ -138,8 +164,7 @@ export class SessionEngine {
 
       // Validação autoritativa do perfil
       try {
-        const identity = await this.deps.loadIdentity(accessToken);
-        const memberships = await this.deps.loadMemberships(accessToken);
+        const [identity,memberships] = await Promise.all([this.deps.loadIdentity(accessToken),this.deps.loadMemberships(accessToken)]);
 
         if (thisGen !== this.generation) return;
 
@@ -159,6 +184,7 @@ export class SessionEngine {
         });
       } catch (err: any) {
         if (thisGen !== this.generation) return;
+        if (thisGen !== this.generation) return;
 
         // Se for erro temporário de servidor (503 ou de rede), não removemos o token
         if (err?.status >= 500 || err?.isNetworkError) {
@@ -173,7 +199,7 @@ export class SessionEngine {
         }
 
         // Se for erro de autorização/token inválido (401/403)
-        await this.deps.persistence.clear();
+        await this.clearSession(thisGen);
         this.setSnapshot({
           status: 'unauthenticated',
           identity: null,
@@ -184,6 +210,7 @@ export class SessionEngine {
         });
       }
     } catch (err: any) {
+        if (thisGen !== this.generation) return;
       this.setSnapshot({
         status: 'unauthenticated',
         error: err instanceof Error ? err : new Error(String(err)),
@@ -218,10 +245,9 @@ export class SessionEngine {
       sessionExpiresAt: grant.sessionExpiresAt,
       hasSession: true,
     };
-    await this.deps.persistence.save(storedSession);
+    await this.saveSession(storedSession);
 
-    const identity = await this.deps.loadIdentity(grant.accessToken);
-    const memberships = await this.deps.loadMemberships(grant.accessToken);
+    const [identity,memberships] = await Promise.all([this.deps.loadIdentity(grant.accessToken),this.deps.loadMemberships(grant.accessToken)]);
 
     if (thisGen !== this.generation) return;
 
@@ -242,53 +268,47 @@ export class SessionEngine {
   }
 
   async refresh(): Promise<SessionGrant> {
-    if (this.activeRefreshPromise) {
-      return this.activeRefreshPromise;
-    }
-
-    this.activeRefreshPromise = (async () => {
+    const thisGen=this.generation;
+    if (this.activeRefreshPromise && this.refreshGeneration === thisGen) return this.activeRefreshPromise;
+    this.refreshGeneration=thisGen;
+    this.activeRefreshPromise=(async () => {
+      await Promise.resolve();
       try {
-        const grant = await this.deps.transport.refresh(this.currentRefreshToken);
-        this.currentRefreshToken = grant.refreshToken ?? this.currentRefreshToken;
-
-        await this.deps.persistence.save({
-          accessToken: grant.accessToken,
-          refreshToken: grant.refreshToken ?? this.currentRefreshToken,
-          accessExpiresAt: grant.accessExpiresAt,
-          sessionExpiresAt: grant.sessionExpiresAt,
-          hasSession: true,
-          selectedShopId: this.snapshot.selectedShopId,
-        });
-
-        this.setSnapshot({
-          accessToken: grant.accessToken,
-        });
-
+        const grant=await this.deps.transport.refresh(this.currentRefreshToken);
+        if (thisGen !== this.generation) throw new Error('SESSION_CHANGED');
+        this.currentRefreshToken=grant.refreshToken ?? this.currentRefreshToken;
+        await this.saveSession({accessToken:grant.accessToken,refreshToken:this.currentRefreshToken,
+          accessExpiresAt:grant.accessExpiresAt,sessionExpiresAt:grant.sessionExpiresAt,
+          hasSession:true,selectedShopId:this.snapshot.selectedShopId},thisGen);
+        if (thisGen !== this.generation) throw new Error('SESSION_CHANGED');
+        this.setSnapshot({accessToken:grant.accessToken});
         return grant;
-      } catch (err: any) {
-        if (err?.status === 401 || err?.status === 403) {
-          this.setSnapshot({ revocationPending: true });
-        }
+      } catch (err:any) {
+        if (thisGen === this.generation && (err?.status === 401 || err?.status === 403)) this.setSnapshot({revocationPending:true});
         throw err;
       } finally {
-        this.activeRefreshPromise = null;
+        if (thisGen === this.generation) this.activeRefreshPromise=null;
       }
     })();
-
     return this.activeRefreshPromise;
   }
 
   async signOut(): Promise<void> {
-    ++this.generation;
+    const thisGen=++this.generation;
+    const refreshToken=this.currentRefreshToken;
+    const hadSession=Boolean(refreshToken || this.snapshot.accessToken);
+    this.currentRefreshToken=null;
+    this.setSnapshot({status:'unauthenticated',identity:null,memberships:[],selectedShopId:null,accessToken:null,error:null});
     try {
-      await this.deps.persistence.markLogoutPending();
-      if (this.currentRefreshToken || this.snapshot.accessToken) {
-        await this.deps.transport.signOut(this.currentRefreshToken);
+      await this.markSessionLogout(thisGen);
+      if (hadSession) {
+        await this.deps.transport.signOut(refreshToken);
       }
-      await this.deps.persistence.clear();
+      await this.clearSession(thisGen);
     } catch {
       // Offline signOut continua garantindo logout local
     } finally {
+      if (thisGen !== this.generation) return;
       this.currentRefreshToken = null;
       this.setSnapshot({
         status: 'unauthenticated',

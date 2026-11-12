@@ -1,3 +1,4 @@
+import {utf8Bytes} from '../lib/utf8-size';
 import { Platform } from 'react-native';
 import { ENV } from '../config/env';
 import { tokenStorage } from '../storage';
@@ -8,17 +9,45 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   params?: Record<string, string | number | boolean | undefined>;
   token?: string | null;
   timeoutMs?: number;
+  publicRequest?: boolean;
 }
+
+export interface HttpTelemetryEvent {
+  method: string;
+  sanitizedPath: string;
+  status: number;
+  durationMs: number;
+  payloadBytes: number;
+  serverTiming: string | null;
+  sqlCount: number | null;
+  publicRequest: boolean;
+  aborted: boolean;
+  timestamp: number;
+}
+
+export type HttpTelemetryListener = (event: HttpTelemetryEvent) => void;
 
 export interface SessionHooks {
   getAccessToken?: () => string | null;
   onAccessExpired?: () => Promise<void>;
 }
 
+function sanitizeTelemetryPath(path: string): string {
+  const withoutQuery = path.split('?')[0] || '/';
+  const clean = withoutQuery.startsWith('/') ? withoutQuery : `/${withoutQuery}`;
+  return clean.replace(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+    ':id',
+  );
+}
+
 export class HttpClient {
   private baseUrl: string;
   private defaultTimeoutMs: number;
   private sessionHooks: SessionHooks | null = null;
+  private telemetryListeners: Set<HttpTelemetryListener> = new Set();
+  private recentTelemetry: HttpTelemetryEvent[] = [];
+  private static readonly MAX_TELEMETRY_BUFFER = 100;
 
   constructor(baseUrl: string = ENV.API_URL, defaultTimeoutMs: number = 15000) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -27,6 +56,35 @@ export class HttpClient {
 
   setSessionHooks(hooks: SessionHooks | null): void {
     this.sessionHooks = hooks;
+  }
+
+  subscribeTelemetry(listener: HttpTelemetryListener): () => void {
+    this.telemetryListeners.add(listener);
+    return () => {
+      this.telemetryListeners.delete(listener);
+    };
+  }
+
+  getRecentTelemetry(): readonly HttpTelemetryEvent[] {
+    return this.recentTelemetry;
+  }
+
+  clearTelemetry(): void {
+    this.recentTelemetry = [];
+  }
+
+  private emitTelemetry(event: HttpTelemetryEvent): void {
+    this.recentTelemetry.push(event);
+    if (this.recentTelemetry.length > HttpClient.MAX_TELEMETRY_BUFFER) {
+      this.recentTelemetry.shift();
+    }
+    for (const listener of this.telemetryListeners) {
+      try {
+        listener(event);
+      } catch {
+        // Telemetria nunca interrompe o fluxo de requisição
+      }
+    }
   }
 
   private buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): string {
@@ -58,15 +116,18 @@ export class HttpClient {
       params,
       token,
       timeoutMs = this.defaultTimeoutMs,
+      publicRequest = false,
       signal: callerSignal,
       ...rest
     } = options;
 
     const url = this.buildUrl(path, params);
+    const startedAtMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const sanitizedPath = sanitizeTelemetryPath(path);
 
-    // Resolução de token de autorização
-    let authToken = token;
-    if (authToken === undefined) {
+    // Resolução de token de autorização (omitido em requisições públicas explícitas)
+    let authToken = publicRequest ? null : token;
+    if (!publicRequest && authToken === undefined) {
       const hookToken = this.sessionHooks?.getAccessToken?.();
       authToken = hookToken !== undefined ? hookToken : await tokenStorage.get();
     }
@@ -85,8 +146,10 @@ export class HttpClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    if (authToken) {
+    if (authToken && !publicRequest) {
       headers.set('Authorization', `Bearer ${authToken}`);
+    } else if (publicRequest && headers.has('Authorization')) {
+      headers.delete('Authorization');
     }
 
     const controller = new AbortController();
@@ -106,6 +169,7 @@ export class HttpClient {
       body: serializedBody,
       signal: controller.signal,
       ...rest,
+      ...(publicRequest ? { credentials: 'omit' as RequestCredentials } : {}),
     };
 
     try {
@@ -113,27 +177,61 @@ export class HttpClient {
 
       clearTimeout(timeoutId);
 
+      const serverTiming = response.headers?.get?.('server-timing') ?? null;
+      const sqlCountRaw = response.headers?.get?.('x-sql-count');
+      const sqlCount = sqlCountRaw !== null && sqlCountRaw !== undefined ? Number(sqlCountRaw) : null;
+
       // Tratamento de respostas vazias (ex: 204 No Content)
       if (response.status === 204) {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        this.emitTelemetry({
+          method,
+          sanitizedPath,
+          status: 204,
+          durationMs: Math.max(0, Number((now - startedAtMs).toFixed(2))),
+          payloadBytes: 0,
+          serverTiming,
+          sqlCount: Number.isFinite(sqlCount) ? sqlCount : null,
+          publicRequest,
+          aborted: false,
+          timestamp: Date.now(),
+        });
         return null as unknown as T;
       }
 
       const contentType = response.headers.get('content-type') || '';
       let responseData: any = null;
+      let payloadBytes = 0;
 
       if (contentType.includes('application/json')) {
         try {
           responseData = await response.json();
+          payloadBytes = responseData == null ? 0 : utf8Bytes(JSON.stringify(responseData));
         } catch {
           responseData = null;
         }
       } else {
         try {
           responseData = await response.text();
+          payloadBytes = typeof responseData === 'string' ? utf8Bytes(responseData) : 0;
         } catch {
           responseData = null;
         }
       }
+
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this.emitTelemetry({
+        method,
+        sanitizedPath,
+        status: response.status,
+        durationMs: Math.max(0, Number((now - startedAtMs).toFixed(2))),
+        payloadBytes,
+        serverTiming,
+        sqlCount: Number.isFinite(sqlCount) ? sqlCount : null,
+        publicRequest,
+        aborted: false,
+        timestamp: Date.now(),
+      });
 
       if (!response.ok) {
         if (response.status === 401 && authToken && !path.includes('/sessions/')) {
@@ -158,6 +256,20 @@ export class HttpClient {
       }
 
       const isAbort = err.name === 'AbortError';
+      if (callerSignal?.aborted) throw new ApiError('Requisição cancelada.',0,{code:'REQUEST_CANCELLED'},false);
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this.emitTelemetry({
+        method,
+        sanitizedPath,
+        status: 0,
+        durationMs: Math.max(0, Number((now - startedAtMs).toFixed(2))),
+        payloadBytes: 0,
+        serverTiming: null,
+        sqlCount: null,
+        publicRequest,
+        aborted: isAbort,
+        timestamp: Date.now(),
+      });
       const isNetwork =
         isAbort ||
         err.message?.includes('Network request failed') ||

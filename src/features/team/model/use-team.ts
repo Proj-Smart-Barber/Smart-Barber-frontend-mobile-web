@@ -1,3 +1,4 @@
+import { invalidateCatalogConsumers } from '@/shared/cache/catalog-invalidation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/features/auth';
 import { bookingQueryKeys } from '@/features/bookings/model/booking-query-keys';
@@ -84,6 +85,7 @@ export function useCreateBarberRegistrationMutation() {
     onSuccess: (_data, variables) => {
       const targetShopId = variables.shopId || selectedShopId;
       if (actorId && targetShopId) {
+        void invalidateCatalogConsumers(queryClient,targetShopId);
         queryClient.invalidateQueries({
           queryKey: ['team-invitations', actorId, targetShopId],
         });
@@ -121,6 +123,7 @@ export function useDeactivateMemberMutation() {
     onSuccess: (_data, variables) => {
       const targetShopId = variables.shopId || selectedShopId;
       if (actorId && targetShopId) {
+        void invalidateCatalogConsumers(queryClient,targetShopId);
         queryClient.invalidateQueries({
           queryKey: ['team', actorId, targetShopId],
         });

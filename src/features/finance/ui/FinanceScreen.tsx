@@ -95,10 +95,14 @@ function FinanceContent({
   const [notice, setNotice] = useState('');
   const saving = useRef(false);
   const requests = useRef(new Map<string, string>());
-  const key = ['finance', actorId, shopId, month ?? 'current', range?.from, range?.to];
+  const [pageState, setPageState] = useState({ scope: '', page: 1 });
+  const pageScope = JSON.stringify([month ?? 'current', range?.from, range?.to, section]);
+  const page = pageState.scope === pageScope ? pageState.page : 1;
+  const view = section === 'overview' ? 'summary' : section === 'expenses' ? 'entries' : 'bookings';
+  const key = ['finance', actorId, shopId, month ?? 'current', range?.from, range?.to, view, page];
   const query = useQuery({
     queryKey: key,
-    queryFn: ({ signal }) => financeApi.period(shopId, range ? undefined : month, signal, range),
+    queryFn: ({ signal }) => financeApi.period(shopId, range ? undefined : month, signal, range, { view, page }),
     staleTime: 30_000,
     retry: 1,
   });
@@ -432,7 +436,7 @@ function FinanceContent({
             <Spinner />
             <Text>Carregando financeiro…</Text>
           </View>
-        ) : query.isError ? (
+        ) : query.isError && !data ? (
           <ErrorState
             title="Financeiro indisponível"
             description="Não foi possível obter os dados da unidade."
@@ -679,6 +683,18 @@ function FinanceContent({
                 ))}
               </>
             ) : null}
+            {section !== 'overview' ? (
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <Button title="Anterior" variant="secondary" disabled={page <= 1 || query.isFetching}
+                  onPress={() => setPageState({ scope: pageScope, page: page - 1 })} />
+                <Text>Página {page}</Text>
+                <Button title="Próxima" variant="secondary" disabled={query.isFetching ||
+                  (section === 'expenses' ? page * (data.entriesLimit ?? Math.max(1,data.entries.length)) >= (data.entriesTotal ?? data.entries.length)
+                    : page * (data.bookingsLimit ?? Math.max(1,data.bookings.length)) >= (data.bookingsTotal ?? data.bookings.length))}
+                  onPress={() => setPageState({ scope: pageScope, page: page + 1 })} />
+              </View>
+            ) : null}
+            {query.isError ? <Alert variant="error" message="Não foi possível atualizar. Exibindo os últimos dados recebidos." /> : null}
           </>
         ) : null}
       </View>

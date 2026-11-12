@@ -20,7 +20,7 @@ it('keeps user coordinates and sends null radius for the unlimited default', asy
   const nearby = vi.spyOn(discoveryApi, 'searchNearby').mockResolvedValue({items: [],total: 0,page: 1,limit: 20,hasNext:false,serverTime:new Date().toISOString()});
   const all = vi.spyOn(discoveryApi, 'searchAll');
   mount();
-  await waitFor(() => expect(nearby).toHaveBeenCalledWith(expect.objectContaining({latitude: point.latitude, longitude:point.longitude, radiusKm:null})));
+  await waitFor(() => expect(nearby).toHaveBeenCalledWith(expect.objectContaining({latitude: point.latitude, longitude:point.longitude, radiusKm:null}), expect.any(AbortSignal)));
   expect(all).not.toHaveBeenCalled();
 });
 it('does not request an unlabelled general list without coordinates or a manual query', async () => {
@@ -47,6 +47,6 @@ it('recovering location does not activate a hidden default radius', async () => 
   const nearby=vi.spyOn(discoveryApi,'searchNearby').mockResolvedValue({items:[],total:0,page:1,limit:20,hasNext:false,serverTime:new Date().toISOString()});
   const {result}=mount();
   await act(async () => {await result.current.requestLocation();});
-  await waitFor(()=>expect(nearby).toHaveBeenCalledWith(expect.objectContaining({radiusKm:null})));
+  await waitFor(()=>expect(nearby).toHaveBeenCalledWith(expect.objectContaining({radiusKm:null}), expect.any(AbortSignal)));
   expect(nearby.mock.calls.every(([request])=>request.radiusKm===null)).toBe(true);
 });

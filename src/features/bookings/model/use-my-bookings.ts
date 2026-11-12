@@ -36,8 +36,8 @@ export function useMyBookings(optionsOrEnabled: boolean | UseMyBookingsOptions =
     isRefetching,
   } = useInfiniteQuery<BookingDto[]>({
     queryKey,
-    queryFn: async ({ pageParam = 1 }) => {
-      return fetchMyBookings({ page: pageParam as number });
+    queryFn: async ({ pageParam = 1, signal }) => {
+      return fetchMyBookings({ page: pageParam as number }, { signal });
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => {

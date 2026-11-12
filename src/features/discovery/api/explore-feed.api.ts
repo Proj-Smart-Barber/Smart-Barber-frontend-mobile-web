@@ -38,7 +38,7 @@ export class ExploreFeedApi {
     }
 
     const raw = await httpClient.post<unknown>('/api/barbershops/explore-feed', payload, {
-      signal,
+      signal, publicRequest:true,
     });
 
     return exploreFeedPageSchema.parse(raw);

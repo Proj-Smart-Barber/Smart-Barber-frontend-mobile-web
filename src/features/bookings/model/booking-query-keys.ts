@@ -1,11 +1,30 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { FetchMyBookingsParams, FetchUnitBookingsParams, BookingAvailabilityRequestDto } from '../api/bookings.dto';
 
+export function normalizeServiceIds(serviceIds?: readonly string[] | null): string[] {
+  if (!serviceIds || serviceIds.length === 0) return [];
+  return Array.from(
+    new Set(
+      serviceIds
+        .map((id) => (typeof id === 'string' ? id.trim() : ''))
+        .filter((id) => id.length > 0),
+    ),
+  ).sort();
+}
+
 export const bookingQueryKeys = {
   all: ['bookings'] as const,
   professionals: (shopId: string) => ['barbershop', shopId, 'professionals'] as const,
   availability: (shopId: string, params: BookingAvailabilityRequestDto) =>
-    ['barbershop', shopId, 'availability', params] as const,
+    [
+      'barbershop',
+      shopId,
+      'availability',
+      {
+        ...params,
+        serviceIds: normalizeServiceIds(params?.serviceIds),
+      },
+    ] as const,
   myBookings: (actorId?: string | null, params?: FetchMyBookingsParams) =>
     ['bookings', 'me', actorId ?? 'anon', params ?? {}] as const,
   unitBookings: (
@@ -94,6 +113,18 @@ export async function invalidateBookingQueries(
     promises.push(
       queryClient.invalidateQueries({
         queryKey: ['dashboard', params.shopId],
+      })
+    );
+    // Financeiro da unidade (garante atualização de previsão, concluídos e atendimentos após mutação de reserva)
+    promises.push(
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'finance' && q.queryKey.includes(params.shopId!),
+      })
+    );
+  } else {
+    promises.push(
+      queryClient.invalidateQueries({
+        queryKey: ['finance'],
       })
     );
   }

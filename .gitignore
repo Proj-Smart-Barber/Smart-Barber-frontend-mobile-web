@@ -27,3 +27,6 @@ skills-locl.json
 # Scripts e logs locais temporários
 run-dev-server.cmd
 dev-server.log
+
+# Generated local optimization evidence (curated copies are under docs).
+.tmp-*.log

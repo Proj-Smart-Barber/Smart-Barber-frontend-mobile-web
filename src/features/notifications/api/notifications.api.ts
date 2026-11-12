@@ -6,13 +6,15 @@ import type {
 } from './notifications.dto';
 
 export async function listNotifications(
-  params?: ListNotificationsParams
+  params?: ListNotificationsParams,
+  options?: { signal?: AbortSignal }
 ): Promise<FetchNotificationsResponse> {
   return httpClient.get<FetchNotificationsResponse>('/api/notifications', {
     params: {
       cursor: params?.cursor,
       limit: params?.limit,
     },
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
 }
 

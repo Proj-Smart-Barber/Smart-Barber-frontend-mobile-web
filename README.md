@@ -240,3 +240,8 @@ O fluxo obrigatório será `feature → PR → develop → PR → main`; nunca `
 
 - [Design System V2](./SMART_BARBER_DESIGN_SYSTEM_V2.md)
 - [Plano de implementação do Design System e branding](./docs/PLANO_IMPLEMENTACAO_DESIGN_SYSTEM_V2_E_BRANDING.md)
+
+
+## Cache e export PWA
+
+O build web também prepara o service worker versionado. Políticas, flags, limites e preview isolado estão em [cache-pwa.md](docs/cache-pwa.md). O export não publica o aplicativo.

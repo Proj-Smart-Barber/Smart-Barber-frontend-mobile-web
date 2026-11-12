@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import React from 'react';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, act } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 const fixture = vi.hoisted(() => ({
   segments: ['(client)'] as string[],
@@ -95,6 +95,7 @@ vi.mock('@/features/discovery', () => ({
 vi.mock('@/shared/operations/OperationLifecycleBridge', () => ({
   OperationLifecycleBridge: () => null,
 }));
+vi.mock('@/shared/cache/public-cache-storage',() => ({publicCacheStorage:{getItem:async () => null,setItem:async () => {},removeItem:async () => {}}}));
 import RootLayout from '@/app/_layout';
 afterEach(() => {
   cleanup();
@@ -108,11 +109,12 @@ afterEach(() => {
   fixture.replacedRoutes = [];
 });
 
-it('keeps the route outlet mounted when entering and leaving the public catalog', () => {
+it('keeps the route outlet mounted when entering and leaving the public catalog', async () => {
   fixture.segments = ['(client)'];
   fixture.mounts = 0;
   fixture.unmounts = 0;
   const view = render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(fixture.mounts).toBe(1);
   fixture.segments = ['(public)', 'barbershops', '[shopId]', 'services'];
   view.rerender(<RootLayout />);
@@ -124,32 +126,36 @@ it('keeps the route outlet mounted when entering and leaving the public catalog'
   expect(fixture.unmounts).toBe(0);
 });
 
-it('renders BootstrapScreen when fonts are not yet loaded on native platforms', () => {
+it('renders BootstrapScreen when fonts are not yet loaded on native platforms', async () => {
   fixture.platform = 'ios';
   fixture.fontsLoaded = false;
   const view = render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(view.getByTestId('bootstrap-screen')).toBeTruthy();
   expect(view.queryByTestId('route-slot')).toBeNull();
 });
 
-it('renders BootstrapScreen when session is bootstrapping', () => {
+it('renders BootstrapScreen when session is bootstrapping', async () => {
   fixture.sessionStatus = 'bootstrapping';
   const view = render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(view.getByTestId('bootstrap-screen')).toBeTruthy();
   expect(view.queryByTestId('route-slot')).toBeNull();
 });
 
-it('renders SessionRecoveryScreen when session encounters an unrecoverable error', () => {
+it('renders SessionRecoveryScreen when session encounters an unrecoverable error', async () => {
   fixture.sessionStatus = 'error';
   const view = render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(view.getByTestId('session-recovery-screen')).toBeTruthy();
   expect(view.queryByTestId('route-slot')).toBeNull();
 });
 
-it('resizing between compact and desktop while on (client) does not force redirect or remount outlet', () => {
+it('resizing between compact and desktop while on (client) does not force redirect or remount outlet', async () => {
   fixture.segments = ['(client)'];
   fixture.isCompact = false;
   const view = render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(fixture.mounts).toBe(1);
   expect(fixture.replacedRoutes).toHaveLength(0);
 
@@ -168,16 +174,18 @@ it('resizing between compact and desktop while on (client) does not force redire
   expect(fixture.replacedRoutes).toHaveLength(0);
 });
 
-it('routes compact client to /(client)/explore on root entry fallback', () => {
+it('routes compact client to /(client)/explore on root entry fallback', async () => {
   fixture.segments = [];
   fixture.isCompact = true;
   render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(fixture.replacedRoutes).toContain('/(client)/explore');
 });
 
-it('routes desktop client to /(client)/explore on root entry fallback', () => {
+it('routes desktop client to /(client)/explore on root entry fallback', async () => {
   fixture.segments = [];
   fixture.isCompact = false;
   render(<RootLayout />);
+  await act(async () => {await Promise.resolve();});
   expect(fixture.replacedRoutes).toContain('/(client)/explore');
 });
