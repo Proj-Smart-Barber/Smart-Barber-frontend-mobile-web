@@ -137,7 +137,7 @@ export function useDiscovery(initialParams?: {
   } = useInfiniteQuery({
     queryKey,
     enabled: !initialParams?.proximityOnly || isNearbyEligible || debouncedQuery.trim().length > 0,
-    queryFn: async ({ pageParam = 1 }) => {
+    queryFn: async ({ pageParam = 1, signal }) => {
       const expectedGeneration = serverClock.getGeneration();
       if (isNearbyEligible && locationSession.coords) {
         try {
@@ -148,7 +148,7 @@ export function useDiscovery(initialParams?: {
             q: debouncedQuery.trim() || undefined,
             page: pageParam,
             limit: 20,
-          });
+          },signal);
           if (page.serverTime) {
             serverClock.syncWithServer(page.serverTime, { expectedGeneration });
           }
@@ -164,7 +164,7 @@ export function useDiscovery(initialParams?: {
               q: debouncedQuery.trim() || undefined,
               page: pageParam,
               limit: 20,
-            });
+            },signal);
             if (fallbackPage.serverTime) {
               serverClock.syncWithServer(fallbackPage.serverTime, {
                 expectedGeneration,
@@ -180,7 +180,7 @@ export function useDiscovery(initialParams?: {
         q: debouncedQuery.trim() || undefined,
         page: pageParam,
         limit: 20,
-      });
+      },signal);
       if (page.serverTime) {
         serverClock.syncWithServer(page.serverTime, { expectedGeneration });
       }

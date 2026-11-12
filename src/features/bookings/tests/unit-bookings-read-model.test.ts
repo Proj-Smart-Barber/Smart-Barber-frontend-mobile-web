@@ -377,4 +377,25 @@ describe('A — Read Model Canônico de Reservas da Unidade (useUnitBookings)', 
     expect(result.current.items.length).toBe(1);
     expect(result.current.items[0].id).toBe('bk-1');
   });
+  it('never renders the previous unit data during the first render of a new scope',async () => {
+    const frames:Array<{shop:string;ids:string[];summary:unknown}>=[];
+    vi.spyOn(bookingsApi,'fetchUnitBookings').mockImplementation(async shop => ({
+      items:[{id:'private-'+shop,barbershopId:shop,barbermanId:'professional',startTime:'10:00',services:[]} as BookingDto],
+      page:1,limit:20,total:1,hasNext:false,serverTime:new Date().toISOString(),
+      summary:{totalBookings:1,totalRevenueInCents:1000,hasIncompleteData:false},
+    }));
+    const hook=renderHook((context:OperationalContext) => {
+      const state=useUnitBookings(context,{date:'2030-01-01'});
+      frames.push({shop:context.shopId,ids:state.items.map(item=>item.id),summary:state.summary});
+      return state;
+    },{wrapper:createWrapper(),initialProps:mockContextOwner});
+    await waitFor(()=>expect(hook.result.current.items).toHaveLength(1));
+    hook.rerender({...mockContextOwner,shopId:'shop-beta'});
+    await waitFor(()=>expect(hook.result.current.items[0]?.id).toBe('private-shop-beta'));
+    const changed=frames.filter(frame=>frame.shop==='shop-beta');
+    expect(changed.length).toBeGreaterThan(0);
+    expect(changed.every(frame=>!frame.ids.includes('private-'+mockContextOwner.shopId))).toBe(true);
+    expect(changed[0].summary).toBeNull();hook.unmount();
+  });
+
 });

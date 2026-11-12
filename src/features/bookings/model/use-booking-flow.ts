@@ -1,3 +1,4 @@
+import { PUBLIC_CATALOG_OPTIONS } from '@/shared/cache/public-query-persister';
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/features/auth';
@@ -75,6 +76,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   // 1. Consulta dos serviços da barbearia
   const servicesQuery = useQuery({
     queryKey: ['services', 'public', shopId],
+    ...PUBLIC_CATALOG_OPTIONS,
     queryFn: () => servicesApi.listServices(shopId, { limit: 100, includeInactive: false }),
     select: (response) => response.items,
     enabled: Boolean(shopId),
@@ -83,6 +85,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   // 2. Consulta dos profissionais da barbearia
   const professionalsQuery = useQuery({
     queryKey: bookingQueryKeys.professionals(shopId),
+    ...PUBLIC_CATALOG_OPTIONS,
     queryFn: async () => {
       return listBarbershopProfessionals(shopId);
     },
@@ -92,6 +95,7 @@ export function useBookingFlow(options: UseBookingFlowOptions) {
   // 3. Consulta dos dados da barbearia (fuso horário, nome)
   const barbershopQuery = useQuery({
     queryKey: ['barbershop', 'public', shopId],
+    ...PUBLIC_CATALOG_OPTIONS,
     queryFn: async () => {
       return barbershopApi.getBarbershop(shopId);
     },

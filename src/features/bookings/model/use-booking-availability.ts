@@ -8,16 +8,24 @@ import type { BookingAvailabilityRequestDto } from '../api/bookings.dto';
 
 export function useBookingAvailability(shopId: string, params: BookingAvailabilityRequestDto, active: boolean) {
   const [, tick] = useState(0);
+  const [pollJitter]=useState(() => Math.floor(Math.random()*1500));
   const [isResuming, setIsResuming] = useState(false);
   const query = useQuery({
     queryKey: bookingQueryKeys.availability(shopId, params),
     queryFn: ({ signal }) => getBookingAvailability(shopId, params, signal),
-    enabled: Boolean(shopId && params.date && params.serviceIds.length && params.barbermanId),
+    enabled: Boolean(active && shopId && params.date && params.serviceIds.length && params.barbermanId),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
     refetchOnReconnect: 'always',
-    refetchInterval: active ? 15_000 : false,
+    refetchInterval: (q) => {
+      if (!active) return false;
+      if (AppState.currentState && AppState.currentState !== 'active') return false;
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+      if (q.state.status === 'error') return Math.min(60_000,30_000 * Math.max(1,q.state.fetchFailureCount))+pollJitter;
+      return 15_000+pollJitter;
+    },
     refetchIntervalInBackground: false,
     retry: false,
   });

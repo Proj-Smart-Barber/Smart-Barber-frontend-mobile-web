@@ -78,23 +78,40 @@ export async function listBarbershopProfessionals(
   shopId: string
 ): Promise<ProfessionalDto[]> {
   const response = await httpClient.get<ListProfessionalsResponse>(
-    `/api/barbershops/${shopId}/professionals`
+    `/api/barbershops/${shopId}/professionals`,
+    { publicRequest: true }
   );
   return response.professionals ?? [];
 }
 
 export async function fetchMyBookings(
-  params?: FetchMyBookingsParams
+  params?: FetchMyBookingsParams,
+  options?: { signal?: AbortSignal }
 ): Promise<BookingDto[]> {
   const queryParams = new URLSearchParams();
   if (params?.page) {
     queryParams.set('page', String(params.page));
   }
+  if (params?.limit) {
+    queryParams.set('limit', String(params.limit));
+  }
+  if (params?.view) {
+    queryParams.set('view', params.view);
+  }
+  if (params?.filter) {
+    queryParams.set('filter', params.filter);
+  }
+  if (params?.cursor) {
+    queryParams.set('cursor', params.cursor);
+  }
 
   const query = queryParams.toString();
   const url = query ? `/api/bookings/me?${query}` : '/api/bookings/me';
 
-  const response = await httpClient.get<FetchMyBookingsResponse>(url);
+  const response = await httpClient.get<FetchMyBookingsResponse>(
+    url,
+    options?.signal ? { signal: options.signal } : undefined
+  );
   const parsed = fetchMyBookingsResponseSchema.parse(response);
   return parsed.bookings;
 }
@@ -102,7 +119,12 @@ export async function fetchMyBookings(
 export async function fetchUnitBookings(
   shopId: string,
   params?: FetchUnitBookingsParams,
-  options?: { skipAutoSyncClock?: boolean; sampleMonotonicMs?: number; expectedGeneration?: number }
+  options?: {
+    skipAutoSyncClock?: boolean;
+    sampleMonotonicMs?: number;
+    expectedGeneration?: number;
+    signal?: AbortSignal;
+  }
 ): Promise<FetchUnitBookingsResponse> {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.set('page', String(params.page));
@@ -110,6 +132,12 @@ export async function fetchUnitBookings(
   if (params?.date) queryParams.set('date', params.date);
   if (params?.status) queryParams.set('status', params.status);
   if (params?.barbermanId) queryParams.set('barbermanId', params.barbermanId);
+  if (typeof params?.includeSummary === 'boolean') {
+    queryParams.set('includeSummary', String(params.includeSummary));
+  }
+  if (typeof params?.bootstrapOnly === 'boolean') {
+    queryParams.set('bootstrapOnly', String(params.bootstrapOnly));
+  }
 
   const query = queryParams.toString();
   const url = query
@@ -124,7 +152,10 @@ export async function fetchUnitBookings(
       : Date.now();
   const expectedGeneration = options?.expectedGeneration ?? serverClock.getGeneration();
 
-  const response = await httpClient.get<FetchUnitBookingsResponse>(url);
+  const response = await httpClient.get<FetchUnitBookingsResponse>(
+    url,
+    options?.signal ? { signal: options.signal } : undefined
+  );
   const parsed = fetchUnitBookingsResponseSchema.parse(response);
   if (!options?.skipAutoSyncClock && parsed.serverTime && Number.isFinite(Date.parse(parsed.serverTime))) {
     try {
@@ -263,9 +294,12 @@ export async function getBookingAvailability(
   params: BookingAvailabilityRequestDto,
   signal?: AbortSignal
 ): Promise<BookingAvailabilityResponseDto> {
+  const normalizedServiceIds = Array.from(
+    new Set((params.serviceIds ?? []).map((id) => id.trim()).filter(Boolean))
+  ).sort();
   const queryParams = new URLSearchParams();
   queryParams.set('date', params.date);
-  queryParams.set('serviceIds', params.serviceIds.join(','));
+  queryParams.set('serviceIds', normalizedServiceIds.join(','));
   if (params.barbermanId) {
     queryParams.set('barbermanId', params.barbermanId);
   }

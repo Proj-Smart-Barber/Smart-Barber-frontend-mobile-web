@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/shared/theme';
 import { BrandMark } from '@/shared/brand';
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
+import { useDataSaver } from '@/shared/cache/use-data-saver';
 import { getVisibleMediaIndex } from '../lib/gallery-media-index';
 
 const ExploreVideo = lazy(() =>
@@ -79,6 +80,8 @@ export const ExploreFeedSlide = React.forwardRef<
   activePhotoIndexRef.current = activePhotoIndex;
   const [imageErrorMap, setImageErrorMap] = useState<Record<string, boolean>>({});
 
+  const dataSaver=useDataSaver();
+  const [requestedVideo,setRequestedVideo]=useState<string | null>(null);
   const photos = item.media.length > 0 ? item.media : [];
   const activeMedia = photos[activePhotoIndex] || null;
 
@@ -164,7 +167,7 @@ export const ExploreFeedSlide = React.forwardRef<
               <View key={media.id} style={[styles.photoStage, { width, height }]}>
                 {!hasError ? (
                   media.mimeType?.startsWith('video/') ? (
-                    isActive && index === activePhotoIndex ? (
+                    isActive && index === activePhotoIndex && (!dataSaver || requestedVideo === media.id) ? (
                       <Suspense fallback={<View style={StyleSheet.absoluteFill} />}>
                         <ExploreVideo
                           url={media.url}
@@ -175,12 +178,19 @@ export const ExploreFeedSlide = React.forwardRef<
                         />
                       </Suspense>
                     ) : media.posterUrl ? (
+                      <Pressable accessibilityRole="button" accessibilityLabel="Reproduzir vídeo" onPress={() => setRequestedVideo(media.id)} style={StyleSheet.absoluteFill}>
                       <Image
                         source={{ uri: media.posterUrl }}
                         style={StyleSheet.absoluteFill}
                         resizeMode={resolvedMediaFit}
                       />
-                    ) : null
+                      {dataSaver ? <Text style={{position:'absolute',bottom:16,left:16,color:'#fff'}}>Toque para reproduzir</Text> : null}
+                      </Pressable>
+                    ) : (
+                      <Pressable accessibilityRole="button" accessibilityLabel="Reproduzir vídeo" onPress={() => setRequestedVideo(media.id)} style={StyleSheet.absoluteFill}>
+                        <Text style={{color:'#fff'}}>Reproduzir vídeo</Text>
+                      </Pressable>
+                    )
                   ) : isNear && Math.abs(index - activePhotoIndex) <= 1 ? (
                     <Image
                       source={{ uri: media.url }}

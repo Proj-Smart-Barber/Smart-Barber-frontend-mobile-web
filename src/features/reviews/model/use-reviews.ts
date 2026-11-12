@@ -50,6 +50,7 @@ export function useCreateReview(onSuccessCallback?: () => void) {
       });
       queryClient.invalidateQueries({ queryKey: ['barbershop'] });
       queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       onSuccessCallback?.();
     },
@@ -74,6 +75,7 @@ export function useUpdateReview(onSuccessCallback?: () => void) {
       });
       queryClient.invalidateQueries({ queryKey: ['barbershop'] });
       queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       onSuccessCallback?.();
     },
@@ -98,6 +100,7 @@ export function useDeleteReview(onSuccessCallback?: () => void) {
       });
       queryClient.invalidateQueries({ queryKey: ['barbershop'] });
       queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       onSuccessCallback?.();
     },
@@ -138,6 +141,7 @@ export function useModerateReview(onSuccessCallback?: () => void) {
       queryClient.invalidateQueries({ queryKey: reviewQueryKeys.all });
       queryClient.invalidateQueries({ queryKey: ['barbershop'] });
       queryClient.invalidateQueries({ queryKey: ['discovery'] });
+      queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
       onSuccessCallback?.();
     },
   });

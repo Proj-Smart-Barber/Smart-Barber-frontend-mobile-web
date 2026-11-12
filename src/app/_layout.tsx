@@ -1,3 +1,7 @@
+import { httpClient } from '@/shared/api';
+import { attachCatalogMutationInvalidation } from '@/shared/cache/catalog-invalidation';
+import { attachPublicQueryCachePersistence, hydratePersistedPublicQueries } from '@/shared/cache/public-query-persister';
+import { installQueryLifecycle } from '@/shared/cache/query-lifecycle';
 import React, { useEffect, useState, useRef } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
@@ -298,12 +302,28 @@ export default function RootLayout() {
       }),
   );
 
+  const [cacheReady,setCacheReady] = useState(false);
+  useEffect(() => {
+    let mounted=true;
+    let detach=() => {};
+    const lifecycle=installQueryLifecycle();
+    const catalog=attachCatalogMutationInvalidation(queryClient,httpClient);
+    const restore=process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE === 'false'
+      ? Promise.resolve(0) : hydratePersistedPublicQueries(queryClient);
+    void restore.finally(() => {
+      if (!mounted) return;
+      if (process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE !== 'false') detach=attachPublicQueryCachePersistence(queryClient);
+      setCacheReady(true);
+    });
+    return () => {mounted=false; detach(); lifecycle(); catalog();};
+  },[queryClient]);
+
   return (
     <SafeAreaProvider style={{ flex: 1, width: '100%', height: '100%' }}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <ToastProvider>
-            <AppReady />
+            {cacheReady ? <AppReady /> : <BootstrapScreen message="Preparando informações salvas…" />}
           </ToastProvider>
         </ThemeProvider>
       </QueryClientProvider>

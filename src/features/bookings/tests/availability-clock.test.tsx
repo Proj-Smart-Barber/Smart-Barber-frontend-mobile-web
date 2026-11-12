@@ -78,7 +78,7 @@ describe('Live availability clock', () => {
     expect(a.result.current.slots).toContainEqual(later);
     expect(b.result.current.slots).toContainEqual(later);
     slots = [];
-    await flush(15_100);
+    await flush(16_600);
     expect(b.result.current.slots).toEqual([]);
   });
 
@@ -114,7 +114,9 @@ describe('Live availability clock', () => {
 
 describe('Booking selection and confirmation', () => {
   function flow() {
-    return renderHook(() => useBookingFlow({mode:'PERSONAL',shopId:'shop',initialServiceIds:['cut'],initialDate:params.date,initialProfessionalId:'barber'}), {wrapper:wrapper()});
+    const hook=renderHook(() => useBookingFlow({mode:'PERSONAL',shopId:'shop',initialServiceIds:['cut'],initialDate:params.date,initialProfessionalId:'barber'}), {wrapper:wrapper()});
+    act(() => {hook.result.current.goToStep('SLOT');});
+    return hook;
   }
   const selection = (slot = later) => ({...slot,startTime:slot === first ? '09:00' : '09:30',slotStartAt:slot.start});
 

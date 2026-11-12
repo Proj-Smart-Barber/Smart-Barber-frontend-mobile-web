@@ -31,14 +31,14 @@ export class DiscoveryApi {
    * Busca textual pública de barbearias ativas (modo ALL)
    * GET /api/barbershops?q=&page=&limit=
    */
-  async searchAll(params?: SearchAllParams): Promise<DiscoveryPage> {
+  async searchAll(params?: SearchAllParams, signal?: AbortSignal): Promise<DiscoveryPage> {
     const queryParams: Record<string, string | number | undefined> = {};
     if (params?.q) queryParams.q = params.q.trim().slice(0, 120);
     if (params?.page) queryParams.page = params.page;
     if (params?.limit) queryParams.limit = params.limit;
 
     const raw = await httpClient.get<unknown>('/api/barbershops', {
-      params: queryParams,
+      params: queryParams, signal, publicRequest: true,
     });
 
     return discoveryPageSchema.parse(raw);
@@ -48,7 +48,7 @@ export class DiscoveryApi {
    * Busca de barbearias por proximidade / geolocalização (modo NEARBY)
    * POST /api/barbershops/nearby
    */
-  async searchNearby(params: SearchNearbyParams): Promise<DiscoveryPage> {
+  async searchNearby(params: SearchNearbyParams, signal?: AbortSignal): Promise<DiscoveryPage> {
     const body: Record<string, unknown> = {
       latitude: params.latitude,
       longitude: params.longitude,
@@ -59,7 +59,7 @@ export class DiscoveryApi {
     if (params.limit) body.limit = params.limit;
 
     try {
-      const raw = await httpClient.post<unknown>('/api/barbershops/nearby', body);
+      const raw = await httpClient.post<unknown>('/api/barbershops/nearby', body, {signal, publicRequest:true});
       return discoveryPageSchema.parse(raw);
     } catch (error: any) {
       if (error?.status === 503 || error?.statusCode === 503) {

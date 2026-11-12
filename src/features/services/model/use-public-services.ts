@@ -1,3 +1,5 @@
+import {useNetworkStatus} from '@/shared/cache/use-network-status';
+import { PUBLIC_CATALOG_OPTIONS } from '@/shared/cache/public-query-persister';
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { servicesApi } from '../api/services.api';
@@ -5,12 +7,14 @@ import { barbershopApi } from '@/features/barbershop';
 import type { Service } from './service.types';
 
 export function usePublicServices(barbershopId?: string | null, initialServiceId?: string) {
+  const connected=useNetworkStatus();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isHandoffModalOpen, setIsHandoffModalOpen] = useState(false);
 
   // Consulta autoritativa da barbearia
   const barbershopQuery = useQuery({
     queryKey: ['barbershop', 'public', barbershopId],
+    ...PUBLIC_CATALOG_OPTIONS,
     queryFn: async () => {
       if (!barbershopId) throw new Error('ID da barbearia não fornecido.');
       return barbershopApi.getBarbershop(barbershopId);
@@ -21,6 +25,7 @@ export function usePublicServices(barbershopId?: string | null, initialServiceId
   // Consulta do catálogo de serviços ativos
   const servicesQuery = useQuery({
     queryKey: ['services', 'public', barbershopId],
+    ...PUBLIC_CATALOG_OPTIONS,
     queryFn: async () => {
       if (!barbershopId) {
         return { items: [], total: 0, page: 1, limit: 100 };
@@ -89,7 +94,10 @@ export function usePublicServices(barbershopId?: string | null, initialServiceId
     barbershop: barbershopQuery.data,
     services: availableServices,
     isLoading: barbershopQuery.isLoading || servicesQuery.isLoading,
+    isOffline: (!barbershopQuery.data && barbershopQuery.fetchStatus === 'paused') || (!servicesQuery.data && servicesQuery.fetchStatus === 'paused'),
     isRefetching: servicesQuery.isRefetching,
+    isShowingSaved: Boolean(servicesQuery.data && (!connected || servicesQuery.isError)),
+    lastUpdatedAt: servicesQuery.dataUpdatedAt,
     error: barbershopQuery.error || servicesQuery.error,
     refetch: () => {
       barbershopQuery.refetch();

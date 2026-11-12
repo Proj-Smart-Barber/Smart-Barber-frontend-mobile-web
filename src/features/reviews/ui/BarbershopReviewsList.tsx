@@ -26,7 +26,7 @@ export interface BarbershopReviewsListProps {
 export function BarbershopReviewsList({ shopId, barbershopId }: BarbershopReviewsListProps) {
   const { colors, radius, isDark } = useTheme();
   const effectiveShopId = shopId || barbershopId || '';
-  const { data, isLoading, error } = useBarbershopReviews(effectiveShopId);
+  const { data, isLoading, error, fetchStatus } = useBarbershopReviews(effectiveShopId);
 
   const [reportingReviewId, setReportingReviewId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState<string>('');
@@ -66,6 +66,9 @@ export function BarbershopReviewsList({ shopId, barbershopId }: BarbershopReview
     }
   };
 
+  if (!data && fetchStatus === 'paused') {
+    return <View style={styles.container}><Text>Avaliações indisponíveis sem conexão. Os serviços salvos continuam disponíveis.</Text></View>;
+  }
   if (isLoading) {
     return (
       <View style={styles.loadingBox}>
@@ -76,7 +79,7 @@ export function BarbershopReviewsList({ shopId, barbershopId }: BarbershopReview
     );
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <View style={styles.container}>
         <Alert

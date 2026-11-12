@@ -95,6 +95,7 @@ describe('Financeiro do proprietário', () => {
         undefined,
         expect.any(AbortSignal),
         { from: '2026-11-09', to: '2026-11-15' },
+        {view:'summary',page:1},
       ),
     );
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Dia' }).getAttribute('aria-disabled')).not.toBe('true'));
@@ -105,6 +106,7 @@ describe('Financeiro do proprietário', () => {
         undefined,
         expect.any(AbortSignal),
         { from: '2026-11-11', to: '2026-11-11' },
+        {view:'summary',page:1},
       ),
     );
     await waitFor(() => expect(screen.getByRole('tab', { name: 'Período' }).getAttribute('aria-disabled')).not.toBe('true'));
@@ -125,6 +127,7 @@ describe('Financeiro do proprietário', () => {
         undefined,
         expect.any(AbortSignal),
         { from: '2026-10-20', to: '2026-11-10' },
+        {view:'summary',page:1},
       ),
     );
   });

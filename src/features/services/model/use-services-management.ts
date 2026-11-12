@@ -1,3 +1,4 @@
+import { invalidateCatalogConsumers } from '@/shared/cache/catalog-invalidation';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { servicesApi } from '../api/services.api';
@@ -52,7 +53,7 @@ export function useServicesManagement(barbershopId?: string | null) {
       return servicesApi.createService(barbershopId, input, token);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services', barbershopId] });
+      void invalidateCatalogConsumers(queryClient, barbershopId ?? undefined);
       setIsFormModalOpen(false);
       setEditingService(null);
     },
@@ -70,7 +71,7 @@ export function useServicesManagement(barbershopId?: string | null) {
       return servicesApi.updateService(barbershopId, serviceId, input, token);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services', barbershopId] });
+      void invalidateCatalogConsumers(queryClient, barbershopId ?? undefined);
       setIsFormModalOpen(false);
       setEditingService(null);
     },
@@ -112,7 +113,7 @@ export function useServicesManagement(barbershopId?: string | null) {
     },
     onSettled: () => {
       setTogglingId(null);
-      queryClient.invalidateQueries({ queryKey: ['services', barbershopId] });
+      void invalidateCatalogConsumers(queryClient, barbershopId ?? undefined);
     },
   });
 

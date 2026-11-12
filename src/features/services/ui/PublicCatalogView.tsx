@@ -44,6 +44,9 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
     services,
     isLoading,
     isRefetching,
+    isOffline,
+    isShowingSaved,
+    lastUpdatedAt,
     error,
     refetch,
     selectedServices,
@@ -276,7 +279,7 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
                     ]}
                   >
                     <Text variant="caption" color={colors.text.secondary}>
-                      Sem avaliações ainda
+                      {reviewsData ? 'Sem avaliações ainda' : 'Avaliações não atualizadas'}
                     </Text>
                   </View>
                 )}
@@ -336,7 +339,8 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
               </Text>
             </View>
 
-            {isLoading ? (
+            {(isShowingSaved || error) && services.length > 0 ? <Text accessibilityRole="alert">Exibindo serviços salvos{lastUpdatedAt ? ` em ${new Date(lastUpdatedAt).toLocaleString('pt-BR')}` : ''}. Preços e horários serão conferidos ao agendar.</Text> : null}
+            {isOffline ? <ErrorState title="Sem conexão" description="Conecte-se para carregar este catálogo pela primeira vez." onRetry={refetch} /> : isLoading ? (
               <LoadingRegion
                 phase="initial"
                 busy={true}
@@ -349,7 +353,7 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
                   </View>
                 }
               />
-            ) : error ? (
+            ) : error && !services.length ? (
               <ErrorState
                 title="Não foi possível carregar os serviços"
                 description={
