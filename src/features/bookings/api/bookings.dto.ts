@@ -55,6 +55,8 @@ export interface ProfessionalDto {
   name: string;
   role: string;
   avatarUrl?: string | null;
+  rating?: number | null;
+  reviewCount?: number;
 }
 
 export interface ListProfessionalsResponse {

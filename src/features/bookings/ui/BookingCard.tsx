@@ -186,7 +186,19 @@ export function BookingCard({
 
       {booking.status?.toUpperCase() === 'COMPLETED' ? (
         <View style={{ marginTop: spacing.sm }}>
-          <BookingReviewAction bookingId={booking.id} />
+          <BookingReviewAction
+            bookingId={booking.id}
+            status={booking.status}
+            barbershopId={booking.barbershopId}
+            barbershopName={booking.barbershopName ?? undefined}
+            barbermanId={booking.barbermanId}
+            barbermanName={professionalName || booking.barbermanName}
+            services={booking.services.map((svc) => ({
+              bookingServiceItemId: svc.bookingServiceItemId ?? svc.id ?? null,
+              serviceId: svc.serviceId ?? null,
+              title: svc.title,
+            }))}
+          />
         </View>
       ) : null}
 

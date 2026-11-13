@@ -1,39 +1,57 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
 import { Text } from '@/shared/ui/Text';
 import { Button } from '@/shared/ui/Button';
 import { StarRating } from './StarRating';
-import { ReviewFormModal } from './ReviewFormModal';
+import {
+  ReviewFormModal,
+  type ReviewBookingServiceContext,
+} from './ReviewFormModal';
 import { useBookingReview, useDeleteReview } from '../model/use-reviews';
 
 export interface BookingReviewActionProps {
   bookingId: string;
   status?: string | null;
+  barbershopId?: string;
+  barbershopName?: string;
+  barbermanId?: string | null;
+  barbermanName?: string | null;
+  services?: ReviewBookingServiceContext[];
   onReviewChanged?: () => void;
 }
 
 export function BookingReviewAction({
   bookingId,
   status,
+  barbershopId,
+  barbershopName,
+  barbermanId,
+  barbermanName,
+  services = [],
   onReviewChanged,
 }: BookingReviewActionProps) {
   const { colors, radius } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const { data, isLoading } = useBookingReview(bookingId);
+  const isCompleted = status?.toUpperCase() === 'COMPLETED';
+  const { data, isLoading, error } = useBookingReview(
+    isCompleted ? bookingId : undefined,
+  );
   const deleteMutation = useDeleteReview(() => {
     onReviewChanged?.();
   });
 
   // Somente atendimentos concluídos podem ser avaliados
-  if (!status || status.toUpperCase() !== 'COMPLETED') {
+  if (!isCompleted) {
     return null;
   }
 
-  const existingReview = data?.review;
+  const existingReview = data?.review ?? null;
+  const secondaryItems = (existingReview?.items ?? []).filter(
+    (item) => item.targetType !== 'BARBERSHOP',
+  );
 
   const handleDelete = async () => {
     if (!existingReview?.version) return;
@@ -41,10 +59,12 @@ export function BookingReviewAction({
     try {
       await deleteMutation.mutateAsync({
         bookingId,
+        barbershopId,
         expectedVersion: existingReview.version,
       });
-    } catch (err: any) {
-      setDeleteError(err?.message || 'Falha ao remover avaliação.');
+    } catch (err: unknown) {
+      const errObj = err as { message?: string };
+      setDeleteError(errObj?.message || 'Falha ao remover avaliação.');
     }
   };
 
@@ -53,6 +73,10 @@ export function BookingReviewAction({
       {isLoading ? (
         <Text variant="caption" style={{ color: colors.text.secondary }}>
           Carregando avaliação...
+        </Text>
+      ) : error && !data ? (
+        <Text variant="caption" style={{ color: colors.feedback.error }}>
+          Não foi possível carregar sua avaliação agora.
         </Text>
       ) : existingReview?.status === 'HIDDEN_BY_MODERATION' ? (
         <View
@@ -83,7 +107,7 @@ export function BookingReviewAction({
           <View style={styles.existingHeader}>
             <View>
               <Text variant="caption" weight="medium" style={{ color: colors.text.secondary }}>
-                Sua avaliação
+                Sua avaliação ({barbershopName || 'Barbearia'})
               </Text>
               <StarRating rating={existingReview.rating} size={16} />
             </View>
@@ -114,9 +138,38 @@ export function BookingReviewAction({
             </View>
           </View>
 
+          {secondaryItems.length > 0 ? (
+            <View style={styles.targetPillsRow}>
+              {secondaryItems.map((item) => (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.targetPill,
+                    {
+                      backgroundColor: colors.surface.elevated,
+                      borderColor: colors.border.subtle,
+                      borderRadius: radius.sm,
+                    },
+                  ]}
+                >
+                  <Text variant="caption" style={{ color: colors.text.secondary }}>
+                    {item.targetType === 'BARBER' ? 'Profissional' : item.targetLabel}:{' '}
+                    {item.rating} ★
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {existingReview.comment ? (
-            <Text variant="caption" style={{ color: colors.text.primary, marginTop: 4 }}>
+            <Text variant="caption" style={{ color: colors.text.primary, marginTop: 6 }}>
               "{existingReview.comment}"
+            </Text>
+          ) : null}
+
+          {existingReview.platformFeedback ? (
+            <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 4 }}>
+              Feedback privado ao Smart Barber registrado.
             </Text>
           ) : null}
 
@@ -138,6 +191,12 @@ export function BookingReviewAction({
       <ReviewFormModal
         visible={modalVisible}
         bookingId={bookingId}
+        barbershopId={barbershopId}
+        barbershopName={barbershopName}
+        barberId={barbermanId}
+        barberName={barbermanName}
+        services={services}
+        existingReview={existingReview}
         initialRating={existingReview?.rating ?? 5}
         initialComment={existingReview?.comment ?? ''}
         expectedVersion={existingReview?.version}
@@ -171,5 +230,16 @@ const styles = StyleSheet.create({
   textBtn: {
     paddingVertical: 2,
     paddingHorizontal: 4,
+  },
+  targetPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  targetPill: {
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
 });

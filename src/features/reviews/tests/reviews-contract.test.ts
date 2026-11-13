@@ -3,7 +3,7 @@ import type { ReviewItemDto, BarbershopReviewsResponseDto } from '../api/reviews
 
 // O contrato verifica o payload HTTP, sem inicializar storage ou runtime React Native.
 vi.mock('@/shared/api', () => ({
-  httpClient: { delete: vi.fn(), patch: vi.fn() },
+  httpClient: { delete: vi.fn(), patch: vi.fn(), get: vi.fn(), post: vi.fn() },
 }));
 
 describe('Reviews Domain & Presentation Logic', () => {
@@ -78,5 +78,51 @@ describe('Reviews Domain & Presentation Logic', () => {
       { action: 'HIDE', expectedVersion: 3, note: 'Conteúdo impróprio' },
       { token: 'fake-token' },
     );
+  });
+
+  it('ReviewsApi suporta payload multi-alvo em createReview e endpoints de listagem por barbeiro e serviço', async () => {
+    const { httpClient } = await import('@/shared/api');
+    const postSpy = vi.spyOn(httpClient, 'post').mockResolvedValueOnce({ review: {} } as any);
+    const getSpy = vi.spyOn(httpClient, 'get').mockResolvedValue({
+      items: [],
+      nextCursor: null,
+      averageRating: null,
+      reviewCount: 0,
+    } as any);
+
+    const { reviewsApi } = await import('../api/reviews.api');
+
+    await reviewsApi.createReview(
+      'booking-999',
+      {
+        rating: 5,
+        barbershopRating: 5,
+        barberId: 'barber-1',
+        barberRating: 4,
+        serviceRatings: [{ bookingServiceItemId: 'bsi-1', serviceId: 'srv-1', rating: 5 }],
+        platformFeedback: { rating: 5, comment: 'Rápido' },
+      },
+      'fake-token',
+    );
+    expect(postSpy).toHaveBeenCalledWith(
+      '/api/bookings/booking-999/review',
+      expect.objectContaining({
+        barberId: 'barber-1',
+        barberRating: 4,
+        serviceRatings: [{ bookingServiceItemId: 'bsi-1', serviceId: 'srv-1', rating: 5 }],
+        platformFeedback: { rating: 5, comment: 'Rápido' },
+      }),
+      { token: 'fake-token' },
+    );
+
+    await reviewsApi.listProfessionalReviews('shop-1', 'barber-1', 1, 10);
+    expect(getSpy).toHaveBeenCalledWith('/api/barbershops/shop-1/professionals/barber-1/reviews', {
+      params: { page: 1, limit: 10 },
+    });
+
+    await reviewsApi.listServiceReviews('shop-1', 'srv-1', 1, 10);
+    expect(getSpy).toHaveBeenCalledWith('/api/barbershops/shop-1/services/srv-1/reviews', {
+      params: { page: 1, limit: 10 },
+    });
   });
 });

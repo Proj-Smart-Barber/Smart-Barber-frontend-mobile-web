@@ -16,6 +16,7 @@ export interface ServiceCardProps {
   isToggling?: boolean;
   isSelected?: boolean;
   onSelect?: (service: Service) => void;
+  onViewReviews?: (service: Service) => void;
 }
 
 export function ServiceCard({
@@ -26,6 +27,7 @@ export function ServiceCard({
   isToggling = false,
   isSelected = false,
   onSelect,
+  onViewReviews,
 }: ServiceCardProps) {
   const { colors, radius, spacing, components, isDark } = useTheme();
 
@@ -201,6 +203,30 @@ export function ServiceCard({
                 {formatDuration(service.durationInMinutes)}
               </Text>
             </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="star" size={13} color="#f59e0b" />
+              <Text variant="caption" color={colors.text.secondary}>
+                {(service.reviewCount ?? 0) > 0 && service.rating != null
+                  ? `${service.rating.toFixed(1)} (${service.reviewCount})`
+                  : 'Sem avaliações'}
+              </Text>
+            </View>
+
+            {onViewReviews && !isManagement ? (
+              <Pressable
+                onPress={(e) => {
+                  e?.stopPropagation?.();
+                  onViewReviews(service);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Ver avaliações de ${service.title}`}
+              >
+                <Text variant="caption" weight="bold" color={colors.brand.primary}>
+                  Ver avaliações
+                </Text>
+              </Pressable>
+            ) : null}
 
             {isManagement && (
               <Badge

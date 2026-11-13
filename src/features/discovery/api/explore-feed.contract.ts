@@ -22,6 +22,8 @@ export const exploreFeedMediaItemSchema = z.object({
       title: z.string(),
       priceInCents: z.number().int().nonnegative(),
       durationInMinutes: z.number().int().positive(),
+      rating: z.number().nullable().optional(),
+      reviewCount: z.number().int().nonnegative().optional(),
     })
     .nullable()
     .optional(),

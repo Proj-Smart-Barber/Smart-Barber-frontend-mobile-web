@@ -9,6 +9,8 @@ export interface Service {
   priceInCents: number;
   durationInMinutes: number;
   isActive: boolean;
+  rating?: number | null;
+  reviewCount?: number;
   createdAt: string;
   updatedAt: string;
 }

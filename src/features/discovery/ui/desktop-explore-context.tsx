@@ -42,10 +42,14 @@ export function DesktopExploreContext({
         : `${(item.distanceMeters / 1000).toFixed(1).replace('.', ',')} km`
       : null;
 
-  const ratingText =
-    item.barbershop.rating !== null && item.barbershop.rating !== undefined
-      ? `${item.barbershop.rating.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
-      : 'Sem avaliações';
+  const hasShopRating =
+    (item.barbershop.reviewCount ?? 0) > 0 &&
+    item.barbershop.rating !== null &&
+    item.barbershop.rating !== undefined;
+
+  const ratingText = hasShopRating
+    ? `${item.barbershop.rating!.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
+    : 'Sem avaliações';
 
   const hasService = Boolean(media?.kind === 'service' && media.service);
 
@@ -125,6 +129,13 @@ export function DesktopExploreContext({
                   {`${media.service.durationInMinutes} min`}
                 </Text>
               </View>
+              <Text style={styles.serviceRatingText}>
+                {(media.service.reviewCount ?? 0) > 0 &&
+                media.service.rating !== null &&
+                media.service.rating !== undefined
+                  ? `★ ${media.service.rating.toFixed(1).replace('.', ',')} (${media.service.reviewCount}) no serviço`
+                  : 'Serviço sem avaliações'}
+              </Text>
               <Text style={styles.illustrativeNotice}>Imagens e dados ilustrativos</Text>
             </View>
           ) : media ? (
@@ -336,6 +347,12 @@ const styles = StyleSheet.create({
   serviceDuration: {
     fontSize: 14,
     color: '#94a3b8',
+  },
+  serviceRatingText: {
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#fbbf24',
+    marginTop: 4,
   },
   environmentBox: {
     gap: 4,

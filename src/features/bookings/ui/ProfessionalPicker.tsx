@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
 import { Text, Badge, Skeleton, EmptyState } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
+import { TargetReviewsModal } from '@/features/reviews/ui/TargetReviewsModal';
 import type { ProfessionalDto } from '../api/bookings.dto';
 
 export interface ProfessionalPickerProps {
   professionals: ProfessionalDto[];
   selectedProfessionalId: string | null;
   onSelectProfessional: (id: string) => void;
+  barbershopId?: string;
   isLoading?: boolean;
   disabled?: boolean;
 }
@@ -18,10 +20,12 @@ export function ProfessionalPicker({
   professionals,
   selectedProfessionalId,
   onSelectProfessional,
+  barbershopId,
   isLoading = false,
   disabled = false,
 }: ProfessionalPickerProps) {
   const { colors, spacing, radius } = useTheme();
+  const [reviewsTarget, setReviewsTarget] = useState<ProfessionalDto | null>(null);
 
   if (isLoading) {
     return (
@@ -99,6 +103,28 @@ export function ProfessionalPicker({
                   <Text variant="caption" color={colors.text.secondary}>
                     {prof.role === 'OWNER' ? 'Proprietário & Barbeiro' : 'Barbeiro Profissional'}
                   </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <Ionicons name="star" size={12} color="#f59e0b" />
+                    <Text variant="caption" color={colors.text.secondary}>
+                      {(prof.reviewCount ?? 0) > 0 && prof.rating != null
+                        ? `${prof.rating.toFixed(1)} (${prof.reviewCount})`
+                        : 'Sem avaliações'}
+                    </Text>
+                    {barbershopId ? (
+                      <Pressable
+                        onPress={(e) => {
+                          e?.stopPropagation?.();
+                          setReviewsTarget(prof);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Ver avaliações de ${prof.name}`}
+                      >
+                        <Text variant="caption" weight="bold" color={colors.brand.primary}>
+                          Ver avaliações
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
               </View>
 
@@ -113,6 +139,17 @@ export function ProfessionalPicker({
           </Pressable>
         );
       })}
+
+      {barbershopId && reviewsTarget ? (
+        <TargetReviewsModal
+          visible={Boolean(reviewsTarget)}
+          shopId={barbershopId}
+          targetType="BARBER"
+          targetId={reviewsTarget.id}
+          targetName={reviewsTarget.name}
+          onClose={() => setReviewsTarget(null)}
+        />
+      ) : null}
     </ScrollView>
   );
 }

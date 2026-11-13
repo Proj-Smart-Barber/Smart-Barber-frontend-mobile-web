@@ -5,6 +5,7 @@ import type {
   UpdateReviewRequestDto,
   ReviewItemDto,
   ModerationQueueItemDto,
+  TargetReviewsResponseDto,
 } from './reviews.types';
 
 export class ReviewsApi {
@@ -19,6 +20,42 @@ export class ReviewsApi {
   ): Promise<BarbershopReviewsResponseDto> {
     return httpClient.get<BarbershopReviewsResponseDto>(
       `/api/barbershops/${encodeURIComponent(shopId)}/reviews`,
+      {
+        params: { page, limit },
+      },
+    );
+  }
+
+  /**
+   * Lista avaliações públicas de um profissional (barbeiro):
+   * GET /api/barbershops/:shopId/professionals/:barberId/reviews
+   */
+  async listProfessionalReviews(
+    shopId: string,
+    barberId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<TargetReviewsResponseDto> {
+    return httpClient.get<TargetReviewsResponseDto>(
+      `/api/barbershops/${encodeURIComponent(shopId)}/professionals/${encodeURIComponent(barberId)}/reviews`,
+      {
+        params: { page, limit },
+      },
+    );
+  }
+
+  /**
+   * Lista avaliações públicas de um serviço:
+   * GET /api/barbershops/:shopId/services/:serviceId/reviews
+   */
+  async listServiceReviews(
+    shopId: string,
+    serviceId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<TargetReviewsResponseDto> {
+    return httpClient.get<TargetReviewsResponseDto>(
+      `/api/barbershops/${encodeURIComponent(shopId)}/services/${encodeURIComponent(serviceId)}/reviews`,
       {
         params: { page, limit },
       },

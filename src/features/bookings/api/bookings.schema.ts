@@ -15,6 +15,7 @@ export const bookingCapabilitiesSchema = z.object({
 
 export const bookingServiceItemSchema = z.object({
   id: z.string().nullable().optional(),
+  bookingServiceItemId: z.string().nullable().optional(),
   serviceId: z.string().nullable().optional(),
   title: z.string(),
   priceInCents: z.number().nullable().optional(),
