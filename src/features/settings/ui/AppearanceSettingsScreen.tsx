@@ -14,7 +14,8 @@ import {
 } from '@/features/media';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { ThemeMode, useAdaptiveLayout, useTheme } from '@/shared/theme';
-import { Text } from '@/shared/ui';
+import { Text, Button } from '@/shared/ui';
+import { useRouter } from 'expo-router';
 
 const themeOptions: Array<{
   mode: ThemeMode;
@@ -45,6 +46,7 @@ const themeOptions: Array<{
 export function AppearanceSettingsScreen() {
   const [galleryRevision, setGalleryRevision] = React.useState(0);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { colors, spacing, radius, mode, setMode } = useTheme();
   const { contentMaxWidth, isCompact } = useAdaptiveLayout();
   const { barbershop, selectedShopId, memberships, identity, refreshIdentity } = useSession();
@@ -80,6 +82,17 @@ export function AppearanceSettingsScreen() {
             Preferências do aplicativo e unidade
           </Text>
         </View>
+
+        {isOwnerOfUnit && (
+          <Button
+            title="Prévia do Perfil"
+            variant="outline"
+            leftIcon={<Ionicons name="eye-outline" size={16} color={colors.text.primary} />}
+            onPress={() => router.push('/(app)/profile-preview' as any)}
+            style={{ minHeight: 38, paddingHorizontal: spacing[3] }}
+            textStyle={{ fontSize: 13 }}
+          />
+        )}
       </View>
 
       <ScrollView

@@ -54,6 +54,14 @@
       "destination": "https://api-black-theta-13.vercel.app/api/:path*"
     },
     {
+      "source": "/barbershops/:shopId/services",
+      "destination": "/barbershops/[shopId]/services.html"
+    },
+    {
+      "source": "/barbershops/:shopId/book",
+      "destination": "/barbershops/[shopId]/book.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
