@@ -10,7 +10,8 @@ export type AppDestination =
   | 'services'
   | 'settings'
   | 'team'
-  | 'finance';
+  | 'finance'
+  | 'profile-preview';
 
 export interface NavigationItem {
   id: AppDestination;

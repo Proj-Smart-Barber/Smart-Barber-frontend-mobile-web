@@ -212,7 +212,14 @@ export function DesktopSidebar() {
             </Text>
 
             <SidebarItem
-              label="Abrir Catálogo"
+              label="Prévia do Perfil"
+              icon="eye-outline"
+              activeIcon="eye"
+              isActive={activeDestination === 'profile-preview'}
+              onPress={() => handleNavigate('/(app)/profile-preview')}
+            />
+            <SidebarItem
+              label="Abrir Catálogo Externo"
               icon="globe-outline"
               activeIcon="globe"
               isActive={false}

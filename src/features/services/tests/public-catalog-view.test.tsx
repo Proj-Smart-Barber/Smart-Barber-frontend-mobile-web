@@ -5,6 +5,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Linking } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '@/shared/theme';
+import { ToastProvider } from '@/shared/ui';
 import { PublicCatalogView } from '../ui/PublicCatalogView';
 
 const mockPush = vi.fn();
@@ -64,6 +65,13 @@ const mockServices = [
     updatedAt: '2026-01-01T00:00:00.000Z',
   },
 ];
+
+vi.mock('@/features/auth', () => ({
+  useSession: () => ({
+    status: 'unauthenticated',
+    barbershop: null,
+  }),
+}));
 
 vi.mock('../model/use-public-services', () => ({
   usePublicServices: (shopId: string) => ({
@@ -130,7 +138,9 @@ function renderWithTheme(ui: React.ReactElement) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider initialMode="dark">{ui}</ThemeProvider>
+      <ThemeProvider initialMode="dark">
+        <ToastProvider>{ui}</ToastProvider>
+      </ThemeProvider>
     </QueryClientProvider>,
   );
 }

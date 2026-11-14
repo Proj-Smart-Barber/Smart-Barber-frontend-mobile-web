@@ -8,6 +8,7 @@ export function getActiveDestinationFromPathname(
 
   const clean = pathname.toLowerCase();
   if (clean.includes('/finance')) return 'finance';
+  if (clean.includes('profile-preview')) return 'profile-preview';
 
   if (
     clean.includes('availability') ||

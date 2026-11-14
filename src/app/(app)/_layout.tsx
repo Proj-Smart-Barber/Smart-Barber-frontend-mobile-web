@@ -27,6 +27,7 @@ export default function AppLayoutGroup() {
         <Stack.Screen name="barbershop-setup" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="finance" />
+        <Stack.Screen name="profile-preview" />
       </Stack>
     </NavigationShell>
   );

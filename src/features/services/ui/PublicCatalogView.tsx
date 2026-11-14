@@ -18,7 +18,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useAdaptiveLayout } from '@/shared/theme';
 import { LiquidGlassView } from '@/shared/navigation/LiquidGlassView';
 import { BrandMark } from '@/shared/brand';
-import { Text, Badge, EmptyState, ErrorState, Skeleton, LoadingRegion } from '@/shared/ui';
+import { Text, Badge, EmptyState, ErrorState, Skeleton, LoadingRegion, useToast } from '@/shared/ui';
+import { useSession } from '@/features/auth';
 import { usePublicServices } from '../model/use-public-services';
 import { ServiceCard } from './ServiceCard';
 import { SelectedServicesSummary } from './SelectedServicesSummary';
@@ -30,14 +31,17 @@ import type { Service } from '../model/service.types';
 
 export interface PublicCatalogViewProps {
   barbershopId: string;
+  previewMode?: boolean;
 }
 
-export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
+export function PublicCatalogView({ barbershopId, previewMode = false }: PublicCatalogViewProps) {
   const router = useRouter();
   const params = useLocalSearchParams<{ serviceId?: string }>();
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
+  const session = useSession();
 
   const [fullscreenPhotoUrl, setFullscreenPhotoUrl] = useState<string | null>(null);
   const [selectedServiceForReviews, setSelectedServiceForReviews] =
@@ -99,10 +103,17 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
     return list;
   }, [galleryItems, barbershop?.coverUrl]);
 
+  const isOwnerOrStaff =
+    session.status === 'authenticated' &&
+    Array.isArray(session.memberships) &&
+    session.memberships.length > 0;
+
   // Ação de voltar para a tela anterior com fallback seguro
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
+    } else if (isOwnerOrStaff) {
+      router.push('/(app)');
     } else {
       router.push('/(client)/explore');
     }
@@ -175,22 +186,24 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
           />
 
           {/* Botão de Voltar Flutuante */}
-          <Pressable
-            onPress={handleBack}
-            accessibilityRole="button"
-            accessibilityLabel="Voltar para a página anterior"
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.floatingBackButton,
-              {
-                top: Math.max(insets.top, 16),
-                backgroundColor: pressed ? 'rgba(0, 0, 0, 0.85)' : 'rgba(15, 15, 15, 0.70)',
-                borderColor: colors.border.subtle,
-              },
-            ]}
-          >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </Pressable>
+          {!previewMode && (
+            <Pressable
+              onPress={handleBack}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar para a página anterior"
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.floatingBackButton,
+                {
+                  top: Math.max(insets.top, 16),
+                  backgroundColor: pressed ? 'rgba(0, 0, 0, 0.85)' : 'rgba(15, 15, 15, 0.70)',
+                  borderColor: colors.border.subtle,
+                },
+              ]}
+            >
+              <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+            </Pressable>
+          )}
 
           {/* Badge Oficial Flutuante */}
           <View
@@ -203,7 +216,10 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
               },
             ]}
           >
-            <Badge label="Catálogo Oficial" tone="neutral" />
+            <Badge
+              label={previewMode ? 'Simulação de Catálogo' : 'Catálogo Oficial'}
+              tone={previewMode ? 'brand' : 'neutral'}
+            />
           </View>
         </View>
 
@@ -452,6 +468,10 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
         onCloseModal={closeHandoffModal}
         onProceed={() => {
           if (selectedServices.length === 0) return;
+          if (previewMode) {
+            showToast('Modo Prévia: O agendamento real fica disponível para os clientes após publicar os serviços.', 'info');
+            return;
+          }
           router.push({
             pathname: '/barbershops/[shopId]/book' as any,
             params: {

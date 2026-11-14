@@ -164,17 +164,30 @@ export function ServicesManagementView({
             </View>
           </View>
 
-          <Button
-            title="Novo Serviço"
-            variant="primary"
-            leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
-            onPress={openCreateModal}
-            style={{
-              minHeight: 44,
-              paddingHorizontal: spacing[4],
-              alignSelf: isCompact ? 'stretch' : 'auto',
-            }}
-          />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: isCompact ? 'stretch' : 'auto' }}>
+            <Button
+              title="Prévia do Perfil"
+              variant="outline"
+              leftIcon={<Ionicons name="eye-outline" size={18} color={colors.text.primary} />}
+              onPress={() => router.push('/(app)/profile-preview' as any)}
+              style={{
+                flex: isCompact ? 1 : undefined,
+                minHeight: 44,
+                paddingHorizontal: spacing[3],
+              }}
+            />
+            <Button
+              title="Novo Serviço"
+              variant="primary"
+              leftIcon={<Ionicons name="add" size={18} color="#FFFFFF" />}
+              onPress={openCreateModal}
+              style={{
+                flex: isCompact ? 1 : undefined,
+                minHeight: 44,
+                paddingHorizontal: spacing[4],
+              }}
+            />
+          </View>
         </View>
       </View>
 

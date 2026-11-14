@@ -342,7 +342,14 @@ export function LeftDrawer() {
             </Text>
 
             <DrawerMenuItem
-              label="Abrir Catálogo"
+              label="Prévia do Perfil"
+              icon="eye-outline"
+              activeIcon="eye"
+              isActive={activeDestination === 'profile-preview'}
+              onPress={() => handleNavigate('/(app)/profile-preview')}
+            />
+            <DrawerMenuItem
+              label="Abrir Catálogo Externo"
               icon="globe-outline"
               activeIcon="globe"
               isActive={false}
