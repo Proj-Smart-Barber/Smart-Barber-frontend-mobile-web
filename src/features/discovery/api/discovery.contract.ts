@@ -18,6 +18,19 @@ export const publicShopSchema = z.object({
   googleMapsUrl: z.string().nullable().optional(),
   rating: z.number().nullable().optional(),
   reviewCount: z.number().nullable().optional(),
+  featuredServices: z
+    .array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        priceInCents: z.number().int().nonnegative(),
+        durationInMinutes: z.number().int().positive(),
+        imageUrl: z.string().nullable().optional(),
+        rating: z.number().nullable().optional(),
+        reviewCount: z.number().int().nonnegative().optional(),
+      }),
+    )
+    .optional(),
   coordinates: geoPointSchema.nullable(),
   distanceMeters: z.number().nullable(),
 });

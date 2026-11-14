@@ -106,4 +106,62 @@ describe('Explore Feed Contract', () => {
     expect(parsed.hasNext).toBe(true);
     expect(parsed.nextCursor).toBe('signed.cursor.token');
   });
+
+  it('preserva notas por alvo e distingue barbearia/serviço sem avaliações (null/0)', () => {
+    const rawPage = {
+      items: [
+        {
+          barbershop: {
+            id: 'shop-unrated',
+            slug: 'sem-avaliacoes',
+            name: 'Barbearia Nova',
+            location: 'Centro, São Paulo',
+            logoUrl: null,
+            rating: null,
+            reviewCount: 0,
+            googleMapsUrl: null,
+          },
+          distanceMeters: null,
+          distanceBasis: 'unavailable',
+          rankingScore: {
+            score: 0.4,
+            distanceComponent: 0,
+            reputationComponent: 0.4,
+            bayesRating: 0,
+          },
+          media: [
+            {
+              id: 'm2',
+              kind: 'service',
+              mediaId: 'asset-2',
+              serviceId: 's2',
+              url: 'https://images.example.com/service2.jpg',
+              width: 1080,
+              height: 1920,
+              alt: 'Corte',
+              service: {
+                id: 's2',
+                title: 'Corte Social',
+                priceInCents: 5000,
+                durationInMinutes: 30,
+                rating: 4.5,
+                reviewCount: 4,
+              },
+            },
+          ],
+        },
+      ],
+      nextCursor: null,
+      hasNext: false,
+      total: 1,
+      rankingVersion: 'v1-2026-11-01',
+      snapshotExpiresAt: new Date().toISOString(),
+    };
+
+    const parsed = exploreFeedPageSchema.parse(rawPage);
+    expect(parsed.items[0].barbershop.rating).toBeNull();
+    expect(parsed.items[0].barbershop.reviewCount).toBe(0);
+    expect(parsed.items[0].media[0].service?.rating).toBe(4.5);
+    expect(parsed.items[0].media[0].service?.reviewCount).toBe(4);
+  });
 });

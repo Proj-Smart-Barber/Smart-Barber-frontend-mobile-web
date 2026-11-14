@@ -825,6 +825,15 @@ export function BookingDetailView({
               <BookingReviewAction
                 bookingId={booking.id}
                 status={booking.status}
+                barbershopId={booking.barbershopId}
+                barbershopName={booking.barbershopName ?? undefined}
+                barbermanId={booking.barbermanId}
+                barbermanName={booking.barbermanName}
+                services={booking.services.map((svc) => ({
+                  bookingServiceItemId: svc.bookingServiceItemId ?? svc.id ?? null,
+                  serviceId: svc.serviceId ?? null,
+                  title: svc.title,
+                }))}
                 onReviewChanged={() => {
                   void refetch();
                 }}

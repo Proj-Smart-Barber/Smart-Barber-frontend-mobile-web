@@ -208,6 +208,33 @@ export function BarbershopReviewsList({ shopId, barbershopId }: BarbershopReview
                 </TouchableOpacity>
               </View>
 
+              {rev.targets && rev.targets.some((t) => t.targetType !== 'BARBERSHOP') ? (
+                <View style={styles.targetsRow}>
+                  {rev.targets
+                    .filter((t) => t.targetType !== 'BARBERSHOP')
+                    .map((target, idx) => (
+                      <View
+                        key={`${rev.id}-${target.targetType}-${target.targetId ?? idx}`}
+                        style={[
+                          styles.targetBadge,
+                          {
+                            backgroundColor: colors.surface.input,
+                            borderColor: colors.border.subtle,
+                            borderRadius: radius.sm,
+                          },
+                        ]}
+                      >
+                        <Text variant="caption" style={{ color: colors.text.secondary }}>
+                          {target.targetType === 'BARBER'
+                            ? 'Profissional'
+                            : target.targetLabel}
+                          : {target.rating} ★
+                        </Text>
+                      </View>
+                    ))}
+                </View>
+              ) : null}
+
               {rev.comment ? (
                 <Text variant="body" style={styles.commentText}>
                   {rev.comment}
@@ -344,6 +371,17 @@ const styles = StyleSheet.create({
   },
   flagBtn: {
     padding: 6,
+  },
+  targetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  targetBadge: {
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   commentText: {
     marginTop: 8,

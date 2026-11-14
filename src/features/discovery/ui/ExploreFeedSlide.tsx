@@ -140,10 +140,14 @@ export const ExploreFeedSlide = React.forwardRef<
       ? `${(item.distanceMeters / 1000).toFixed(1).replace('.', ',')} km`
       : null;
 
-  const ratingText =
-    item.barbershop.rating !== null && item.barbershop.rating !== undefined
-      ? `★ ${item.barbershop.rating.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
-      : 'Sem avaliações';
+  const hasShopRating =
+    (item.barbershop.reviewCount ?? 0) > 0 &&
+    item.barbershop.rating !== null &&
+    item.barbershop.rating !== undefined;
+
+  const ratingText = hasShopRating
+    ? `★ ${item.barbershop.rating!.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
+    : 'Sem avaliações';
 
   return (
     <View style={[styles.container, { width, height }]}>
@@ -323,8 +327,8 @@ export const ExploreFeedSlide = React.forwardRef<
               <View style={styles.ratingRowContainer}>
                 <Ionicons name="star" size={13} color="#f59e0b" />
                 <Text style={styles.ratingText}>
-                  {item.barbershop.rating !== null && item.barbershop.rating !== undefined
-                    ? `${item.barbershop.rating.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
+                  {hasShopRating
+                    ? `${item.barbershop.rating!.toFixed(1).replace('.', ',')} (${item.barbershop.reviewCount})`
                     : 'Sem avaliações'}
                 </Text>
                 {formattedDistance && (
@@ -345,6 +349,13 @@ export const ExploreFeedSlide = React.forwardRef<
                 </Text>
                 <Text style={styles.servicePriceDuration}>
                   {`R$ ${(activeMedia.service.priceInCents / 100).toFixed(2).replace('.', ',')} • ${activeMedia.service.durationInMinutes} min`}
+                </Text>
+                <Text style={styles.serviceRatingText}>
+                  {(activeMedia.service.reviewCount ?? 0) > 0 &&
+                  activeMedia.service.rating !== null &&
+                  activeMedia.service.rating !== undefined
+                    ? `★ ${activeMedia.service.rating.toFixed(1).replace('.', ',')} (${activeMedia.service.reviewCount}) no serviço`
+                    : 'Serviço sem avaliações'}
                 </Text>
                 <Text style={styles.illustrativeNotice}>Imagens e dados ilustrativos</Text>
               </View>
@@ -590,6 +601,14 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  serviceRatingText: {
+    color: '#fbbf24',
+    fontSize: 12,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   illustrativeNotice: {
     color: 'rgba(255, 255, 255, 0.55)',

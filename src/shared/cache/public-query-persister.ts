@@ -81,6 +81,8 @@ export function selectPublicSnapshot(key: QueryKey, data: unknown): unknown {
       'priceInCents',
       'durationInMinutes',
       'isActive',
+      'rating',
+      'reviewCount',
       'createdAt',
       'updatedAt',
     ];
@@ -96,7 +98,9 @@ export function selectPublicSnapshot(key: QueryKey, data: unknown): unknown {
   }
   if (key[2] === 'professionals') {
     if (!Array.isArray(data) || data.length > 100) return undefined;
-    return data.map((item) => pick(item, ['id', 'name', 'avatarUrl'])).filter(Boolean);
+    return data
+      .map((item) => pick(item, ['id', 'name', 'avatarUrl', 'role', 'rating', 'reviewCount']))
+      .filter(Boolean);
   }
   return pick(data, [
     'id',

@@ -18,6 +18,7 @@ import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { usePublicServices } from '@/features/services/model/use-public-services';
 import { BarbershopReviewsList } from '@/features/reviews/ui/BarbershopReviewsList';
+import { TargetReviewsModal } from '@/features/reviews/ui/TargetReviewsModal';
 import { LocationStatusPanel } from './location-status-panel';
 import { locationStore } from '../model/location-provider';
 import type { ExploreFeedItem, ExploreFeedMediaItem } from '../api/explore-feed.contract';
@@ -44,6 +45,10 @@ export function ExploreServiceSheet({
 }: ExploreServiceSheetProps) {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const [reviewsTarget, setReviewsTarget] = React.useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   // Escape key handler on web
   useEffect(() => {
@@ -119,6 +124,26 @@ export function ExploreServiceSheet({
                     {`⏱ ${service.durationInMinutes} min`}
                   </Text>
                 </View>
+                <View style={styles.metaRow}>
+                  <Ionicons name="star" size={14} color="#f59e0b" />
+                  <Text style={[styles.metaText, { color: isDark ? '#e5e5e5' : '#333' }]}>
+                    {(service.reviewCount ?? 0) > 0 && service.rating != null
+                      ? `${service.rating.toFixed(1)} (${service.reviewCount} ${
+                          service.reviewCount === 1 ? 'avaliação' : 'avaliações'
+                        })`
+                      : 'Sem avaliações neste serviço'}
+                  </Text>
+                  <Pressable
+                    onPress={() => setReviewsTarget({ id: service.id, title: service.title })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Ver avaliações do serviço ${service.title}`}
+                    style={{ marginLeft: 8 }}
+                  >
+                    <Text style={{ color: colors.brand.primary, fontSize: 12.5, fontWeight: '700' }}>
+                      Ver avaliações
+                    </Text>
+                  </Pressable>
+                </View>
                 <Text style={[styles.serviceDescription, { color: isDark ? '#cccccc' : '#444' }]}>
                   Atendimento especializado com produtos de alta performance e acabamento
                   profissional.
@@ -152,6 +177,17 @@ export function ExploreServiceSheet({
           </View>
         </View>
       </View>
+
+      {reviewsTarget ? (
+        <TargetReviewsModal
+          visible={Boolean(reviewsTarget)}
+          shopId={item.barbershop.id}
+          targetType="SERVICE"
+          targetId={reviewsTarget.id}
+          targetName={reviewsTarget.title}
+          onClose={() => setReviewsTarget(null)}
+        />
+      ) : null}
     </Modal>
   );
 }
@@ -168,6 +204,10 @@ export interface ExploreCatalogSheetProps {
 export function ExploreCatalogSheet({ visible, item, onClose }: ExploreCatalogSheetProps) {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const [selectedServiceForReviews, setSelectedServiceForReviews] = React.useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const { services, isLoading } = usePublicServices(item?.barbershop.id);
 
@@ -272,6 +312,33 @@ export function ExploreCatalogSheet({ visible, item, onClose }: ExploreCatalogSh
                       <Text style={[styles.catalogServiceMeta, { color: colors.brand.primary }]}>
                         {`R$ ${(srv.priceInCents / 100).toFixed(2).replace('.', ',')} · ${srv.durationInMinutes} min`}
                       </Text>
+                      <View style={styles.metaRow}>
+                        <Ionicons name="star" size={12} color="#f59e0b" />
+                        <Text
+                          style={[
+                            styles.catalogServiceDesc,
+                            { color: isDark ? '#d4d4d8' : '#555', marginBottom: 0 },
+                          ]}
+                        >
+                          {(srv.reviewCount ?? 0) > 0 && srv.rating != null
+                            ? `${Number(srv.rating).toFixed(1)} (${srv.reviewCount})`
+                            : 'Sem avaliações'}
+                        </Text>
+                        <Pressable
+                          onPress={() =>
+                            setSelectedServiceForReviews({ id: srv.id, title: srv.title })
+                          }
+                          accessibilityRole="button"
+                          accessibilityLabel={`Ver avaliações de ${srv.title}`}
+                          style={{ marginLeft: 8 }}
+                        >
+                          <Text
+                            style={{ color: colors.brand.primary, fontSize: 12, fontWeight: '700' }}
+                          >
+                            Ver avaliações
+                          </Text>
+                        </Pressable>
+                      </View>
                     </View>
                   </View>
                 ))}
@@ -293,6 +360,17 @@ export function ExploreCatalogSheet({ visible, item, onClose }: ExploreCatalogSh
           </View>
         </View>
       </View>
+
+      {selectedServiceForReviews ? (
+        <TargetReviewsModal
+          visible={Boolean(selectedServiceForReviews)}
+          shopId={item.barbershop.id}
+          targetType="SERVICE"
+          targetId={selectedServiceForReviews.id}
+          targetName={selectedServiceForReviews.title}
+          onClose={() => setSelectedServiceForReviews(null)}
+        />
+      ) : null}
     </Modal>
   );
 }
@@ -406,8 +484,10 @@ export function ExploreAboutSheet({ visible, item, onClose }: ExploreAboutSheetP
                     Avaliação dos Clientes
                   </Text>
                   <Text style={[styles.aboutValue, { color: isDark ? '#a0a0a0' : '#666' }]}>
-                    {item.barbershop.rating
-                      ? `${item.barbershop.rating.toFixed(1)} estrelas (${item.barbershop.reviewCount} avaliações reais)`
+                    {(item.barbershop.reviewCount ?? 0) > 0 && item.barbershop.rating != null
+                      ? `${item.barbershop.rating.toFixed(1)} estrelas (${item.barbershop.reviewCount} ${
+                          item.barbershop.reviewCount === 1 ? 'avaliação real' : 'avaliações reais'
+                        })`
                       : 'Sem avaliações publicadas ainda'}
                   </Text>
                 </View>

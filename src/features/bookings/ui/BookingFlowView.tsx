@@ -286,6 +286,7 @@ export function BookingFlowView({ options, onExit }: BookingFlowViewProps) {
               professionals={flow.professionals}
               selectedProfessionalId={flow.selectedProfessionalId}
               onSelectProfessional={flow.selectProfessional}
+              barbershopId={options.shopId}
               isLoading={flow.isLoading}
             />
           </View>

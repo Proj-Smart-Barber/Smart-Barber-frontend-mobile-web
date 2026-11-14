@@ -24,7 +24,9 @@ import { ServiceCard } from './ServiceCard';
 import { SelectedServicesSummary } from './SelectedServicesSummary';
 import { BarbershopGalleryViewer, mediaApi } from '@/features/media';
 import { BarbershopReviewsList, useBarbershopReviews } from '@/features/reviews';
+import { TargetReviewsModal } from '@/features/reviews/ui/TargetReviewsModal';
 import { BarbershopPhotoCarousel } from '@/features/discovery';
+import type { Service } from '../model/service.types';
 
 export interface PublicCatalogViewProps {
   barbershopId: string;
@@ -38,6 +40,8 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
   const insets = useSafeAreaInsets();
 
   const [fullscreenPhotoUrl, setFullscreenPhotoUrl] = useState<string | null>(null);
+  const [selectedServiceForReviews, setSelectedServiceForReviews] =
+    useState<Service | null>(null);
 
   const {
     barbershop,
@@ -378,6 +382,7 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
                     service={service}
                     isSelected={isSelected(service.id)}
                     onSelect={() => toggleService(service.id)}
+                    onViewReviews={(srv) => setSelectedServiceForReviews(srv)}
                   />
                 ))}
               </View>
@@ -397,6 +402,17 @@ export function PublicCatalogView({ barbershopId }: PublicCatalogViewProps) {
           </View>
         </View>
       </ScrollView>
+
+      {selectedServiceForReviews ? (
+        <TargetReviewsModal
+          visible={Boolean(selectedServiceForReviews)}
+          shopId={barbershopId}
+          targetType="SERVICE"
+          targetId={selectedServiceForReviews.id}
+          targetName={selectedServiceForReviews.title}
+          onClose={() => setSelectedServiceForReviews(null)}
+        />
+      ) : null}
 
       {/* 6. MODAL PARA VISUALIZAÇÃO AMPLIADA DE FOTOS */}
       <Modal
