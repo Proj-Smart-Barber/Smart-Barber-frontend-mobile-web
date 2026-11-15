@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useSession } from '@/features/auth';
 import { ownerReviewsApi } from '../api/owner-reviews.api';
 import type {
   FeedbacksResponseDto,
@@ -13,14 +14,18 @@ import type {
 
 export const ownerReviewQueryKeys = {
   all: ['owner-reviews'] as const,
-  summary: (shopId: string, filters?: OwnerReviewSummaryFilters) =>
-    ['owner-reviews', 'summary', shopId, filters] as const,
-  services: (shopId: string, filters?: OwnerServiceMetricsFilters) =>
-    ['owner-reviews', 'services', shopId, filters] as const,
-  professionals: (shopId: string, filters?: OwnerProfessionalMetricsFilters) =>
-    ['owner-reviews', 'professionals', shopId, filters] as const,
-  feedbacks: (shopId: string, filters?: OwnerFeedbacksFilters) =>
-    ['owner-reviews', 'feedbacks', shopId, filters] as const,
+  forShop: (shopId: string) => ['owner-reviews', shopId] as const,
+  summary: (shopId: string, actorId: string, filters?: OwnerReviewSummaryFilters) =>
+    ['owner-reviews', shopId, 'summary', actorId, filters] as const,
+  services: (shopId: string, actorId: string, filters?: OwnerServiceMetricsFilters) =>
+    ['owner-reviews', shopId, 'services', actorId, filters] as const,
+  professionals: (
+    shopId: string,
+    actorId: string,
+    filters?: OwnerProfessionalMetricsFilters,
+  ) => ['owner-reviews', shopId, 'professionals', actorId, filters] as const,
+  feedbacks: (shopId: string, actorId: string, filters?: OwnerFeedbacksFilters) =>
+    ['owner-reviews', shopId, 'feedbacks', actorId, filters] as const,
 };
 
 export function useOwnerReviewSummary(
@@ -28,14 +33,18 @@ export function useOwnerReviewSummary(
   filters: OwnerReviewSummaryFilters = {},
   options?: { enabled?: boolean },
 ) {
+  const { identity, staff } = useSession();
+  const actorId = identity?.id ?? staff?.id ?? 'anonymous';
+
   return useQuery<ReviewSummaryMetricsDto>({
-    queryKey: ownerReviewQueryKeys.summary(shopId ?? '', filters),
+    queryKey: ownerReviewQueryKeys.summary(shopId ?? '', actorId, filters),
     queryFn: () => {
       if (!shopId) throw new Error('shopId é obrigatório para carregar métricas.');
       return ownerReviewsApi.getSummary(shopId, filters);
     },
-    enabled: Boolean(shopId) && (options?.enabled ?? true),
+    enabled: Boolean(shopId) && actorId !== 'anonymous' && (options?.enabled ?? true),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -44,14 +53,19 @@ export function useOwnerServiceMetrics(
   filters: OwnerServiceMetricsFilters = {},
   options?: { enabled?: boolean },
 ) {
+  const { identity, staff } = useSession();
+  const actorId = identity?.id ?? staff?.id ?? 'anonymous';
+
   return useQuery<ServiceMetricsResponseDto>({
-    queryKey: ownerReviewQueryKeys.services(shopId ?? '', filters),
+    queryKey: ownerReviewQueryKeys.services(shopId ?? '', actorId, filters),
     queryFn: () => {
-      if (!shopId) throw new Error('shopId é obrigatório para carregar métricas de serviços.');
+      if (!shopId)
+        throw new Error('shopId é obrigatório para carregar métricas de serviços.');
       return ownerReviewsApi.getServiceMetrics(shopId, filters);
     },
-    enabled: Boolean(shopId) && (options?.enabled ?? true),
+    enabled: Boolean(shopId) && actorId !== 'anonymous' && (options?.enabled ?? true),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -60,14 +74,19 @@ export function useOwnerProfessionalMetrics(
   filters: OwnerProfessionalMetricsFilters = {},
   options?: { enabled?: boolean },
 ) {
+  const { identity, staff } = useSession();
+  const actorId = identity?.id ?? staff?.id ?? 'anonymous';
+
   return useQuery<ProfessionalMetricsResponseDto>({
-    queryKey: ownerReviewQueryKeys.professionals(shopId ?? '', filters),
+    queryKey: ownerReviewQueryKeys.professionals(shopId ?? '', actorId, filters),
     queryFn: () => {
-      if (!shopId) throw new Error('shopId é obrigatório para carregar métricas de profissionais.');
+      if (!shopId)
+        throw new Error('shopId é obrigatório para carregar métricas de profissionais.');
       return ownerReviewsApi.getProfessionalMetrics(shopId, filters);
     },
-    enabled: Boolean(shopId) && (options?.enabled ?? true),
+    enabled: Boolean(shopId) && actorId !== 'anonymous' && (options?.enabled ?? true),
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -76,13 +95,17 @@ export function useOwnerFeedbacks(
   filters: OwnerFeedbacksFilters = {},
   options?: { enabled?: boolean },
 ) {
+  const { identity, staff } = useSession();
+  const actorId = identity?.id ?? staff?.id ?? 'anonymous';
+
   return useQuery<FeedbacksResponseDto>({
-    queryKey: ownerReviewQueryKeys.feedbacks(shopId ?? '', filters),
+    queryKey: ownerReviewQueryKeys.feedbacks(shopId ?? '', actorId, filters),
     queryFn: () => {
       if (!shopId) throw new Error('shopId é obrigatório para carregar feedbacks.');
       return ownerReviewsApi.getFeedbacks(shopId, filters);
     },
-    enabled: Boolean(shopId) && (options?.enabled ?? true),
+    enabled: Boolean(shopId) && actorId !== 'anonymous' && (options?.enabled ?? true),
     staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 }

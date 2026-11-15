@@ -32,11 +32,13 @@ describe('Owner Reviews API Contract & Presentation Logic', () => {
         reviewedBookings: 15,
         ratePercentage: 75,
         cohortDefinition: 'Conclusão do atendimento no período',
+        originScope: 'CUSTOMER',
       },
       serviceCoverage: {
         totalActiveServices: 10,
         evaluatedActiveServices: 9,
         coveragePercentage: 90,
+        scope: 'PERIOD',
       },
       latestReview: {
         id: 'rev-1',
@@ -50,7 +52,9 @@ describe('Owner Reviews API Contract & Presentation Logic', () => {
         hasAnyReviews: true,
         hasDemoReviews: false,
         hasCustomerReviews: true,
+        hasUnknownReviews: false,
         isDemoEnvironment: false,
+        isMixedEnvironment: false,
         appliedSource: 'CUSTOMER',
       },
       period: {
@@ -58,6 +62,8 @@ describe('Owner Reviews API Contract & Presentation Logic', () => {
         endDate: '2026-11-15T00:00:00.000Z',
         timezone: 'America/Sao_Paulo',
       },
+      granularity: 'WEEK',
+      timeSeries: [],
     };
 
     const getSpy = vi
@@ -101,18 +107,22 @@ describe('Owner Reviews API Contract & Presentation Logic', () => {
         reviewedBookings: 2,
         ratePercentage: 50,
         cohortDefinition: 'Conclusão do atendimento no período',
+        originScope: 'DEMO',
       },
       serviceCoverage: {
         totalActiveServices: 5,
         evaluatedActiveServices: 2,
         coveragePercentage: 40,
+        scope: 'PERIOD',
       },
       latestReview: null,
       flags: {
         hasAnyReviews: true,
         hasDemoReviews: true,
         hasCustomerReviews: false,
+        hasUnknownReviews: false,
         isDemoEnvironment: true,
+        isMixedEnvironment: false,
         appliedSource: 'DEMO',
       },
       period: {
@@ -120,6 +130,8 @@ describe('Owner Reviews API Contract & Presentation Logic', () => {
         endDate: '2026-11-15T00:00:00.000Z',
         timezone: 'America/Sao_Paulo',
       },
+      granularity: 'WEEK',
+      timeSeries: [],
     };
 
     expect(summarySmallSample.metrics.isSmallSample).toBe(true);

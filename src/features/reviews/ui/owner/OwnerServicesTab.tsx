@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
@@ -7,6 +7,7 @@ import { LiquidGlassView } from '@/shared/navigation';
 import { StarRating } from '../StarRating';
 import { useOwnerServiceMetrics } from '../../model/use-owner-reviews';
 import type { ReviewSourceDto } from '../../api/owner-reviews.types';
+import { ReviewErrorBanner } from './ReviewErrorBanner';
 
 interface OwnerServicesTabProps {
   shopId: string;
@@ -25,15 +26,25 @@ export function OwnerServicesTab({
 }: OwnerServicesTabProps) {
   const { colors, spacing, radius } = useTheme();
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useOwnerServiceMetrics(shopId, {
-    source,
-    startDate,
-    endDate,
-    includeInactive,
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [shopId, source, startDate, endDate, includeInactive]);
 
-  if (isLoading) {
+  const { data, isLoading, isError, error, refetch } = useOwnerServiceMetrics(
+    shopId,
+    {
+      source,
+      startDate,
+      endDate,
+      includeInactive,
+      page,
+      limit: 10,
+    },
+  );
+
+  if (isLoading && !data) {
     return (
       <View style={{ gap: spacing[3] }}>
         <Skeleton width="100%" height={80} />
@@ -43,21 +54,55 @@ export function OwnerServicesTab({
     );
   }
 
+  if (isError && !data) {
+    return (
+      <ReviewErrorBanner
+        error={error}
+        hasCachedData={false}
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
+
   const items = data?.items ?? [];
+  const totalItems = data?.total ?? items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / 10));
+  const totalServices = data?.totalServices ?? totalItems;
+  const evaluatedServices = data?.evaluatedServices ?? 0;
+  const coveragePercentage = data?.coveragePercentage ?? 0;
 
   return (
     <View style={{ gap: spacing[3] }}>
-      {/* Cabeçalho da Aba com Filtro de Inativos */}
+      {isError ? (
+        <ReviewErrorBanner
+          error={error}
+          hasCachedData={Boolean(data)}
+          onRetry={() => {
+            void refetch();
+          }}
+        />
+      ) : null}
+
+      {/* Cabeçalho da Aba com Cobertura Global e Filtro de Inativos */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: spacing[2],
         }}
       >
-        <Text variant="subhead" weight="bold" color={colors.text.primary}>
-          Serviços ({items.length})
-        </Text>
+        <View style={{ gap: 2 }}>
+          <Text variant="subhead" weight="bold" color={colors.text.primary}>
+            Serviços ({totalItems})
+          </Text>
+          <Text variant="caption" color={colors.text.muted}>
+            Cobertura global no período: {evaluatedServices}/{totalServices} avaliados ({coveragePercentage}%)
+          </Text>
+        </View>
 
         <Pressable
           accessibilityRole="checkbox"
@@ -219,6 +264,45 @@ export function OwnerServicesTab({
           );
         })
       )}
+
+      {totalPages > 1 ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: spacing[2],
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Página anterior de serviços"
+            disabled={page <= 1}
+            onPress={() => setPage((p) => Math.max(1, p - 1))}
+            style={{ opacity: page <= 1 ? 0.4 : 1, padding: spacing[2] }}
+          >
+            <Text variant="caption" weight="bold" color={colors.brand.primary}>
+              Anterior
+            </Text>
+          </Pressable>
+
+          <Text variant="caption" color={colors.text.muted}>
+            Página {page} de {totalPages}
+          </Text>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Próxima página de serviços"
+            disabled={page >= totalPages}
+            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+            style={{ opacity: page >= totalPages ? 0.4 : 1, padding: spacing[2] }}
+          >
+            <Text variant="caption" weight="bold" color={colors.brand.primary}>
+              Próxima
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

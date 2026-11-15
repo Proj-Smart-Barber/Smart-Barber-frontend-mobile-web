@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
-import { Badge, Text } from '@/shared/ui';
+import { Badge, Button, Text } from '@/shared/ui';
 import { LiquidGlassView } from '@/shared/navigation';
 import { StarRating } from '../StarRating';
 import type {
@@ -28,7 +28,15 @@ export function ReviewMetricsSummaryCard({
   const { colors, spacing, radius, isDark } = useTheme();
   const { metrics, comparison, flags } = summary;
 
-  const isDemoVisible = selectedSource === 'DEMO' || (flags.isDemoEnvironment && selectedSource === 'ALL');
+  // Mostrar aviso sempre que o resultado incluir dados demonstrativos (DEMO ou ALL com dados demo)
+  const includesDemoData =
+    selectedSource === 'DEMO' ||
+    (selectedSource === 'ALL' && flags.hasDemoReviews);
+
+  const showEmptyCustomerPrompt =
+    selectedSource === 'CUSTOMER' &&
+    metrics.reviewCount === 0 &&
+    flags.hasDemoReviews;
 
   const formattedRating =
     metrics.averageRating !== null ? metrics.averageRating.toFixed(1) : '--';
@@ -40,8 +48,8 @@ export function ReviewMetricsSummaryCard({
 
   return (
     <View style={{ gap: spacing[3] }}>
-      {/* Aviso de Dados Demonstrativos quando aplicável */}
-      {isDemoVisible ? (
+      {/* Aviso explícito sempre que incluir dados demonstrativos */}
+      {includesDemoData ? (
         <LiquidGlassView
           variant="card"
           elevated
@@ -62,13 +70,44 @@ export function ReviewMetricsSummaryCard({
           <Ionicons name="information-circle-outline" size={22} color={colors.feedback.warning} />
           <View style={{ flex: 1 }}>
             <Text variant="caption" weight="bold" color={colors.feedback.warning}>
-              Conjunto demonstrativo da unidade
+              {selectedSource === 'ALL' && flags.isMixedEnvironment
+                ? 'Aviso: média inclui avaliações demonstrativas'
+                : 'Conjunto demonstrativo da unidade'}
             </Text>
             <Text variant="caption" color={colors.text.secondary}>
-              {flags.isDemoEnvironment
-                ? 'Esta unidade possui apenas avaliações demonstrativas do catálogo inicial. Conforme clientes reais avaliarem atendimentos, as métricas de satisfação real serão atualizadas.'
-                : 'Você está filtrando por avaliações demonstrativas pré-carregadas.'}
+              {selectedSource === 'ALL' && flags.isMixedEnvironment
+                ? 'Os indicadores exibem dados reais e demonstrativos combinados. Para medir apenas a satisfação real, selecione Clientes.'
+                : flags.isDemoEnvironment
+                  ? 'Esta unidade possui apenas avaliações demonstrativas do catálogo inicial e não representa satisfação real de clientes.'
+                  : 'Você está visualizando avaliações demonstrativas pré-carregadas.'}
             </Text>
+          </View>
+        </LiquidGlassView>
+      ) : null}
+
+      {/* Sugestão explícita quando Clientes está vazio e existem dados demonstrativos */}
+      {showEmptyCustomerPrompt ? (
+        <LiquidGlassView
+          variant="card"
+          elevated
+          style={{ borderRadius: radius.lg }}
+          contentStyle={{
+            padding: spacing[3],
+            gap: spacing[2],
+          }}
+        >
+          <Text variant="caption" weight="bold" color={colors.text.primary}>
+            Ainda não há avaliações de clientes reais neste período
+          </Text>
+          <Text variant="caption" color={colors.text.secondary}>
+            Os dados de demonstração permanecem separados para não distorcer a satisfação real da unidade.
+          </Text>
+          <View style={{ flexDirection: 'row' }}>
+            <Button
+              title="Ver dados de demonstração"
+              variant="secondary"
+              onPress={() => onSelectSource('DEMO')}
+            />
           </View>
         </LiquidGlassView>
       ) : null}
