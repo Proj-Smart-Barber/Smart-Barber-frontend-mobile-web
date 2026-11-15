@@ -12,6 +12,7 @@ export interface DashboardMetricCardData {
   subtitle?: string;
   tone?: 'brand' | 'success' | 'warning' | 'neutral';
   iconName: string;
+  onPress?: () => void;
 }
 
 export type TimelineFilter = 'ALL' | 'PENDING' | 'DONE';

@@ -126,12 +126,14 @@ export interface FeedbacksResponseDto {
 }
 
 export interface OwnerReviewSummaryFilters {
+  [key: string]: string | number | boolean | undefined;
   startDate?: string;
   endDate?: string;
   source?: ReviewSourceDto;
 }
 
 export interface OwnerServiceMetricsFilters {
+  [key: string]: string | number | boolean | undefined;
   startDate?: string;
   endDate?: string;
   source?: ReviewSourceDto;
@@ -139,12 +141,14 @@ export interface OwnerServiceMetricsFilters {
 }
 
 export interface OwnerProfessionalMetricsFilters {
+  [key: string]: string | number | boolean | undefined;
   startDate?: string;
   endDate?: string;
   source?: ReviewSourceDto;
 }
 
 export interface OwnerFeedbacksFilters {
+  [key: string]: string | number | boolean | undefined;
   startDate?: string;
   endDate?: string;
   source?: ReviewSourceDto;

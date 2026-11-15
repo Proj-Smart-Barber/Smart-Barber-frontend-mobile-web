@@ -11,6 +11,7 @@ export type AppDestination =
   | 'settings'
   | 'team'
   | 'finance'
+  | 'reviews'
   | 'profile-preview';
 
 export interface NavigationItem {

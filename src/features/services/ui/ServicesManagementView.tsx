@@ -164,7 +164,18 @@ export function ServicesManagementView({
             </View>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: isCompact ? 'stretch' : 'auto' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing[2], alignSelf: isCompact ? 'stretch' : 'auto' }}>
+            <Button
+              title="Avaliações"
+              variant="outline"
+              leftIcon={<Ionicons name="star-outline" size={18} color={colors.text.primary} />}
+              onPress={() => router.push('/(app)/reviews' as any)}
+              style={{
+                flex: isCompact ? 1 : undefined,
+                minHeight: 44,
+                paddingHorizontal: spacing[3],
+              }}
+            />
             <Button
               title="Prévia do Perfil"
               variant="outline"
@@ -276,6 +287,7 @@ export function ServicesManagementView({
                 onEdit={openEditModal}
                 onToggleActive={handleToggle}
                 isToggling={togglingId === service.id}
+                onViewReviews={() => router.push('/(app)/reviews' as any)}
               />
             ))}
           </View>
