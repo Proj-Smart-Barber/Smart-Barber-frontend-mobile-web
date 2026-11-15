@@ -328,6 +328,15 @@ export function LeftDrawer() {
                 onPress={() => handleNavigate('/(app)/team')}
               />
             )}
+            {isOwnerActive && (
+              <DrawerMenuItem
+                label="Avaliações"
+                icon="star-outline"
+                activeIcon="star"
+                isActive={activeDestination === 'reviews'}
+                onPress={() => handleNavigate('/(app)/reviews')}
+              />
+            )}
           </View>
 
           {/* Grupo 2: Catálogo Público */}

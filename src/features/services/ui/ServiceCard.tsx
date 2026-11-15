@@ -213,7 +213,7 @@ export function ServiceCard({
               </Text>
             </View>
 
-            {onViewReviews && !isManagement ? (
+            {onViewReviews ? (
               <Pressable
                 onPress={(e) => {
                   e?.stopPropagation?.();
@@ -221,10 +221,12 @@ export function ServiceCard({
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={`Ver avaliações de ${service.title}`}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
               >
                 <Text variant="caption" weight="bold" color={colors.brand.primary}>
                   Ver avaliações
                 </Text>
+                <Ionicons name="chevron-forward" size={12} color={colors.brand.primary} />
               </Pressable>
             ) : null}
 

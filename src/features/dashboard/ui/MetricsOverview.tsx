@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { Skeleton, Text } from '@/shared/ui';
@@ -68,9 +68,8 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
                 ? colors.feedback.warning
                 : colors.text.secondary;
 
-        return (
+        const cardElement = (
           <LiquidGlassView
-            key={card.id}
             variant="card"
             elevated
             style={{ flex: 1 }}
@@ -114,6 +113,26 @@ export function MetricsOverview({ metrics, isLoading = false }: MetricsOverviewP
               </Text>
             ) : null}
           </LiquidGlassView>
+        );
+
+        if (card.onPress) {
+          return (
+            <Pressable
+              key={card.id}
+              accessibilityRole="button"
+              accessibilityLabel={card.title}
+              onPress={card.onPress}
+              style={{ flex: 1 }}
+            >
+              {cardElement}
+            </Pressable>
+          );
+        }
+
+        return (
+          <View key={card.id} style={{ flex: 1 }}>
+            {cardElement}
+          </View>
         );
       })}
     </View>

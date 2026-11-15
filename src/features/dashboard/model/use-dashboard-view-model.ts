@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { useSession, getOperationalContext } from '@/features/auth';
 import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
 import { useUnitBookings } from '@/features/bookings/model/use-unit-bookings';
+import { useOwnerReviewSummary } from '@/features/reviews';
 import { projectDashboardAppointments } from '../api/dashboard.http';
 import {
   findNextAppointment,
@@ -13,6 +15,7 @@ import {
 import type { DashboardMetricCardData, TimelineFilter } from './dashboard.types';
 
 export function useDashboardViewModel() {
+  const router = useRouter();
   const session = useSession();
   const { staff, signOut, restoreSession } = session;
   const [filter, setFilter] = useState<TimelineFilter>('ALL');
@@ -20,6 +23,13 @@ export function useDashboardViewModel() {
   const isOwner = context?.role === 'OWNER';
   const role = isOwner ? 'OWNER' : 'BARBER';
   const unit = useUnitBookings(context);
+
+  const shopId = session.barbershop?.id;
+  const { data: reviewSummary } = useOwnerReviewSummary(
+    shopId,
+    { source: 'ALL' },
+    { enabled: Boolean(isOwner && shopId) },
+  );
   const rawAppointments = useMemo(() => projectDashboardAppointments(unit.items, unit.selectedDate), [unit.items, unit.selectedDate]);
   const metrics = unit.summary ? {
     totalRevenueInCents: unit.summary.hasIncompleteData || unit.summary.totalRevenueInCents === null ? null : unit.summary.totalRevenueInCents,
@@ -73,6 +83,19 @@ export function useDashboardViewModel() {
           iconName: 'calendar-outline',
         },
       );
+
+      if (reviewSummary?.metrics) {
+        const avg = reviewSummary.metrics.averageRating;
+        metricCards.push({
+          id: 'reviews',
+          title: 'Avaliações',
+          value: avg !== null ? `${avg.toFixed(1)} ★` : 'Sem notas',
+          subtitle: `${reviewSummary.metrics.reviewCount} avaliaç${reviewSummary.metrics.reviewCount === 1 ? 'ão' : 'ões'} • Ver painel`,
+          tone: 'brand',
+          iconName: 'star-outline',
+          onPress: () => router.push('/(app)/reviews'),
+        });
+      }
     } else {
       metricCards.push(
         {
