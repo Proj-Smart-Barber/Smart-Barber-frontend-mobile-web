@@ -25,8 +25,8 @@ const sessionState = vi.hoisted(() => ({
 
 const ownerReviewsApiMock = vi.hoisted(() => ({
   getSummary: vi.fn(),
-  getServices: vi.fn(),
-  getProfessionals: vi.fn(),
+  getServiceMetrics: vi.fn(),
+  getProfessionalMetrics: vi.fn(),
   getFeedbacks: vi.fn(),
 }));
 
@@ -35,6 +35,13 @@ const reportMutateAsyncMock = vi.hoisted(() => vi.fn());
 vi.mock('expo-router', () => ({ useRouter: () => routerMock }));
 vi.mock('expo-blur', () => ({
   BlurView: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
+}));
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
+}));
+vi.mock('@/shared/navigation', () => ({
+  LiquidGlassView: ({ children, style }: any) =>
+    React.createElement('div', { style }, children),
 }));
 vi.mock('expo-haptics', () => ({
   impactAsync: vi.fn(),
@@ -46,9 +53,10 @@ vi.mock('../api/owner-reviews.api', () => ({
   ownerReviewsApi: ownerReviewsApiMock,
 }));
 vi.mock('../model/use-reviews', async () => {
-  const actual = await vi.importActual<typeof import('../model/use-reviews')>(
-    '../model/use-reviews',
-  );
+  const actual = (await vi.importActual('../model/use-reviews')) as Record<
+    string,
+    unknown
+  >;
   return {
     ...actual,
     useReportReview: () => ({
@@ -158,7 +166,7 @@ describe('Owner Reviews Components Regression Suite', () => {
     ownerReviewsApiMock.getSummary.mockRejectedValueOnce(
       new ApiError('Erro de conexão', 0, undefined, true),
     );
-    ownerReviewsApiMock.getServices.mockResolvedValue({
+    ownerReviewsApiMock.getServiceMetrics.mockResolvedValue({
       items: [],
       page: 1,
       limit: 10,
@@ -203,7 +211,7 @@ describe('Owner Reviews Components Regression Suite', () => {
     });
 
     ownerReviewsApiMock.getSummary.mockResolvedValue(emptyCustomerDemoSummary);
-    ownerReviewsApiMock.getServices.mockResolvedValue({
+    ownerReviewsApiMock.getServiceMetrics.mockResolvedValue({
       items: [],
       page: 1,
       limit: 10,
@@ -258,12 +266,12 @@ describe('Owner Reviews Components Regression Suite', () => {
     );
 
     expect(
-      screen.getByText(/Dados mistos \(Clientes \+ Demonstração\)/i),
+      screen.getByText(/Aviso: média inclui avaliações demonstrativas/i),
     ).toBeDefined();
   });
 
   it('paginates OwnerServicesTab, displays global coverage, and resets page on source change', async () => {
-    ownerReviewsApiMock.getServices.mockResolvedValue({
+    ownerReviewsApiMock.getServiceMetrics.mockResolvedValue({
       items: [
         {
           serviceId: 'srv-1',
@@ -279,8 +287,8 @@ describe('Owner Reviews Components Regression Suite', () => {
       ],
       page: 1,
       limit: 10,
-      totalItems: 12,
-      totalPages: 2,
+      total: 12,
+      hasNext: true,
       totalServices: 12,
       evaluatedServices: 10,
       coveragePercentage: 83.3,
@@ -304,7 +312,7 @@ describe('Owner Reviews Components Regression Suite', () => {
 
     fireEvent.click(screen.getByLabelText('Próxima página de serviços'));
     await waitFor(() => {
-      expect(ownerReviewsApiMock.getServices).toHaveBeenLastCalledWith(
+      expect(ownerReviewsApiMock.getServiceMetrics).toHaveBeenLastCalledWith(
         'shop-1',
         expect.objectContaining({ page: 2, limit: 10 }),
       );
@@ -322,7 +330,7 @@ describe('Owner Reviews Components Regression Suite', () => {
     );
 
     await waitFor(() => {
-      expect(ownerReviewsApiMock.getServices).toHaveBeenLastCalledWith(
+      expect(ownerReviewsApiMock.getServiceMetrics).toHaveBeenLastCalledWith(
         'shop-1',
         expect.objectContaining({ source: 'DEMO', page: 1 }),
       );
