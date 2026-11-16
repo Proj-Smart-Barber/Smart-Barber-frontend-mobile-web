@@ -1,0 +1,52 @@
+import { describe, it, expect, vi } from 'vitest';
+vi.mock('../../snack/src/shared/api', async () => ({...await import('../../snack/src/shared/api/api-errors'),httpClient:{get:(p:string,o:any)=>request(p,o),put:(p:string,b:any,o:any)=>request(p,{...o,method:'PUT',body:b}),post:(p:string,b:any,o:any)=>request(p,{...o,method:'POST',body:b}),delete:(p:string,o:any)=>request(p,{...o,method:'DELETE'})}}));
+vi.mock('../../snack/src/shared/config/env', () => ({ENV:{BARBERSHOP_ID:'10000000-0000-4000-8000-000000000001'}}));
+import { demoRequest as request, SHOP_ID } from '../../snack/demo/transport';
+import {AvailabilityHttpAdapter} from '../../snack/src/features/availability/api/availability.http';
+const login=(email:string)=>request('/api/users/sessions/auth',{method:'POST',body:{email,password:'Demo123!'}});
+describe('Academic demo: shared contracts and mutations',()=>{
+ it('supports the original availability HTTP adapter without contract changes',async()=>{
+  await login('dono@demo.test');const adapter=new AvailabilityHttpAdapter();
+  expect((await adapter.getBarbershop(SHOP_ID)).id).toBe(SHOP_ID);
+  const entries=await adapter.getWeeklySchedule(SHOP_ID);expect(entries.length).toBeGreaterThan(0);
+  await adapter.saveWeeklySchedule(SHOP_ID,entries);
+  expect((await adapter.listExceptions(SHOP_ID)).length).toBeGreaterThan(0);
+  const exception=await adapter.createException(SHOP_ID,{date:'2099-01-01',barbermanId:null,openTime:null,closeTime:null,reason:'Teste'});
+  expect((await adapter.listExceptions(SHOP_ID)).some(e=>e.id===exception.id)).toBe(true);
+  await adapter.removeException(SHOP_ID,exception.id);
+  expect((await adapter.listExceptions(SHOP_ID)).some(e=>e.id===exception.id)).toBe(false);
+ });
+ it('rejects invalid login and never falls back to HTTP',async()=>{
+  await expect(request('/api/users/sessions/auth',{method:'POST',body:{email:'invalid',password:'invalid'}})).rejects.toMatchObject({status:401});
+  await expect(request('/api/unknown')).rejects.toMatchObject({status:501});
+ });
+ it('retains roles, services, bookings and availability across account changes',async()=>{
+  await login('dono@demo.test');
+  const identity=await request('/api/users/me');expect(identity.user.accountType).toBe('OWNER');
+  expect((await request('/api/users/me/barbershops')).barbershops[0].id).toBe(SHOP_ID);
+  const created=await request(`/api/barbershops/${SHOP_ID}/services`,{method:'POST',body:{title:'Teste',durationInMinutes:30,priceInCents:5000,description:null}});
+  const service=created.service;
+  await login('cliente@demo.test');
+  expect((await request(`/api/barbershops/${SHOP_ID}/services`)).items.some((s:any)=>s.id===service.id)).toBe(true);
+  await expect(request(`/api/barbershops/${SHOP_ID}/services`,{method:'POST',body:{}})).rejects.toMatchObject({status:403});
+  const barber=(await request(`/api/barbershops/${SHOP_ID}/professionals`)).professionals[1].id;
+  let date=new Date(Date.now()+86400000);while(date.getUTCDay()!==2)date=new Date(+date+86400000);
+  const day=date.toISOString().slice(0,10);
+  const availabilityPath=`/api/barbershops/${SHOP_ID}/availability?date=${day}&serviceIds=${service.id}&barbermanId=${barber}`;
+  const offered=(await request(availabilityPath)).slots;expect(offered.length).toBeGreaterThan(0);
+  const body={date:day,serviceIds:[service.id],barbermanId:barber,startTime:offered[0].start.slice(11,16),expectedTotalPriceInCents:5000};
+  const saved=await request('/api/bookings',{method:'POST',body,headers:{'Idempotency-Key':'test-create'}});
+  const replay=await request('/api/bookings',{method:'POST',body,headers:{'Idempotency-Key':'test-create'}});expect(replay.booking.id).toBe(saved.booking.id);
+  expect((await request('/api/bookings/me')).bookings).toHaveLength(1);
+  expect((await request(availabilityPath)).slots.some((s:any)=>s.start===offered[0].start)).toBe(false);
+  await expect(request('/api/bookings',{method:'POST',body})).rejects.toMatchObject({status:409});
+  await login('dono@demo.test');
+  expect((await request(`/api/barbershops/${SHOP_ID}/bookings?date=${day}`)).items).toHaveLength(1);
+  await expect(request(`/api/bookings/${saved.booking.id}/cancel`,{method:'DELETE',body:{expectedVersion:0}})).rejects.toMatchObject({status:409});
+  await request(`/api/bookings/${saved.booking.id}/cancel`,{method:'DELETE',body:{expectedVersion:1}});
+  expect((await request(availabilityPath)).slots.some((s:any)=>s.start===offered[0].start)).toBe(true);
+  const scope=await request(`/api/barbershops/${SHOP_ID}/schedules`,{params:{barbermanId:barber}});
+  await request(`/api/barbershops/${SHOP_ID}/schedules`,{method:'PUT',params:{barbermanId:barber},body:{state:'CLOSED',expectedVersion:scope.version,schedules:[]}});
+  expect((await request(availabilityPath)).slots).toEqual([]);
+ });
+});

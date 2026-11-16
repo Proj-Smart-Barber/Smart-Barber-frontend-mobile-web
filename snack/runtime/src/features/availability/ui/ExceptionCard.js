@@ -1,0 +1,105 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text, Badge } from '../../../shared/ui';
+import { LiquidGlassView } from '../../../shared/navigation/LiquidGlassView';
+import { useTheme } from '../../../shared/theme';
+import { formatExceptionLabel } from '../model/availability.types';
+const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+export function ExceptionCard({ exception, onEdit, onRemove, disabled, readOnly = false, }) {
+    var _a;
+    const { colors, spacing, radius } = useTheme();
+    const [year, month, day] = exception.date.split('-');
+    const monthLabel = (_a = MONTHS[Math.max(0, Number(month) - 1)]) !== null && _a !== void 0 ? _a : month;
+    const hoursLabel = formatExceptionLabel(exception);
+    const isClosedDay = !exception.openTime;
+    const isIndividual = Boolean(exception.barbermanId);
+    const badgeLabel = isClosedDay
+        ? isIndividual
+            ? 'Folga'
+            : readOnly
+                ? 'Unidade fechada (Geral)'
+                : 'Unidade fechada'
+        : isIndividual
+            ? 'Bloqueio parcial'
+            : 'Horário especial';
+    return (<LiquidGlassView variant="card" elevated style={{ width: '100%' }} contentStyle={{ padding: spacing[4] }}>
+      <View style={styles.row}>
+        <View style={[
+            styles.dateTile,
+            {
+                backgroundColor: colors.surface.elevated,
+                borderRadius: radius.md,
+            },
+        ]}>
+          <Text variant="h2" color={colors.text.primary}>
+            {day}
+          </Text>
+          <Text variant="badge" color={colors.brand.primary}>
+            {monthLabel}
+          </Text>
+          <Text variant="caption" color={colors.text.muted}>
+            {year}
+          </Text>
+        </View>
+
+        <View style={styles.info}>
+          <View style={styles.badgeRow}>
+            <Badge label={badgeLabel} tone={isClosedDay ? 'error' : 'warning'}/>
+          </View>
+
+          <View style={styles.hoursRow}>
+            <Ionicons name={isClosedDay ? 'lock-closed-outline' : 'time-outline'} size={16} color={colors.text.secondary}/>
+            <Text variant="bodySm" weight="semibold" color={colors.text.primary}>
+              {hoursLabel}
+            </Text>
+          </View>
+
+          {exception.reason ? (<Text variant="caption" color={colors.text.secondary} numberOfLines={2}>
+              {exception.reason}
+            </Text>) : (<Text variant="caption" color={colors.text.muted}>
+              Sem observação adicional
+            </Text>)}
+        </View>
+
+        {!readOnly && (<View style={styles.actions}>
+            {onEdit && (<Pressable accessibilityRole="button" accessibilityLabel={`Editar exceção de ${day}/${month}/${year}`} disabled={disabled} hitSlop={6} onPress={() => onEdit(exception)} style={({ pressed }) => [
+                    styles.actionButton,
+                    {
+                        backgroundColor: pressed ? colors.surface.selected : colors.surface.elevated,
+                        borderRadius: radius.md,
+                        opacity: disabled ? 0.5 : 1,
+                    },
+                ]}>
+                <Ionicons name="create-outline" size={18} color={colors.brand.primary}/>
+              </Pressable>)}
+
+            {onRemove && (<Pressable accessibilityRole="button" accessibilityLabel={`Remover exceção de ${day}/${month}/${year}`} disabled={disabled} hitSlop={6} onPress={() => onRemove(exception.id)} style={({ pressed }) => [
+                    styles.actionButton,
+                    {
+                        backgroundColor: pressed ? colors.feedback.errorBackground : colors.surface.elevated,
+                        borderRadius: radius.md,
+                        opacity: disabled ? 0.5 : 1,
+                    },
+                ]}>
+                <Ionicons name="trash-outline" size={18} color={colors.feedback.error}/>
+              </Pressable>)}
+          </View>)}
+      </View>
+    </LiquidGlassView>);
+}
+const styles = StyleSheet.create({
+    card: { width: '100%' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    dateTile: {
+        width: 64,
+        minHeight: 76,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+    },
+    info: { flex: 1, gap: 7 },
+    badgeRow: { flexDirection: 'row', alignItems: 'center' },
+    hoursRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    actions: { gap: 8 },
+    actionButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+});

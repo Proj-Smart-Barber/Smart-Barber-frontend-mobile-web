@@ -1,0 +1,179 @@
+import { Platform as ShadowPlatform } from 'react-native';
+import React from 'react';
+import { Animated, Platform, Pressable, StyleSheet, useWindowDimensions, View, } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { usePathname, useRouter } from 'expo-router';
+import { useAdaptiveLayout, useReducedMotion, useTheme } from '../theme';
+import { useAppSafeArea } from '../theme/use-app-safe-area';
+import { getOperationalContext, useSession } from '../../features/auth';
+import { BottomCapsuleBar } from './BottomCapsuleBar';
+import { FloatingBookingAction } from './FloatingBookingAction';
+import { DesktopSidebar } from './DesktopSidebar';
+import { LeftDrawer } from './LeftDrawer';
+import { NavigationProvider, useNavigation } from './navigation-context';
+function NavigationShellContent({ children }) {
+    const { colors, radius, isDark } = useTheme();
+    const { isExpanded, isCompact } = useAdaptiveLayout();
+    const { width } = useWindowDimensions();
+    const insets = useAppSafeArea();
+    const pathname = usePathname();
+    const isBookingCreation = pathname === '/new-booking';
+    const router = useRouter();
+    const session = useSession();
+    const operationalContext = getOperationalContext(session);
+    const canCreateBooking = Boolean(operationalContext && operationalContext.unitStatus !== 'INACTIVE');
+    const reducedMotion = useReducedMotion();
+    const { isDrawerOpen, openDrawer, closeDrawer, activeDestination, drawerProgress } = useNavigation();
+    // No desktop / tablet expandido: sidebar persistente à esquerda + conteúdo à direita
+    if (isExpanded) {
+        const webBackgroundStyle = Platform.OS === 'web'
+            ? {
+                backgroundImage: isDark
+                    ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+                    : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+            }
+            : {};
+        return (<View style={[
+                styles.container,
+                { backgroundColor: colors.background.primary, flexDirection: 'row' },
+                webBackgroundStyle,
+            ]}>
+        <DesktopSidebar />
+        <View style={styles.desktopContent}>{children}</View>
+      </View>);
+    }
+    // Deslocamento da página para a direita durante a abertura do Drawer (como na referência Threads)
+    const pageShift = Math.min(240, Math.round(width * 0.7));
+    const pageTranslateX = reducedMotion
+        ? 0
+        : drawerProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, pageShift],
+        });
+    const pageScale = reducedMotion
+        ? 1
+        : drawerProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0.94],
+        });
+    const pageBorderRadius = reducedMotion
+        ? 0
+        : drawerProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 20],
+        });
+    const pageShadowOpacity = reducedMotion
+        ? 0
+        : drawerProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, 0.4],
+        });
+    // Exibe disparador flutuante de menu nas outras telas que não têm hamburger nativo no header
+    const showFloatingMenuTrigger = activeDestination !== 'home' &&
+        activeDestination !== 'agenda' &&
+        activeDestination !== 'availability' &&
+        activeDestination !== 'settings' &&
+        !isDrawerOpen &&
+        !isBookingCreation;
+    const showFloatingBookingAction = pathname === '/' && isCompact && !isDrawerOpen && !isBookingCreation;
+    return (<View style={[styles.container, { backgroundColor: isDark ? '#080808' : colors.background.secondary }]}>
+      {/* Drawer Lateral Esquerdo (renderizado sob ou sobre a página deslocada) */}
+      <LeftDrawer />
+
+      {/* Conteúdo da página móvel deslocável (deslocamento Threads) */}
+      <Animated.View style={[
+            styles.mobilePageWrapper,
+            {
+                backgroundColor: colors.background.primary,
+                transform: [
+                    { translateX: pageTranslateX },
+                    { scale: pageScale },
+                ],
+                borderRadius: pageBorderRadius,
+                ...(ShadowPlatform.OS === 'web' ? { boxShadow: typeof pageShadowOpacity === 'number' ? 'none' : pageShadowOpacity.interpolate({ inputRange: [0, 1], outputRange: ['-4px 8px 18px rgba(0,0,0,0)', '-4px 8px 18px rgba(0,0,0,1)'] }) } : { shadowColor: '#000',
+                    shadowOffset: { width: -4, height: 8 },
+                    shadowOpacity: pageShadowOpacity,
+                    shadowRadius: 18, }),
+                elevation: isDrawerOpen ? 16 : 0,
+            },
+        ]}>
+        <View style={[styles.pageInner, isBookingCreation && {
+                paddingBottom: Math.max(insets.bottom, 12) + 88,
+            }]}>{children}</View>
+
+        {/* Camada que intercepta toque para fechar o drawer quando a página estiver deslocada */}
+        {isDrawerOpen ? (<Pressable accessibilityRole="button" accessibilityLabel="Fechar menu lateral e retornar ao conteúdo" onPress={closeDrawer} style={StyleSheet.absoluteFill}/>) : null}
+      </Animated.View>
+
+      {/* Cápsula Inferior Flutuante Mobile (renderizada sem faixa opaca de corte) */}
+      <BottomCapsuleBar />
+
+      {showFloatingBookingAction ? (<FloatingBookingAction bottom={Math.max(insets.bottom, 12) + 86} enabled={canCreateBooking} onPress={() => router.push('/(app)/new-booking')}/>) : null}
+
+      {/* Disparador do Menu Lateral para telas secundárias */}
+      {showFloatingMenuTrigger ? (<View style={[[
+                    styles.floatingTriggerContainer,
+                    {
+                        bottom: Math.max(insets.bottom, 10) + 76,
+                        right: 16,
+                    },
+                ], { pointerEvents: "box-none" }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Abrir menu de serviços e catálogo" onPress={openDrawer} style={({ pressed }) => [
+                styles.floatingTriggerButton,
+                {
+                    backgroundColor: isDark ? 'rgba(30, 30, 30, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : colors.border.default,
+                    borderRadius: radius.full,
+                    opacity: pressed ? 0.8 : 1,
+                    ...(ShadowPlatform.OS === 'web' ? { boxShadow: `0px 4px 8px rgba(0,0,0,${0.3})` } : { shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8, }),
+                    elevation: 6,
+                },
+            ]}>
+            <Ionicons name="grid-outline" size={20} color={colors.text.primary}/>
+          </Pressable>
+        </View>) : null}
+    </View>);
+}
+export function NavigationShell({ children }) {
+    return (<NavigationProvider>
+      <NavigationShellContent>{children}</NavigationShellContent>
+    </NavigationProvider>);
+}
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+    },
+    desktopContent: {
+        flex: 1,
+        height: '100%',
+        overflow: 'hidden',
+    },
+    mobilePageWrapper: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+    },
+    pageInner: {
+        flex: 1,
+        width: '100%',
+        height: '100%',
+    },
+    floatingTriggerContainer: {
+        position: 'absolute',
+        zIndex: 85,
+    },
+    floatingTriggerButton: {
+        width: 44,
+        height: 44,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+});

@@ -1,0 +1,34 @@
+import { Platform } from 'react-native';
+/** Configuração de variáveis de ambiente públicas do Smart Barber. */
+const DEFAULT_API_URL = 'https://demo.invalid';
+const DEFAULT_WEB_URL = 'https://app.smartbarber.wellingtonsp.uk';
+const MOCK_BARBERSHOP_ID = 'barbershop-seed-0001';
+const availabilitySource = process.env.EXPO_PUBLIC_AVAILABILITY_SOURCE === 'mock' ? 'mock' : 'http';
+const publicWebUrl = (process.env.EXPO_PUBLIC_WEB_URL ||
+    (Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.origin
+        : DEFAULT_WEB_URL)).replace(/\/$/, '');
+export const ENV = {
+    // Production web sessions use the first-party /api proxy and its HttpOnly cookie.
+    // Native clients and local development keep the explicit backend URL.
+    API_URL: Platform.OS === 'web' && process.env.NODE_ENV === 'production'
+        ? ''
+        : (process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL).replace(/\/$/, ''),
+    /** Origem base pública para compartilhamento e links do catálogo web */
+    PUBLIC_WEB_URL: publicWebUrl,
+    /** `mock` mantém desenvolvimento isolado; `http` ativa integração real. */
+    AVAILABILITY_SOURCE: availabilitySource,
+    /** ID padrão para testes/fallback; no HTTP a unidade vem da sessão ou storage. */
+    BARBERSHOP_ID: process.env.EXPO_PUBLIC_BARBERSHOP_ID || MOCK_BARBERSHOP_ID,
+    /** Chave pública do Google Maps JavaScript SDK / Mapas sob demanda (restrita por referrer/bundle). */
+    GOOGLE_MAPS_WEB_API_KEY: (process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY ||
+        process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+        '').trim(),
+    /** Map ID opcional para renderização customizada do Google Maps. */
+    GOOGLE_MAPS_MAP_ID: (process.env.EXPO_PUBLIC_GOOGLE_MAPS_MAP_ID || '').trim(),
+};
+export function getPublicCatalogUrl(barbershopId) {
+    if (!barbershopId)
+        return ENV.PUBLIC_WEB_URL;
+    return `${ENV.PUBLIC_WEB_URL}/barbershops/${encodeURIComponent(barbershopId)}/services`;
+}

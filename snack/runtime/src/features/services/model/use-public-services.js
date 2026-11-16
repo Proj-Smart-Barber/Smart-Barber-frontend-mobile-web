@@ -1,0 +1,96 @@
+import { useNetworkStatus } from '../../../shared/cache/use-network-status';
+import { PUBLIC_CATALOG_OPTIONS } from '../../../shared/cache/public-query-persister';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { servicesApi } from '../api/services.api';
+import { barbershopApi } from '../../barbershop';
+export function usePublicServices(barbershopId, initialServiceId) {
+    var _a;
+    const connected = useNetworkStatus();
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [isHandoffModalOpen, setIsHandoffModalOpen] = useState(false);
+    // Consulta autoritativa da barbearia
+    const barbershopQuery = useQuery({
+        queryKey: ['barbershop', 'public', barbershopId],
+        ...PUBLIC_CATALOG_OPTIONS,
+        queryFn: async () => {
+            if (!barbershopId)
+                throw new Error('ID da barbearia não fornecido.');
+            return barbershopApi.getBarbershop(barbershopId);
+        },
+        enabled: !!barbershopId,
+    });
+    // Consulta do catálogo de serviços ativos
+    const servicesQuery = useQuery({
+        queryKey: ['services', 'public', barbershopId],
+        ...PUBLIC_CATALOG_OPTIONS,
+        queryFn: async () => {
+            if (!barbershopId) {
+                return { items: [], total: 0, page: 1, limit: 100 };
+            }
+            return servicesApi.listServices(barbershopId, {
+                limit: 100,
+                includeInactive: false,
+            });
+        },
+        enabled: !!barbershopId,
+    });
+    const availableServices = useMemo(() => { var _a; return ((_a = servicesQuery.data) === null || _a === void 0 ? void 0 : _a.items.filter((s) => s.isActive)) || []; }, [(_a = servicesQuery.data) === null || _a === void 0 ? void 0 : _a.items]);
+    const appliedIntent = useRef(null);
+    useEffect(() => {
+        setSelectedIds([]);
+        appliedIntent.current = null;
+    }, [barbershopId]);
+    useEffect(() => {
+        const key = `${barbershopId}:${initialServiceId}`;
+        if (initialServiceId &&
+            appliedIntent.current !== key &&
+            availableServices.some((service) => service.id === initialServiceId)) {
+            setSelectedIds([initialServiceId]);
+            appliedIntent.current = key;
+        }
+    }, [barbershopId, initialServiceId, availableServices]);
+    const toggleService = useCallback((serviceId) => {
+        setSelectedIds((prev) => prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]);
+    }, []);
+    const isSelected = useCallback((serviceId) => selectedIds.includes(serviceId), [selectedIds]);
+    const clearSelection = useCallback(() => {
+        setSelectedIds([]);
+    }, []);
+    const selectedServices = useMemo(() => {
+        return availableServices.filter((s) => selectedIds.includes(s.id));
+    }, [availableServices, selectedIds]);
+    const totalPriceInCents = useMemo(() => {
+        return selectedServices.reduce((sum, s) => sum + s.priceInCents, 0);
+    }, [selectedServices]);
+    const totalDurationInMinutes = useMemo(() => {
+        return selectedServices.reduce((sum, s) => sum + s.durationInMinutes, 0);
+    }, [selectedServices]);
+    const openHandoffModal = () => setIsHandoffModalOpen(true);
+    const closeHandoffModal = () => setIsHandoffModalOpen(false);
+    return {
+        barbershop: barbershopQuery.data,
+        services: availableServices,
+        isLoading: barbershopQuery.isLoading || servicesQuery.isLoading,
+        isOffline: (!barbershopQuery.data && barbershopQuery.fetchStatus === 'paused') || (!servicesQuery.data && servicesQuery.fetchStatus === 'paused'),
+        isRefetching: servicesQuery.isRefetching,
+        isShowingSaved: Boolean(servicesQuery.data && (!connected || servicesQuery.isError)),
+        lastUpdatedAt: servicesQuery.dataUpdatedAt,
+        error: barbershopQuery.error || servicesQuery.error,
+        refetch: () => {
+            barbershopQuery.refetch();
+            servicesQuery.refetch();
+        },
+        selectedIds,
+        selectedServices,
+        totalPriceInCents,
+        totalDurationInMinutes,
+        hasSelectedServices: selectedServices.length > 0,
+        toggleService,
+        isSelected,
+        clearSelection,
+        isHandoffModalOpen,
+        openHandoffModal,
+        closeHandoffModal,
+    };
+}

@@ -1,0 +1,325 @@
+import { Platform as ShadowPlatform } from 'react-native';
+import React, { useEffect } from 'react';
+import { Animated, BackHandler, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View, } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { BrandMark } from '../brand';
+import { useSession } from '../../features/auth';
+import { useTheme } from '../theme';
+import { useAppSafeArea } from '../theme/use-app-safe-area';
+import { Badge, Text, useToast } from '../ui';
+import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
+import { useNavigation } from './navigation-context';
+import { LiquidGlassView } from './LiquidGlassView';
+export function LeftDrawer() {
+    const unitSession = useSession();
+    const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+        m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
+    const isOwnerActive = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+        m.state === 'ACTIVE' && m.role === 'OWNER');
+    const { colors, spacing, radius, isDark } = useTheme();
+    const insets = useAppSafeArea();
+    const router = useRouter();
+    const { width } = useWindowDimensions();
+    const { staff, barbershop, isOwner, signOut } = useSession();
+    const { isDrawerOpen, isDrawerVisible, drawerProgress, closeDrawer, activeDestination, } = useNavigation();
+    const { showToast } = useToast();
+    const drawerWidth = Math.min(320, Math.round(width * 0.85));
+    // Tecla Escape na Web e BackHandler no Android
+    useEffect(() => {
+        if (!isDrawerOpen)
+            return;
+        if (Platform.OS === 'android') {
+            const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+                closeDrawer();
+                return true;
+            });
+            return () => backHandler.remove();
+        }
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            const handleKeyDown = (e) => {
+                if (e.key === 'Escape') {
+                    closeDrawer();
+                }
+            };
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }
+    }, [isDrawerOpen, closeDrawer]);
+    // Permanece montado durante a animação de saída até isDrawerVisible ser falso
+    if (!isDrawerVisible) {
+        return null;
+    }
+    const slideAnim = drawerProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-drawerWidth, 0],
+    });
+    const backdropAnim = drawerProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.65],
+    });
+    const handleNavigate = (route) => {
+        closeDrawer();
+        router.push(route);
+    };
+    const handleShareCatalog = async () => {
+        closeDrawer();
+        await sharePublicCatalog({
+            barbershopId: barbershop === null || barbershop === void 0 ? void 0 : barbershop.id,
+            barbershopName: barbershop === null || barbershop === void 0 ? void 0 : barbershop.name,
+            onSuccess: (msg) => showToast(msg, 'success'),
+            onError: (err) => showToast(err.message, 'error'),
+        });
+    };
+    const handleOpenCatalog = async () => {
+        closeDrawer();
+        await openPublicCatalog(barbershop === null || barbershop === void 0 ? void 0 : barbershop.id);
+    };
+    const handleSignOut = () => {
+        closeDrawer();
+        void signOut();
+    };
+    const initials = (staff === null || staff === void 0 ? void 0 : staff.name)
+        ? staff.name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((p) => p[0].toUpperCase())
+            .join('')
+        : 'SB';
+    return (<View style={[[StyleSheet.absoluteFill, styles.overlayContainer], { pointerEvents: isDrawerOpen ? 'auto' : 'none' }]} accessibilityViewIsModal={isDrawerOpen}>
+      {/* Backdrop semi-transparente que escurece conforme drawerProgress */}
+      <Animated.View style={[
+            StyleSheet.absoluteFill,
+            {
+                backgroundColor: '#000000',
+                opacity: backdropAnim,
+            },
+        ]}>
+        <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Fechar menu lateral" onPress={closeDrawer}/>
+      </Animated.View>
+
+      {/* Painel lateral do Drawer com largura calculada dinamicamente e acabamento Liquid Glass */}
+      <Animated.View style={[
+            styles.drawerPanel,
+            {
+                width: drawerWidth,
+                transform: [{ translateX: slideAnim }],
+            },
+        ]}>
+        <LiquidGlassView variant="navigation" borderRadius={26} intensity={60} elevated={false} style={styles.drawerGlass} contentStyle={{
+            height: '100%',
+            paddingTop: insets.top > 0 ? insets.top + 8 : spacing[4],
+            paddingBottom: Math.max(insets.bottom, spacing[4]),
+        }}>
+
+        {/* Cabeçalho do Drawer: Marca Oficial + Conta e Identidade */}
+        <View style={[
+            styles.drawerHeader,
+            {
+                borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.border.subtle,
+                paddingHorizontal: spacing[5],
+                paddingBottom: spacing[4],
+                gap: spacing[3],
+            },
+        ]}>
+          {/* Linha 1: BrandMark Oficial + Nome + Botão Fechar */}
+          <View style={styles.brandRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              <BrandMark variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'} size={32} decorative={false} accessibilityLabel="Smart Barber Logo"/>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                  Smart Barber
+                </Text>
+                <Text variant="caption" color={colors.text.muted}>
+                  Painel Operacional
+                </Text>
+              </View>
+            </View>
+
+            <Pressable accessibilityRole="button" accessibilityLabel="Fechar menu lateral" onPress={closeDrawer} style={({ pressed }) => [
+            styles.closeButton,
+            {
+                borderRadius: radius.md,
+                backgroundColor: pressed
+                    ? isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'
+                    : isDark ? 'rgba(255, 255, 255, 0.05)' : colors.surface.input,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.border.default,
+            },
+        ]}>
+              <Ionicons name="close-outline" size={22} color={colors.text.primary}/>
+            </Pressable>
+          </View>
+
+          {/* Linha 2: Card de Perfil do Usuário */}
+          <View style={[
+            styles.userCard,
+            {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.03)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                borderRadius: radius.md,
+                padding: spacing[3],
+            },
+        ]}>
+            <View style={[
+            styles.avatar,
+            {
+                borderRadius: radius.full,
+                backgroundColor: colors.surface.elevated,
+                borderColor: colors.brand.primary,
+            },
+        ]}>
+              <Text variant="caption" color={colors.text.primary} weight="bold" style={{ lineHeight: 14, textAlign: 'center' }}>
+                {initials}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' }}>
+              <Text variant="bodySm" color={colors.text.primary} weight="bold" numberOfLines={1} ellipsizeMode="tail">
+                {(staff === null || staff === void 0 ? void 0 : staff.name) || (barbershop === null || barbershop === void 0 ? void 0 : barbershop.name) || 'Profissional'}
+              </Text>
+              <Badge label={isOwner ? 'Proprietário' : 'Barbeiro'} tone={isOwner ? 'brand' : 'success'} size="sm"/>
+            </View>
+          </View>
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{
+            paddingHorizontal: spacing[4],
+            paddingVertical: spacing[3],
+            gap: spacing[4],
+        }}>
+          {/* Grupo 1: Operação */}
+          <View style={styles.menuGroup}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.groupTitle}>
+              OPERAÇÃO
+            </Text>
+
+            <DrawerMenuItem label="Início" icon="home-outline" activeIcon="home" isActive={activeDestination === 'home'} onPress={() => handleNavigate('/(app)')}/>
+            <DrawerMenuItem label="Agenda" icon="calendar-outline" activeIcon="calendar" isActive={activeDestination === 'agenda'} onPress={() => handleNavigate('/(app)/agenda')}/>
+            <DrawerMenuItem label="Horários" icon="time-outline" activeIcon="time" isActive={activeDestination === 'availability'} onPress={() => handleNavigate('/(app)/availability')}/>
+            <DrawerMenuItem label="Serviços" icon="cut-outline" activeIcon="cut" isActive={activeDestination === 'services'} onPress={() => handleNavigate('/(app)/services')}/>
+            {isOwnerActive ? (<DrawerMenuItem label="Financeiro" icon="wallet-outline" activeIcon="wallet" isActive={activeDestination === 'finance'} onPress={() => handleNavigate('/(app)/finance')}/>) : null}
+            {isOwnerActive && (<DrawerMenuItem label="Equipe" icon="people-outline" activeIcon="people" isActive={activeDestination === 'team'} onPress={() => handleNavigate('/(app)/team')}/>)}
+            {isOwnerActive && (<DrawerMenuItem label="Avaliações" icon="star-outline" activeIcon="star" isActive={activeDestination === 'reviews'} onPress={() => handleNavigate('/(app)/reviews')}/>)}
+          </View>
+
+          {/* Grupo 2: Catálogo Público */}
+          <View style={styles.menuGroup}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.groupTitle}>
+              CATÁLOGO PÚBLICO
+            </Text>
+
+            <DrawerMenuItem label="Prévia do Perfil" icon="eye-outline" activeIcon="eye" isActive={activeDestination === 'profile-preview'} onPress={() => handleNavigate('/(app)/profile-preview')}/>
+            <DrawerMenuItem label="Abrir Catálogo Externo" icon="globe-outline" activeIcon="globe" isActive={false} onPress={handleOpenCatalog}/>
+            <DrawerMenuItem label="Compartilhar Link" icon="share-social-outline" activeIcon="share-social" isActive={false} onPress={handleShareCatalog}/>
+          </View>
+
+          {/* Grupo 3: Preferências e Conta */}
+          <View style={styles.menuGroup}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.groupTitle}>
+              CONTA & SISTEMA
+            </Text>
+
+            <DrawerMenuItem label="Configurações" icon="settings-outline" activeIcon="settings" isActive={activeDestination === 'settings'} onPress={() => handleNavigate('/(app)/settings')}/>
+            <DrawerMenuItem label="Sair da Conta" icon="log-out-outline" activeIcon="log-out" isActive={false} destructive onPress={handleSignOut}/>
+          </View>
+        </ScrollView>
+        </LiquidGlassView>
+      </Animated.View>
+    </View>);
+}
+function DrawerMenuItem({ label, icon, activeIcon, isActive, destructive = false, onPress, }) {
+    const { colors, radius, spacing, isDark } = useTheme();
+    const textColor = destructive
+        ? colors.feedback.error
+        : isActive
+            ? colors.text.inverse
+            : colors.text.primary;
+    const iconColor = destructive
+        ? colors.feedback.error
+        : isActive
+            ? colors.text.inverse
+            : colors.text.secondary;
+    const backgroundColor = isActive ? colors.brand.primary : 'transparent';
+    return (<Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [
+            styles.menuItem,
+            {
+                borderRadius: radius.md,
+                backgroundColor: isActive
+                    ? backgroundColor
+                    : pressed
+                        ? isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'
+                        : 'transparent',
+                paddingHorizontal: spacing[3],
+                paddingVertical: spacing[3],
+            },
+        ]}>
+      <Ionicons name={isActive ? activeIcon : icon} size={20} color={iconColor} style={{ marginRight: spacing[3] }}/>
+      <Text variant="bodySm" weight={isActive ? 'bold' : 'medium'} style={{ color: textColor, flex: 1 }}>
+        {label}
+      </Text>
+      {isActive ? (<Ionicons name="chevron-forward" size={16} color={textColor}/>) : null}
+    </Pressable>);
+}
+const styles = StyleSheet.create({
+    overlayContainer: {
+        zIndex: 100,
+    },
+    drawerPanel: {
+        height: '100%',
+        borderTopRightRadius: 26,
+        borderBottomRightRadius: 26,
+        ...(ShadowPlatform.OS === 'web' ? { boxShadow: `6px 0px 24px rgba(0,0,0,${0.35})` } : { shadowColor: '#000',
+            shadowOffset: { width: 6, height: 0 },
+            shadowOpacity: 0.35,
+            shadowRadius: 24, }),
+        elevation: 20,
+    },
+    drawerGlass: {
+        width: '100%',
+        height: '100%',
+    },
+    drawerHeader: {
+        borderBottomWidth: 1,
+    },
+    brandRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    userCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 1,
+    },
+    avatar: {
+        width: 36,
+        height: 36,
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    closeButton: {
+        width: 40,
+        height: 40,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    menuGroup: {
+        gap: 4,
+    },
+    groupTitle: {
+        fontSize: 11,
+        letterSpacing: 0.8,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    menuItem: {
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+});

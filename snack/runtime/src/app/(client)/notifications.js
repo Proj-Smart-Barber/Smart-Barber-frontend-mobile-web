@@ -1,0 +1,170 @@
+import React, { useState } from 'react';
+import { Platform, View, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme, useAdaptiveLayout } from '../../shared/theme';
+import { useAppSafeArea } from '../../shared/theme/use-app-safe-area';
+import { Text } from '../../shared/ui/Text';
+import { EmptyState } from '../../shared/ui/EmptyState';
+import { Badge } from '../../shared/ui/Badge';
+import { Button } from '../../shared/ui/Button';
+import { LoadingRegion } from '../../shared/ui';
+import { useNavigation } from '../../shared/navigation';
+import { ClientNavbarMetricsContext } from '../../shared/navigation/ClientNavbarMetrics';
+import { useSession } from '../../features/auth';
+import { useNotificationsFeed } from '../../features/notifications/model/notification-queries';
+import { NotificationCard } from '../../features/notifications/ui/NotificationCard';
+import { NotificationsSkeleton } from '../../features/notifications/ui/NotificationsSkeleton';
+export default function ClientNotificationsScreen() {
+    var _a, _b;
+    const router = useRouter();
+    const { colors, spacing, radius, isDark } = useTheme();
+    const { isCompact, isExpanded } = useAdaptiveLayout();
+    const insets = useAppSafeArea();
+    const navbarOffset = React.useContext(ClientNavbarMetricsContext);
+    const { identity } = useSession();
+    const [cursor, setCursor] = useState(undefined);
+    let openDrawer;
+    let onContentScroll;
+    try {
+        const nav = useNavigation();
+        openDrawer = nav.openDrawer;
+        onContentScroll = nav.onContentScroll;
+    }
+    catch {
+        openDrawer = undefined;
+        onContentScroll = undefined;
+    }
+    const webBackgroundStyle = Platform.OS === 'web'
+        ? {
+            backgroundImage: isDark
+                ? 'radial-gradient(ellipse at 20% 18%, rgba(124, 135, 159, 0.17), transparent 50%), radial-gradient(ellipse at 82% 57%, rgba(155, 41, 49, 0.105), transparent 55%), #0b0b0b'
+                : 'radial-gradient(ellipse at 20% 18%, rgba(159, 170, 191, 0.23), transparent 50%), radial-gradient(ellipse at 80% 60%, rgba(189, 32, 38, 0.06), transparent 55%), #f7f5f3',
+        }
+        : {};
+    const { data, isLoading, error, refetch, isRefetching, } = useNotificationsFeed(identity === null || identity === void 0 ? void 0 : identity.id, { cursor, limit: 20 });
+    const notifications = (_a = data === null || data === void 0 ? void 0 : data.notifications) !== null && _a !== void 0 ? _a : [];
+    const unreadCount = (_b = data === null || data === void 0 ? void 0 : data.unreadCount) !== null && _b !== void 0 ? _b : 0;
+    const nextCursor = data === null || data === void 0 ? void 0 : data.nextCursor;
+    return (<View style={[
+            styles.container,
+            { backgroundColor: colors.background.primary },
+            webBackgroundStyle,
+        ]}>
+      <View style={[
+            styles.header,
+            {
+                paddingTop: insets.top > 0 ? insets.top + 8 : 16,
+                paddingHorizontal: isCompact ? 16 : 32,
+            },
+        ]}>
+        <View style={styles.contentConstraint}>
+          <View style={styles.titleRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={styles.titleWithBadge}>
+                  <Text variant="h2" style={{ color: colors.text.primary, fontWeight: '800' }}>
+                    Notificações
+                  </Text>
+                  {unreadCount > 0 && (<Badge label={`${unreadCount} novas`} tone="brand"/>)}
+                </View>
+                <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
+                  Avisos, confirmações e atualizações de agendamento da sua conta.
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+              <Button title="Voltar" variant="ghost" onPress={() => router.back()}/>
+              <Pressable onPress={() => router.push('/(client)/profile')} accessibilityRole="button" accessibilityLabel="Acessar Minha Conta" style={({ pressed }) => [
+            styles.explicitAccountButton,
+            {
+                backgroundColor: pressed
+                    ? colors.surface.selected
+                    : isDark
+                        ? 'rgba(255, 255, 255, 0.04)'
+                        : colors.surface.input,
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : colors.border.default,
+                borderRadius: radius.full,
+            },
+        ]}>
+                <Ionicons name="person-circle-outline" size={20} color={colors.brand.primary}/>
+                <Text variant="caption" weight="bold" color={colors.text.primary} style={styles.accountButtonText}>
+                  Conta
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {isLoading ? (<LoadingRegion phase="initial" busy={true} accessibilityLabel="Carregando notificações" placeholder={<View style={styles.contentConstraint}>
+              <NotificationsSkeleton count={4}/>
+            </View>} style={{ flex: 1, paddingHorizontal: isCompact ? 16 : 32, paddingTop: spacing.md }}/>) : error ? (<View style={styles.center}>
+          <Text variant="body" style={{ color: colors.feedback.error }}>
+            Não foi possível carregar as notificações.
+          </Text>
+          <Button title="Tentar novamente" variant="outline" style={{ marginTop: spacing.md }} onPress={() => refetch()}/>
+        </View>) : notifications.length === 0 ? (<EmptyState title="Nenhuma notificação" description="Você está em dia com todas as suas atualizações e avisos."/>) : (<FlatList data={notifications} keyExtractor={(item) => item.id} onScroll={onContentScroll} scrollEventThrottle={16} renderItem={({ item }) => (<View style={styles.contentConstraint}>
+              <NotificationCard notification={item}/>
+            </View>)} contentContainerStyle={[
+                styles.listContent,
+                {
+                    paddingHorizontal: isCompact ? 16 : 32,
+                    paddingBottom: !isExpanded
+                        ? (navbarOffset > 0 ? navbarOffset + 16 : Math.max(insets.bottom, 16) + 96)
+                        : 40,
+                },
+            ]} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { void refetch(); }} tintColor={colors.brand.primary}/>} ListFooterComponent={nextCursor ? (<View style={styles.contentConstraint}>
+                <Button title="Carregar mais" variant="outline" style={{ marginTop: spacing.md }} onPress={() => setCursor(nextCursor)}/>
+              </View>) : undefined}/>)}
+    </View>);
+}
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    header: {
+        paddingBottom: 16,
+    },
+    contentConstraint: {
+        width: '100%',
+        maxWidth: 960,
+        alignSelf: 'center',
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    explicitAccountButton: {
+        height: 44,
+        minHeight: 44,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        borderWidth: 1,
+        gap: 6,
+    },
+    accountButtonText: {
+        fontSize: 12,
+        lineHeight: 16,
+        fontWeight: '700',
+    },
+    titleWithBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    listContent: {
+        paddingTop: 8,
+        gap: 12,
+    },
+});

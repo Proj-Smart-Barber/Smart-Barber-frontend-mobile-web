@@ -1,0 +1,221 @@
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { BrandMark } from '../brand';
+import { useSession } from '../../features/auth';
+import { useTheme } from '../theme';
+import { Badge, Text, useToast } from '../ui';
+import { openPublicCatalog, sharePublicCatalog } from './catalog-share.helper';
+import { LiquidGlassView } from './LiquidGlassView';
+import { useNavigation } from './navigation-context';
+export function DesktopSidebar() {
+    const unitSession = useSession();
+    const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+        m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
+    const isOwnerActive = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+        m.state === 'ACTIVE' && m.role === 'OWNER');
+    const { colors, spacing, radius, isDark } = useTheme();
+    const router = useRouter();
+    const { staff, barbershop, isOwner, signOut } = useSession();
+    const { activeDestination } = useNavigation();
+    const { showToast } = useToast();
+    const handleNavigate = (route) => {
+        router.push(route);
+    };
+    const handleShareCatalog = async () => {
+        await sharePublicCatalog({
+            barbershopId: barbershop === null || barbershop === void 0 ? void 0 : barbershop.id,
+            barbershopName: barbershop === null || barbershop === void 0 ? void 0 : barbershop.name,
+            onSuccess: (msg) => showToast(msg, 'success'),
+            onError: (err) => showToast(err.message, 'error'),
+        });
+    };
+    const handleOpenCatalog = async () => {
+        await openPublicCatalog(barbershop === null || barbershop === void 0 ? void 0 : barbershop.id);
+    };
+    const initials = (staff === null || staff === void 0 ? void 0 : staff.name)
+        ? staff.name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((p) => p[0].toUpperCase())
+            .join('')
+        : 'SB';
+    return (<View accessibilityRole="menu" accessibilityLabel="Menu de navegação desktop" style={styles.sidebarSlot}>
+      <LiquidGlassView variant="sidebar" borderRadius={30} elevated style={styles.glassWrapper} contentStyle={[styles.glassContent, { paddingVertical: spacing[5] }]}>
+        {/* Topo da Sidebar: Marca & Barba */}
+        <View style={[styles.brandHeader, { paddingHorizontal: spacing[4], gap: spacing[3] }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+            <BrandMark variant={isDark ? 'symbol-ivory' : 'symbol-obsidian'} size={34} decorative={false} accessibilityLabel="Smart Barber Logo"/>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text variant="subhead" weight="bold" color={colors.text.primary} numberOfLines={1}>
+                {(barbershop === null || barbershop === void 0 ? void 0 : barbershop.name) || 'Smart Barber'}
+              </Text>
+              <Text variant="caption" color={colors.text.muted}>
+                Painel Operacional
+              </Text>
+            </View>
+          </View>
+
+          {/* Card do Usuário Logado */}
+          <View style={[
+            styles.userCard,
+            {
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.03)',
+                borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                borderRadius: radius.md,
+                padding: spacing[3],
+            },
+        ]}>
+            <View style={[
+            styles.avatar,
+            {
+                borderRadius: radius.full,
+                backgroundColor: colors.surface.elevated,
+                borderColor: colors.brand.primary,
+            },
+        ]}>
+              <Text variant="caption" color={colors.text.primary} weight="bold" style={{ lineHeight: 14, textAlign: 'center' }}>
+                {initials}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1, minWidth: 0, gap: 3, justifyContent: 'center' }}>
+              <Text variant="bodySm" weight="bold" color={colors.text.primary} numberOfLines={1} ellipsizeMode="tail">
+                {(staff === null || staff === void 0 ? void 0 : staff.name) || (barbershop === null || barbershop === void 0 ? void 0 : barbershop.name) || 'Profissional'}
+              </Text>
+              <Badge label={isOwner ? 'Proprietário' : 'Barbeiro'} tone={isOwner ? 'brand' : 'success'} size="sm"/>
+            </View>
+          </View>
+        </View>
+
+        {/* Conteúdo rolável de grupos e itens */}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{
+            paddingHorizontal: spacing[3],
+            paddingVertical: spacing[3],
+            gap: spacing[4],
+        }}>
+          {/* Grupo 1: Operação Principal */}
+          <View style={styles.menuGroup}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.groupTitle}>
+              OPERAÇÃO
+            </Text>
+
+            <SidebarItem label="Início" icon="home-outline" activeIcon="home" isActive={activeDestination === 'home'} onPress={() => handleNavigate('/(app)')}/>
+            <SidebarItem label="Agenda" icon="calendar-outline" activeIcon="calendar" isActive={activeDestination === 'agenda'} onPress={() => handleNavigate('/(app)/agenda')}/>
+            <SidebarItem label="Horários" icon="time-outline" activeIcon="time" isActive={activeDestination === 'availability'} onPress={() => handleNavigate('/(app)/availability')}/>
+            <SidebarItem label="Serviços" icon="cut-outline" activeIcon="cut" isActive={activeDestination === 'services'} onPress={() => handleNavigate('/(app)/services')}/>
+            {isOwnerActive ? (<SidebarItem label="Financeiro" icon="wallet-outline" activeIcon="wallet" isActive={activeDestination === 'finance'} onPress={() => handleNavigate('/(app)/finance')}/>) : null}
+            {isOwnerActive && (<SidebarItem label="Equipe" icon="people-outline" activeIcon="people" isActive={activeDestination === 'team'} onPress={() => handleNavigate('/(app)/team')}/>)}
+            {isOwnerActive && (<SidebarItem label="Avaliações" icon="star-outline" activeIcon="star" isActive={activeDestination === 'reviews'} onPress={() => handleNavigate('/(app)/reviews')}/>)}
+          </View>
+
+          {/* Grupo 2: Catálogo Público */}
+          <View style={styles.menuGroup}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.groupTitle}>
+              CATÁLOGO PÚBLICO
+            </Text>
+
+            <SidebarItem label="Prévia do Perfil" icon="eye-outline" activeIcon="eye" isActive={activeDestination === 'profile-preview'} onPress={() => handleNavigate('/(app)/profile-preview')}/>
+            <SidebarItem label="Abrir Catálogo Externo" icon="globe-outline" activeIcon="globe" isActive={false} onPress={handleOpenCatalog}/>
+            <SidebarItem label="Compartilhar Link" icon="share-social-outline" activeIcon="share-social" isActive={false} onPress={handleShareCatalog}/>
+          </View>
+
+          {/* Grupo 3: Preferências e Conta */}
+          <View style={styles.menuGroup}>
+            <Text variant="caption" weight="bold" color={colors.text.muted} style={styles.groupTitle}>
+              SISTEMA & CONTA
+            </Text>
+
+            <SidebarItem label="Configurações" icon="settings-outline" activeIcon="settings" isActive={activeDestination === 'settings'} onPress={() => handleNavigate('/(app)/settings')}/>
+            <SidebarItem label="Sair da Conta" icon="log-out-outline" activeIcon="log-out" isActive={false} destructive onPress={() => void signOut()}/>
+          </View>
+        </ScrollView>
+      </LiquidGlassView>
+    </View>);
+}
+function SidebarItem({ label, icon, activeIcon, isActive, destructive = false, onPress, }) {
+    const { colors, radius, spacing, isDark } = useTheme();
+    const textColor = destructive
+        ? colors.feedback.error
+        : isActive
+            ? colors.text.inverse
+            : colors.text.primary;
+    const iconColor = destructive
+        ? colors.feedback.error
+        : isActive
+            ? colors.text.inverse
+            : colors.text.secondary;
+    const backgroundColor = isActive
+        ? colors.brand.primary
+        : 'transparent';
+    return (<Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [
+            styles.menuItem,
+            {
+                borderRadius: radius.md,
+                backgroundColor: isActive
+                    ? backgroundColor
+                    : pressed
+                        ? isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)'
+                        : 'transparent',
+                paddingHorizontal: spacing[3],
+                paddingVertical: spacing[3],
+            },
+        ]}>
+      <Ionicons name={isActive ? activeIcon : icon} size={20} color={iconColor} style={{ marginRight: spacing[3] }}/>
+      <Text variant="bodySm" weight={isActive ? 'bold' : 'medium'} style={{ color: textColor, flex: 1 }}>
+        {label}
+      </Text>
+      {isActive ? (<Ionicons name="chevron-forward" size={16} color={textColor}/>) : null}
+    </Pressable>);
+}
+const styles = StyleSheet.create({
+    sidebarSlot: {
+        width: 280,
+        height: '100%',
+        padding: 14,
+        flexShrink: 0,
+        backgroundColor: 'transparent',
+    },
+    glassWrapper: {
+        width: '100%',
+        height: '100%',
+    },
+    glassContent: {
+        width: '100%',
+        height: '100%',
+    },
+    brandHeader: {
+        borderBottomWidth: 1,
+        borderBottomColor: 'transparent',
+    },
+    userCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        borderWidth: 1,
+        marginTop: 8,
+    },
+    avatar: {
+        width: 36,
+        height: 36,
+        borderWidth: 1.5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    menuGroup: {
+        gap: 4,
+    },
+    groupTitle: {
+        fontSize: 11,
+        letterSpacing: 0.8,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    menuItem: {
+        minHeight: 44,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+});

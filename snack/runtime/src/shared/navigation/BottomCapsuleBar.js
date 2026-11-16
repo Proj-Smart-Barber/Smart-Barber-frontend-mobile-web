@@ -1,0 +1,172 @@
+import React from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useAdaptiveLayout, useReducedMotion, useTheme } from '../theme';
+import { useAppSafeArea } from '../theme/use-app-safe-area';
+import { useSession } from '../../features/auth';
+import { Text } from '../ui';
+import { LiquidGlassView } from './LiquidGlassView';
+import { useNavigation } from './navigation-context';
+const DESTINATIONS = [
+    {
+        id: 'menu',
+        label: 'Menu',
+        route: '#drawer',
+        iconActive: 'menu',
+        iconInactive: 'menu-outline',
+    },
+    {
+        id: 'home',
+        label: 'Início',
+        route: '/(app)',
+        iconActive: 'home',
+        iconInactive: 'home-outline',
+    },
+    {
+        id: 'agenda',
+        label: 'Agenda',
+        route: '/(app)/agenda',
+        iconActive: 'calendar',
+        iconInactive: 'calendar-outline',
+    },
+    {
+        id: 'availability',
+        label: 'Horários',
+        route: '/(app)/availability',
+        iconActive: 'time',
+        iconInactive: 'time-outline',
+    },
+];
+export function BottomCapsuleBar() {
+    const unitSession = useSession();
+    const canManageBookings = unitSession.memberships.some(m => m.id === unitSession.selectedShopId &&
+        m.state === 'ACTIVE' && ['OWNER', 'BARBERMAN'].includes(m.role));
+    const { colors, spacing, radius, isDark } = useTheme();
+    const { isCompact } = useAdaptiveLayout();
+    const { isOwner } = useSession();
+    const insets = useAppSafeArea();
+    const router = useRouter();
+    const { activeDestination, isDrawerOpen, drawerProgress, scrollCollapseProgress, openDrawer, closeDrawer } = useNavigation();
+    const reducedMotion = useReducedMotion();
+    const visibleDestinations = DESTINATIONS.filter((item) => item.visibleForRole !== 'BARBER' || canManageBookings);
+    const handleNavigate = (route, currentId) => {
+        if (activeDestination === currentId)
+            return;
+        router.push(route);
+    };
+    const bottomInset = (insets.bottom > 0 ? Math.min(insets.bottom, 34) : 12) + 8;
+    // Atenua e desabilita a barra durante o drawer aberto
+    const capsuleOpacity = reducedMotion
+        ? (isDrawerOpen ? 0 : 1)
+        : drawerProgress.interpolate({
+            inputRange: [0, 0.4, 1],
+            outputRange: [1, 0, 0],
+        });
+    const capsuleScale = scrollCollapseProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
+    const capsuleTranslateY = scrollCollapseProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 4] });
+    return (<Animated.View pointerEvents={isDrawerOpen ? 'none' : 'box-none'} style={[
+            styles.outerContainer,
+            {
+                bottom: bottomInset,
+                paddingHorizontal: spacing[4],
+                opacity: capsuleOpacity,
+                transform: [{ scale: capsuleScale }, { translateY: capsuleTranslateY }],
+            },
+        ]}>
+      <LiquidGlassView borderRadius={radius.full} intensity={60} elevated style={styles.capsuleWrapper} contentStyle={styles.capsuleContent}>
+        <View accessibilityRole="tablist" accessibilityLabel="Navegação principal da aplicação" style={styles.tablistContainer}>
+          {visibleDestinations.map((item) => {
+            var _a;
+            const isMenuItem = item.id === 'menu';
+            const isActive = isMenuItem ? isDrawerOpen : activeDestination === item.id;
+            const iconName = isActive ? item.iconActive : item.iconInactive;
+            const activeBg = colors.brand.primary;
+            const activeTextColor = '#FFFFFF';
+            const inactiveTextColor = colors.text.secondary;
+            const handlePress = () => {
+                if (isMenuItem) {
+                    if (isDrawerOpen) {
+                        closeDrawer();
+                    }
+                    else {
+                        openDrawer();
+                    }
+                }
+                else {
+                    handleNavigate(item.route, item.id);
+                }
+            };
+            return (<Pressable key={item.id} accessibilityRole={isMenuItem ? 'button' : 'tab'} accessibilityLabel={isMenuItem
+                    ? isDrawerOpen
+                        ? 'Fechar menu'
+                        : 'Abrir menu lateral'
+                    : `${item.label}, ${isActive ? 'selecionado' : 'não selecionado'}`} accessibilityState={isMenuItem ? { expanded: isDrawerOpen } : { selected: isActive }} onPress={handlePress} style={({ pressed }) => [
+                    styles.tabItem,
+                    {
+                        opacity: pressed && !isActive ? 0.7 : 1,
+                        backgroundColor: isActive ? activeBg : 'transparent',
+                        borderRadius: radius.full,
+                    },
+                ]}>
+                <Ionicons name={iconName} size={20} color={isActive ? activeTextColor : inactiveTextColor}/>
+                <Text variant="caption" weight={isActive ? 'bold' : 'medium'} numberOfLines={1} style={{
+                    color: isActive ? activeTextColor : inactiveTextColor,
+                    fontSize: isCompact && item.compactLabel ? 10 : 11,
+                    lineHeight: isCompact && item.compactLabel ? 12 : 14,
+                    marginTop: isCompact && item.compactLabel ? 1 : 2,
+                    textAlign: 'center',
+                }}>
+                  {isCompact ? (_a = item.compactLabel) !== null && _a !== void 0 ? _a : item.label : item.label}
+                </Text>
+              </Pressable>);
+        })}
+        </View>
+      </LiquidGlassView>
+    </Animated.View>);
+}
+const styles = StyleSheet.create({
+    outerContainer: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 90,
+        backgroundColor: 'transparent',
+    },
+    capsuleWrapper: {
+        width: '100%',
+        maxWidth: 380,
+        height: 64,
+        minHeight: 64,
+    },
+    capsuleContent: {
+        width: '100%',
+        height: 64,
+        minHeight: 64,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+    },
+    tablistContainer: {
+        flex: 1,
+        height: 52,
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+    },
+    tabItem: {
+        flex: 1,
+        height: 50,
+        minHeight: 48,
+        marginHorizontal: 3,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 4,
+        paddingHorizontal: 6,
+    },
+});

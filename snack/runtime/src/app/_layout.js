@@ -1,0 +1,253 @@
+import { httpClient } from '../shared/api';
+import { attachCatalogMutationInvalidation } from '../shared/cache/catalog-invalidation';
+import { attachPublicQueryCachePersistence, hydratePersistedPublicQueries } from '../shared/cache/public-query-persister';
+import { installQueryLifecycle } from '../shared/cache/query-lifecycle';
+import { DemoNotice } from '../../demo/DemoNotice';
+import React, { useEffect, useState, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { FontDisplay } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts, Epilogue_700Bold, Epilogue_800ExtraBold } from '@expo-google-fonts/epilogue';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, } from '@expo-google-fonts/inter';
+import { ThemeProvider, useTheme } from '../shared/theme';
+import { SessionProvider, useSession, SessionRecoveryScreen } from '../features/auth';
+import { BootstrapScreen, ToastProvider } from '../shared/ui';
+import { serverClock } from '../features/bookings';
+import { locationStore } from '../features/discovery';
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+import { resolveEntryDestination } from '../features/auth/model/operational-context';
+import { OperationLifecycleBridge } from '../shared/operations/OperationLifecycleBridge';
+import { getBookingReturnIntent, clearBookingReturnIntent, } from '../features/auth/model/booking-return-intent';
+const BRAND_LOADING_SOURCE = ({ uri: "https://raw.githubusercontent.com/Proj-Smart-Barber/Smart-Barber-frontend-mobile-web/99da9f8/assets/images/brand/sb-loading-transparent.gif" });
+function AuthRouteGuard({ fontsLoaded }) {
+    var _a, _b, _c;
+    const { status, barbershop, identity, memberships, selectedShopId, token, restoreSession, signOut, error, } = useSession();
+    const segments = useSegments();
+    const router = useRouter();
+    const { isDark } = useTheme();
+    const [isRetrying, setIsRetrying] = useState(false);
+    useEffect(() => {
+        if (!fontsLoaded || status === 'bootstrapping' || status === 'error')
+            return;
+        const inAuth = segments[0] === '(auth)';
+        const inApp = segments[0] === '(app)';
+        const inAccount = segments[0] === '(account)';
+        const inPublic = segments[0] === '(public)';
+        const inClient = segments[0] === '(client)';
+        const inBarber = segments[0] === '(barber)';
+        const inPlatform = segments[0] === '(platform)';
+        const currentAppRoute = segments[1];
+        if (inPublic) {
+            return;
+        }
+        if (status === 'authenticated') {
+            if (inAuth || !segments[0]) {
+                const returnIntent = getBookingReturnIntent();
+                if (returnIntent) {
+                    clearBookingReturnIntent();
+                    router.replace(returnIntent.returnPath);
+                    return;
+                }
+                const dest = resolveEntryDestination({
+                    status: 'authenticated',
+                    identity,
+                    memberships,
+                    selectedShopId,
+                    revocationPending: false,
+                    accessToken: token,
+                }, identity === null || identity === void 0 ? void 0 : identity.onboardingIntent, { clientEntry: 'explore' });
+                router.replace(dest);
+            }
+            else if (inApp) {
+                if (!barbershop && currentAppRoute !== 'barbershop-setup') {
+                    if ((identity === null || identity === void 0 ? void 0 : identity.accountType) === 'OWNER' ||
+                        (identity === null || identity === void 0 ? void 0 : identity.onboardingIntent) === 'OWNER' ||
+                        (identity === null || identity === void 0 ? void 0 : identity.onboardingIntent) === 'SETUP_BARBERSHOP') {
+                        router.replace('/(app)/barbershop-setup');
+                    }
+                    else if ((identity === null || identity === void 0 ? void 0 : identity.accountType) === 'BARBER') {
+                        router.replace('/(account)/invitations');
+                    }
+                    else {
+                        router.replace('/(client)/explore');
+                    }
+                }
+            }
+        }
+        if (status === 'unauthenticated') {
+            if (!segments[0]) {
+                router.replace('/(auth)/login');
+            }
+            else if (inApp || inAccount || inClient || inBarber || inPlatform) {
+                router.replace('/(auth)/login');
+            }
+        }
+    }, [
+        fontsLoaded,
+        status,
+        barbershop,
+        identity,
+        memberships,
+        selectedShopId,
+        token,
+        segments,
+        router,
+    ]);
+    const inPublic = segments[0] === '(public)';
+    useEffect(() => {
+        if (inPublic) {
+            void SplashScreen.hideAsync().catch(() => undefined);
+        }
+    }, [inPublic]);
+    if (inPublic) {
+        return (<>
+        <StatusBar style="light"/>
+        <Slot key="route-content"/>
+      </>);
+    }
+    const waitingForLogin = status === 'unauthenticated' &&
+        ['(app)', '(account)', '(client)', '(barber)', '(platform)'].includes((_a = segments[0]) !== null && _a !== void 0 ? _a : '');
+    if (!fontsLoaded || status === 'bootstrapping' || waitingForLogin) {
+        return (<BootstrapScreen clientLoadingBrandSource={BRAND_LOADING_SOURCE} message={fontsLoaded ? 'Verificando sua sessão…' : 'Carregando tipografia e recursos…'}/>);
+    }
+    if (status === 'error') {
+        return (<SessionRecoveryScreen isRetrying={isRetrying} errorMessage={error === null || error === void 0 ? void 0 : error.message} onRetry={async () => {
+                setIsRetrying(true);
+                try {
+                    await restoreSession();
+                }
+                finally {
+                    setIsRetrying(false);
+                }
+            }} onSwitchAccount={async () => {
+                await signOut();
+                router.replace('/(auth)/login');
+            }}/>);
+    }
+    return (<>
+      <ClockLifecycleBridge actorId={(_b = identity === null || identity === void 0 ? void 0 : identity.id) !== null && _b !== void 0 ? _b : null} sessionStatus={status}/>
+      <OperationLifecycleBridge actorId={(_c = identity === null || identity === void 0 ? void 0 : identity.id) !== null && _c !== void 0 ? _c : null} sessionState={status}/>
+      <StatusBar style={isDark ? 'light' : 'dark'}/>
+      <Slot key="route-content"/>
+    </>);
+}
+function ClockLifecycleBridge({ actorId, sessionStatus, }) {
+    const prevActorIdRef = useRef(actorId);
+    useEffect(() => {
+        var _a;
+        // Invalida o relógio no logout ou troca de ator; preserva localização salva do dispositivo
+        // e restaura coordenadas imediatamente ao autenticar
+        if (sessionStatus === 'unauthenticated' ||
+            (prevActorIdRef.current !== null && prevActorIdRef.current !== actorId)) {
+            serverClock.clear();
+        }
+        else if (sessionStatus === 'authenticated') {
+            void ((_a = locationStore.restoreFromCache) === null || _a === void 0 ? void 0 : _a.call(locationStore));
+        }
+        prevActorIdRef.current = actorId;
+    }, [actorId, sessionStatus]);
+    useEffect(() => {
+        const handleAppStateChange = (nextStatus) => {
+            // Ao ir para background ou inativo, invalida o lease para exigir nova referência autorizada
+            if (nextStatus !== 'active') {
+                serverClock.clear();
+            }
+        };
+        const sub = AppState.addEventListener('change', handleAppStateChange);
+        const handleVisibility = () => {
+            if (typeof document !== 'undefined' && document.hidden) {
+                serverClock.clear();
+            }
+        };
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', handleVisibility);
+        }
+        return () => {
+            sub.remove();
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', handleVisibility);
+            }
+        };
+    }, []);
+    return null;
+}
+function WebAutofillReset() {
+    const { colors } = useTheme();
+    if (Platform.OS !== 'web')
+        return null;
+    return (<style id="smart-barber-autofill-reset" dangerouslySetInnerHTML={{
+            __html: `
+          input:-webkit-autofill,
+          input:-webkit-autofill:hover,
+          input:-webkit-autofill:focus,
+          input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px ${colors.surface.input} inset !important;
+            -webkit-text-fill-color: ${colors.text.primary} !important;
+            caret-color: ${colors.text.primary} !important;
+            transition: background-color 5000s ease-in-out 0s;
+          }
+          input {
+            background-color: transparent !important;
+          }
+        `,
+        }}/>);
+}
+function AppReady() {
+    const [fontsLoaded, fontError] = useFonts({
+        ...Ionicons.font,
+        Epilogue_700Bold: { uri: Epilogue_700Bold, display: FontDisplay.SWAP },
+        Epilogue_800ExtraBold: { uri: Epilogue_800ExtraBold, display: FontDisplay.SWAP },
+        Inter_400Regular: { uri: Inter_400Regular, display: FontDisplay.SWAP },
+        Inter_500Medium: { uri: Inter_500Medium, display: FontDisplay.SWAP },
+        Inter_600SemiBold: { uri: Inter_600SemiBold, display: FontDisplay.SWAP },
+        Inter_700Bold: { uri: Inter_700Bold, display: FontDisplay.SWAP },
+    });
+    // Web text uses a fallback immediately; native font failures must not trap the splash.
+    const fontsReady = Platform.OS === 'web' || fontsLoaded || Boolean(fontError);
+    useEffect(() => {
+        if (fontsReady)
+            void SplashScreen.hideAsync().catch(() => undefined);
+    }, [fontsReady]);
+    return (<SessionProvider>
+      <WebAutofillReset />
+      <AuthRouteGuard fontsLoaded={fontsReady}/>
+    </SessionProvider>);
+}
+export default function RootLayout() {
+    const [queryClient] = useState(() => new QueryClient({
+        defaultOptions: {
+            queries: { retry: false, refetchOnWindowFocus: false },
+        },
+    }));
+    const [cacheReady, setCacheReady] = useState(false);
+    useEffect(() => {
+        let mounted = true;
+        let detach = () => { };
+        const lifecycle = installQueryLifecycle();
+        const catalog = attachCatalogMutationInvalidation(queryClient, httpClient);
+        const restore = process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE === 'false'
+            ? Promise.resolve(0) : hydratePersistedPublicQueries(queryClient);
+        void restore.finally(() => {
+            if (!mounted)
+                return;
+            if (process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE !== 'false')
+                detach = attachPublicQueryCachePersistence(queryClient);
+            setCacheReady(true);
+        });
+        return () => { mounted = false; detach(); lifecycle(); catalog(); };
+    }, [queryClient]);
+    return (<SafeAreaProvider style={{ flex: 1, width: '100%', height: '100%' }}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <ToastProvider>
+            {cacheReady ? <><DemoNotice /><AppReady /></> : <BootstrapScreen message="Preparando informações salvas…"/>}
+          </ToastProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>);
+}

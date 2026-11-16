@@ -1,0 +1,35 @@
+import React from 'react';
+import { View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../shared/theme';
+import { Text } from '../../../shared/ui';
+import { LiquidGlassView } from '../../../shared/navigation/LiquidGlassView';
+import { formatClockRange, formatDurationMinutes, minutesBetween } from '../model/agenda.helpers';
+/** Horário livre: borda tracejada, ícone de relógio e duração disponível. */
+export function AgendaFreeSlotCard({ entry }) {
+    const { colors, spacing, radius } = useTheme();
+    const duration = minutesBetween(entry.startTime, entry.endTime);
+    return (<LiquidGlassView variant="card" style={{ width: '100%' }} contentStyle={{ padding: spacing[4] }} borderWidth={1.5} borderColor={colors.border.default}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[3] }}>
+        <View style={{
+            width: 44,
+            height: 44,
+            borderRadius: radius.md,
+            backgroundColor: colors.surface.input,
+            alignItems: 'center',
+            justifyContent: 'center',
+        }}>
+          <Ionicons name="time-outline" size={20} color={colors.text.secondary}/>
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="subhead" color={colors.text.primary}>
+            Livre
+          </Text>
+          <Text variant="caption" color={colors.text.secondary}>
+            {formatClockRange(entry.startTime, entry.endTime)} ·{' '}
+            {formatDurationMinutes(duration)} disponíveis
+          </Text>
+        </View>
+      </View>
+    </LiquidGlassView>);
+}

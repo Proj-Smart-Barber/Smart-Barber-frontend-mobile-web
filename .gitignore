@@ -30,3 +30,7 @@ dev-server.log
 
 # Generated local optimization evidence (curated copies are under docs).
 .tmp-*.log
+
+# Intermediate local Expo build; only the importable Snack runtime is tracked.
+/snack/*
+!/snack/runtime/
