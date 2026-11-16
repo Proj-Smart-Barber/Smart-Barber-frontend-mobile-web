@@ -22,7 +22,7 @@ export function useDashboardPeriod(unit: UnitBookingsState, period: DashboardPer
   const appointments = [
     ...projectDashboardAppointments(unit.items, unit.selectedDate),
     ...results.flatMap((result, index) => projectDashboardAppointments(result.data?.items ?? [], otherDates[index])),
-  ].sort((a, b) => `${a.date} ${a.scheduledTime}`.localeCompare(`${b.date} ${b.scheduledTime}`));
+  ].filter(appointment => appointment.status !== 'CANCELLED').sort((a, b) => `${a.date} ${a.scheduledTime}`.localeCompare(`${b.date} ${b.scheduledTime}`));
   return {
     dates, summary, appointments,
     isLoading: unit.isLoading || results.some(result => result.isPending),
