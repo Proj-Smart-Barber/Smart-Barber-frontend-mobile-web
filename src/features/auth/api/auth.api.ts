@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { httpClient } from '@/shared/api';
+import { ENV } from '@/shared/config/env';
 
 import type { Staff } from '@/entities/staff';
 import type { Barbershop } from '@/entities/barbershop';
@@ -30,17 +31,30 @@ export class AuthApi {
    */
   async login(credentials: LoginRequestDto): Promise<LoginResponseDto & SessionGrant> {
     let dto: SessionDto;
+    const options = ENV.SNACK_HTTP_WEB ? PUBLIC_AUTH_OPTIONS : undefined;
     try {
-      dto = await httpClient.post<SessionDto>('/api/users/sessions/auth', credentials);
+      dto = await httpClient.post<SessionDto>('/api/users/sessions/auth', credentials, options);
     } catch (err: any) {
       if (err?.status === 404) {
-        dto = await httpClient.post<SessionDto>('/api/staffs/sessions/auth', credentials);
+        dto = await httpClient.post<SessionDto>('/api/staffs/sessions/auth', credentials, options);
       } else {
         throw err;
       }
     }
 
     const grant = mapSessionDtoToGrant(dto);
+    if (ENV.SNACK_HTTP_WEB) {
+      if (!dto.accessExpiresAt || !dto.serverTime) {
+        throw new Error('O servidor não informou a validade da sessão.');
+      }
+      return {
+        access_token: grant.accessToken,
+        accessToken: grant.accessToken,
+        accessExpiresAt: grant.accessExpiresAt,
+        sessionExpiresAt: grant.sessionExpiresAt,
+        serverTime: grant.serverTime,
+      };
+    }
     return {
       ...dto,
       ...grant,

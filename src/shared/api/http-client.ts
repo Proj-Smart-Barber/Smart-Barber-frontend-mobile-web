@@ -30,6 +30,7 @@ export type HttpTelemetryListener = (event: HttpTelemetryEvent) => void;
 export interface SessionHooks {
   getAccessToken?: () => string | null;
   onAccessExpired?: () => Promise<void>;
+  captureAccessRejection?: () => (token: string) => void;
 }
 
 function sanitizeTelemetryPath(path: string): string {
@@ -129,8 +130,9 @@ export class HttpClient {
     let authToken = publicRequest ? null : token;
     if (!publicRequest && authToken === undefined) {
       const hookToken = this.sessionHooks?.getAccessToken?.();
-      authToken = hookToken !== undefined ? hookToken : await tokenStorage.get();
+      authToken = ENV.SNACK_HTTP_WEB ? hookToken ?? null : hookToken !== undefined ? hookToken : await tokenStorage.get();
     }
+    const rejectAccess = this.sessionHooks?.captureAccessRejection?.();
 
     const headers = new Headers(customHeaders);
 
@@ -169,7 +171,8 @@ export class HttpClient {
       body: serializedBody,
       signal: controller.signal,
       ...rest,
-      ...(publicRequest ? { credentials: 'omit' as RequestCredentials } : {}),
+      ...(publicRequest || ENV.SNACK_HTTP_WEB ? { credentials: 'omit' as RequestCredentials } : {}),
+      ...(ENV.SNACK_HTTP_WEB ? { redirect: 'error' as RequestRedirect, cache: 'no-store' as RequestCache } : {}),
     };
 
     try {
@@ -235,7 +238,8 @@ export class HttpClient {
 
       if (!response.ok) {
         if (response.status === 401 && authToken && !path.includes('/sessions/')) {
-          void this.sessionHooks?.onAccessExpired?.().catch(() => {});
+          if (ENV.SNACK_HTTP_WEB) rejectAccess?.(authToken);
+          else void this.sessionHooks?.onAccessExpired?.().catch(() => {});
         }
 
         const errorMessage =

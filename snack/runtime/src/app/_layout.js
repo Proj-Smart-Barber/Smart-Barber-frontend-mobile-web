@@ -1,4 +1,5 @@
 import { httpClient } from '../shared/api';
+import { ENV } from '../shared/config/env';
 import { attachCatalogMutationInvalidation } from '../shared/cache/catalog-invalidation';
 import { attachPublicQueryCachePersistence, hydratePersistedPublicQueries } from '../shared/cache/public-query-persister';
 import { installQueryLifecycle } from '../shared/cache/query-lifecycle';
@@ -230,12 +231,13 @@ export default function RootLayout() {
         let detach = () => { };
         const lifecycle = installQueryLifecycle();
         const catalog = attachCatalogMutationInvalidation(queryClient, httpClient);
-        const restore = process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE === 'false'
+        const persistPublicCache = !ENV.SNACK_HTTP_WEB && process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE !== 'false';
+        const restore = !persistPublicCache
             ? Promise.resolve(0) : hydratePersistedPublicQueries(queryClient);
         void restore.finally(() => {
             if (!mounted)
                 return;
-            if (process.env.EXPO_PUBLIC_ENABLE_PUBLIC_CACHE !== 'false')
+            if (persistPublicCache)
                 detach = attachPublicQueryCachePersistence(queryClient);
             setCacheReady(true);
         });

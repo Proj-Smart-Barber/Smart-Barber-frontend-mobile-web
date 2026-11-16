@@ -1,2 +1,3 @@
 # Smart Barber — Snack
-Importe esta pasta. SDK 54. Dados fictícios em memória. Senha Demo123!. Consulte ../../docs/EXPO_SNACK.md.
+Selecione Web no SDK 54. Use apenas uma conta de teste autorizada. A sessão termina ao expirar, ao recarregar ou ao sair deste preview.
+Consulte ../../docs/EXPO_SNACK.md.

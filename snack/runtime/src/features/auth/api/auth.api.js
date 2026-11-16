@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { httpClient } from '../../../shared/api';
+import { ENV } from '../../../shared/config/env';
 import { mapSessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
 // Public authentication endpoints must not inherit an existing session.
 const PUBLIC_AUTH_OPTIONS = { token: null, credentials: 'omit' };
@@ -9,18 +10,31 @@ export class AuthApi {
      */
     async login(credentials) {
         let dto;
+        const options = ENV.SNACK_HTTP_WEB ? PUBLIC_AUTH_OPTIONS : undefined;
         try {
-            dto = await httpClient.post('/api/users/sessions/auth', credentials);
+            dto = await httpClient.post('/api/users/sessions/auth', credentials, options);
         }
         catch (err) {
             if ((err === null || err === void 0 ? void 0 : err.status) === 404) {
-                dto = await httpClient.post('/api/staffs/sessions/auth', credentials);
+                dto = await httpClient.post('/api/staffs/sessions/auth', credentials, options);
             }
             else {
                 throw err;
             }
         }
         const grant = mapSessionDtoToGrant(dto);
+        if (ENV.SNACK_HTTP_WEB) {
+            if (!dto.accessExpiresAt || !dto.serverTime) {
+                throw new Error('O servidor não informou a validade da sessão.');
+            }
+            return {
+                access_token: grant.accessToken,
+                accessToken: grant.accessToken,
+                accessExpiresAt: grant.accessExpiresAt,
+                sessionExpiresAt: grant.sessionExpiresAt,
+                serverTime: grant.serverTime,
+            };
+        }
         return {
             ...dto,
             ...grant,

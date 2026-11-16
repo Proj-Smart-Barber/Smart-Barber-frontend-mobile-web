@@ -1,5 +1,27 @@
 # Smart Barber no Expo Snack
 
+## Variante web com API real
+
+Importe a branch `feature/expo-snack-api-producao` com o caminho
+`snack/runtime` e selecione **SDK 54 → Web**. O runtime versionado nessa branch
+é gerado na raiz com `node scripts/build-snack.mjs --http-web`. Execute o
+gerador sem a flag para obter uma cópia mockada. A flag só ativa HTTP na Web.
+
+Use uma conta de teste ativa, com e-mail verificado e sem acesso a dados reais
+de terceiros. O login bem-sucedido registra uma sessão no backend, portanto a
+validação no iframe precisa de autorização específica. Para verificar somente
+o login e o perfil, basta uma conta comum dedicada. Para verificar vínculos
+operacionais, use uma conta vinculada a uma barbearia de teste.
+
+O access token vive em memória. A sessão termina ao sair, ao recarregar, no
+prazo informado pela API ou quando a sessão ativa recebe um HTTP 401. A saída
+limpa os dados da sessão no preview. Uma cópia do access token pode permanecer
+válida no servidor até expirar.
+
+Após gerar a variante web, rode `node scripts/verify-snack.mjs` e
+`npx vitest run --config scripts/snack-tests/vitest.config.mts` para validar
+os módulos gerados, a sessão com HTTP simulado e o transporte de demonstração.
+
 ## Objetivo e isolamento
 
 Adaptação acadêmica do repositório https://github.com/Proj-Smart-Barber/Smart-Barber-frontend-mobile-web, baseada na `main` em `99da9f8`. Branch exclusiva: `feature/expo-snack-entrega`. **Não realizar merge sem revisão e autorização.**

@@ -63,10 +63,10 @@ export class HttpClient {
         return url.toString();
     }
     async request(path, options = {}) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
         const { method = 'GET', headers: customHeaders = {}, body, params, token, timeoutMs = this.defaultTimeoutMs, publicRequest = false, signal: callerSignal, ...rest } = options;
-        return demoRequest(path, options);
-        /* Original HTTP transport disabled in the academic build. */
+        if (!ENV.SNACK_HTTP_WEB)
+            return demoRequest(path, options);
         const url = this.buildUrl(path, params);
         const startedAtMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
         const sanitizedPath = sanitizeTelemetryPath(path);
@@ -74,8 +74,9 @@ export class HttpClient {
         let authToken = publicRequest ? null : token;
         if (!publicRequest && authToken === undefined) {
             const hookToken = (_b = (_a = this.sessionHooks) === null || _a === void 0 ? void 0 : _a.getAccessToken) === null || _b === void 0 ? void 0 : _b.call(_a);
-            authToken = hookToken !== undefined ? hookToken : await tokenStorage.get();
+            authToken = ENV.SNACK_HTTP_WEB ? hookToken !== null && hookToken !== void 0 ? hookToken : null : hookToken !== undefined ? hookToken : await tokenStorage.get();
         }
+        const rejectAccess = (_d = (_c = this.sessionHooks) === null || _c === void 0 ? void 0 : _c.captureAccessRejection) === null || _d === void 0 ? void 0 : _d.call(_c);
         const headers = new Headers(customHeaders);
         if (!headers.has('Accept')) {
             headers.set('Accept', 'application/json');
@@ -109,13 +110,14 @@ export class HttpClient {
             body: serializedBody,
             signal: controller.signal,
             ...rest,
-            ...(publicRequest ? { credentials: 'omit' } : {}),
+            ...(publicRequest || ENV.SNACK_HTTP_WEB ? { credentials: 'omit' } : {}),
+            ...(ENV.SNACK_HTTP_WEB ? { redirect: 'error', cache: 'no-store' } : {}),
         };
         try {
             const response = await fetch(url, fetchOptions);
             clearTimeout(timeoutId);
-            const serverTiming = (_e = (_d = (_c = response.headers) === null || _c === void 0 ? void 0 : _c.get) === null || _d === void 0 ? void 0 : _d.call(_c, 'server-timing')) !== null && _e !== void 0 ? _e : null;
-            const sqlCountRaw = (_g = (_f = response.headers) === null || _f === void 0 ? void 0 : _f.get) === null || _g === void 0 ? void 0 : _g.call(_f, 'x-sql-count');
+            const serverTiming = (_g = (_f = (_e = response.headers) === null || _e === void 0 ? void 0 : _e.get) === null || _f === void 0 ? void 0 : _f.call(_e, 'server-timing')) !== null && _g !== void 0 ? _g : null;
+            const sqlCountRaw = (_j = (_h = response.headers) === null || _h === void 0 ? void 0 : _h.get) === null || _j === void 0 ? void 0 : _j.call(_h, 'x-sql-count');
             const sqlCount = sqlCountRaw !== null && sqlCountRaw !== undefined ? Number(sqlCountRaw) : null;
             // Tratamento de respostas vazias (ex: 204 No Content)
             if (response.status === 204) {
@@ -170,9 +172,12 @@ export class HttpClient {
             });
             if (!response.ok) {
                 if (response.status === 401 && authToken && !path.includes('/sessions/')) {
-                    void ((_j = (_h = this.sessionHooks) === null || _h === void 0 ? void 0 : _h.onAccessExpired) === null || _j === void 0 ? void 0 : _j.call(_h).catch(() => { }));
+                    if (ENV.SNACK_HTTP_WEB)
+                        rejectAccess === null || rejectAccess === void 0 ? void 0 : rejectAccess(authToken);
+                    else
+                        void ((_l = (_k = this.sessionHooks) === null || _k === void 0 ? void 0 : _k.onAccessExpired) === null || _l === void 0 ? void 0 : _l.call(_k).catch(() => { }));
                 }
-                const errorMessage = ((_k = responseData === null || responseData === void 0 ? void 0 : responseData.error) === null || _k === void 0 ? void 0 : _k.message) ||
+                const errorMessage = ((_m = responseData === null || responseData === void 0 ? void 0 : responseData.error) === null || _m === void 0 ? void 0 : _m.message) ||
                     (typeof (responseData === null || responseData === void 0 ? void 0 : responseData.error) === 'string' ? responseData.error : null) ||
                     (responseData === null || responseData === void 0 ? void 0 : responseData.message) ||
                     `Erro HTTP ${response.status}: ${response.statusText}`;
@@ -202,8 +207,8 @@ export class HttpClient {
                 timestamp: Date.now(),
             });
             const isNetwork = isAbort ||
-                ((_l = err.message) === null || _l === void 0 ? void 0 : _l.includes('Network request failed')) ||
-                ((_m = err.message) === null || _m === void 0 ? void 0 : _m.includes('Failed to fetch'));
+                ((_o = err.message) === null || _o === void 0 ? void 0 : _o.includes('Network request failed')) ||
+                ((_p = err.message) === null || _p === void 0 ? void 0 : _p.includes('Failed to fetch'));
             const message = isAbort
                 ? 'A requisição excedeu o tempo limite (timeout). Verifique sua conexão.'
                 : isNetwork

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sessionStorage, barbershopStorage } from '../../../shared/storage';
 import { httpClient } from '../../../shared/api';
+import { ENV } from '../../../shared/config/env';
 import { authApi } from '../api/auth.api';
 import { formatCpf } from './register.schema';
 import { normalizeAuthError } from '../lib/normalize-auth-error';
@@ -21,6 +22,7 @@ export function SessionProvider({ children }) {
                 signOut: (ref) => authApi.signOut(ref),
             },
             persistence: sessionStorage,
+            temporary: ENV.SNACK_HTTP_WEB,
             loadIdentity: (token) => authApi.getIdentity(token),
             loadMemberships: (token) => authApi.getMemberships(token),
         });
@@ -34,7 +36,11 @@ export function SessionProvider({ children }) {
     useEffect(() => {
         // Configura interceptor do HttpClient
         httpClient.setSessionHooks({
-            getAccessToken: () => engine.getSnapshot().accessToken,
+            getAccessToken: () => {
+                engine.expireIfNeeded();
+                return engine.getSnapshot().accessToken;
+            },
+            captureAccessRejection: ENV.SNACK_HTTP_WEB ? () => engine.captureAccessRejection() : undefined,
             onAccessExpired: async () => {
                 try {
                     await engine.refresh();
@@ -73,16 +79,21 @@ export function SessionProvider({ children }) {
                 setNormalizedError(null);
             }
         });
-        const stopSync = registerWebServiceWorker(() => {
+        const stopSync = ENV.SNACK_HTTP_WEB ? undefined : registerWebServiceWorker(() => {
             void queryClient.cancelQueries();
             queryClient.clear();
             void purgePersistedPublicCache();
             void engine.signOut();
         });
         engine.restore().catch(() => { });
+        const checkExpiration = () => engine.expireIfNeeded();
+        if (ENV.SNACK_HTTP_WEB)
+            document.addEventListener('visibilitychange', checkExpiration);
         return () => {
+            if (ENV.SNACK_HTTP_WEB)
+                document.removeEventListener('visibilitychange', checkExpiration);
             unsubscribe();
-            stopSync();
+            stopSync === null || stopSync === void 0 ? void 0 : stopSync();
             httpClient.setSessionHooks(null);
         };
     }, [engine, queryClient]);
@@ -128,12 +139,16 @@ export function SessionProvider({ children }) {
         return { emailSent };
     }, []);
     const signOut = useCallback(async () => {
+        if (ENV.SNACK_HTTP_WEB)
+            await engine.signOut();
         void queryClient.cancelQueries();
         queryClient.clear();
         await purgePersistedPublicCache();
-        await broadcastSessionLogoutAndClearSwCaches();
+        if (!ENV.SNACK_HTTP_WEB)
+            await broadcastSessionLogoutAndClearSwCaches();
         try {
-            await engine.signOut();
+            if (!ENV.SNACK_HTTP_WEB)
+                await engine.signOut();
             queryClient.clear();
         }
         finally {

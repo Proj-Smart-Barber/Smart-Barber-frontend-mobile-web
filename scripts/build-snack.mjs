@@ -3,6 +3,7 @@ import path from 'node:path';
 import ts from 'typescript';
 const root = path.resolve(import.meta.dirname, '..');
 const out = path.join(root, 'snack');
+const httpWeb = process.argv.includes('--http-web');
 const write = (name, data) => { const dest = path.join(out, name); fs.mkdirSync(path.dirname(dest), {recursive:true}); fs.writeFileSync(dest, data); };
 const walk = dir => fs.readdirSync(dir,{withFileTypes:true}).filter(e=>!['node_modules','runtime','.expo','dist'].includes(e.name)).flatMap(e => e.isDirectory() ? walk(path.join(dir,e.name)) : [path.join(dir,e.name)]);
 // Generated copies only: the original application and its lockfile are untouched.
@@ -36,10 +37,16 @@ for (const file of walk(path.join(root,'src'))) {
     let relative=path.relative(path.dirname(file),path.join(root,'src',name)).replaceAll('\\','/');
     return quote+(relative.startsWith('.')?relative:'./'+relative)+quote;
   });
-  if (rel==='src/shared/config/env.ts') code=code.replace("const DEFAULT_API_URL = 'https://api-black-theta-13.vercel.app';", "const DEFAULT_API_URL = 'https://demo.invalid';");
+  if (rel==='src/shared/config/env.ts') {
+    if (httpWeb) {
+      code = code.replace('const SNACK_HTTP_WEB: boolean = false;', "const SNACK_HTTP_WEB: boolean = Platform.OS === 'web';");
+    } else {
+      code = code.replace('const DEFAULT_API_URL = \'https://api-black-theta-13.vercel.app\';', "const DEFAULT_API_URL = 'https://demo.invalid';");
+    }
+  }
   if (rel==='src/shared/api/http-client.ts') {
     code="import { demoRequest } from '../../../demo/transport';\n"+code;
-    code=code.replace('    const url = this.buildUrl(path, params);', '    return demoRequest(path, options) as Promise<T>;\n    /* Original HTTP transport disabled in the academic build. */\n    const url = this.buildUrl(path, params);');
+    code=code.replace('    const url = this.buildUrl(path, params);', '    if (!ENV.SNACK_HTTP_WEB) return demoRequest(path, options) as Promise<T>;\n    const url = this.buildUrl(path, params);');
   }
   if (rel==='src/app/_layout.tsx') {
     code=code.replace("import React,", "import { DemoNotice } from '../../demo/DemoNotice';\nimport React,");
@@ -64,7 +71,7 @@ for(const file of walk(out).filter(f=>!f.includes(path.sep+'node_modules'+path.s
   const rel=path.relative(out,file).replaceAll('\\','/');
   if(rel==='src/app/+html.tsx')continue;
   const source=fs.readFileSync(file,'utf8').replace(/(['"])([^'"\n]+)\.(tsx?)\1/g,(_,q,p)=>q+p+'.js'+q);
-  const output=ts.transpileModule(source,{fileName:file,compilerOptions:{target:ts.ScriptTarget.ES2019,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.Preserve}}).outputText;
+  const output=ts.transpileModule(source,{fileName:file,compilerOptions:{target:ts.ScriptTarget.ES2019,module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.Preserve}}).outputText.replaceAll('\r\n', '\n');
   write('runtime/'+rel.replace(/\.tsx?$/,'.js'),output);
 }
 const manifest=JSON.parse(fs.readFileSync(path.join(out,'package.json')));
@@ -72,7 +79,10 @@ manifest.dependencies['@hookform/resolvers/zod']=manifest.dependencies['@hookfor
 manifest.dependencies['motion/react']=manifest.dependencies.motion;
 delete manifest.devDependencies; delete manifest.scripts;delete manifest.main;
 write('runtime/package.json',JSON.stringify(manifest,null,2));
-write('runtime/README.md','# Smart Barber — Snack\nImporte esta pasta. SDK 54. Dados fictícios em memória. Senha Demo123!. Consulte ../../docs/EXPO_SNACK.md.\n');
+const runtimeDescription = httpWeb
+  ? 'Selecione Web no SDK 54. Use apenas uma conta de teste autorizada. A sessão termina ao expirar, ao recarregar ou ao sair deste preview.'
+  : 'Importe esta pasta. SDK 54. Dados fictícios em memória. Senha Demo123!.';
+write('runtime/README.md', `# Smart Barber — Snack\n${runtimeDescription}\nConsulte ../../docs/EXPO_SNACK.md.\n`);
 const unusedHtml=path.join(out,'runtime/src/app/+html.js');
 if(fs.existsSync(unusedHtml))fs.unlinkSync(unusedHtml);
 console.log('Emitted Snack runtime JavaScript.');

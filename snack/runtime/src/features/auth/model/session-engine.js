@@ -1,4 +1,21 @@
 export class SessionEngine {
+    now() {
+        var _a, _b, _c;
+        return (_c = (_b = (_a = this.deps).clock) === null || _b === void 0 ? void 0 : _b.call(_a).getTime()) !== null && _c !== void 0 ? _c : Date.now();
+    }
+    expireIfNeeded() {
+        if (this.snapshot.accessToken && this.accessDeadline && this.now() >= this.accessDeadline) {
+            void this.signOut();
+        }
+    }
+    captureAccessRejection() {
+        const generation = this.generation;
+        return (token) => {
+            if (generation === this.generation && token === this.snapshot.accessToken) {
+                void this.signOut();
+            }
+        };
+    }
     saveSession(value, generation = this.generation) {
         const next = this.persistenceWrites.catch(() => { }).then(async () => {
             if (generation === this.generation)
@@ -40,6 +57,7 @@ export class SessionEngine {
         this.generation = 0;
         this.refreshGeneration = -1;
         this.persistenceWrites = Promise.resolve();
+        this.accessDeadline = 0;
     }
     getSnapshot() {
         return this.snapshot;
@@ -65,6 +83,10 @@ export class SessionEngine {
     }
     async restore() {
         var _a, _b;
+        if (this.deps.temporary) {
+            this.expireIfNeeded();
+            return;
+        }
         const thisGen = ++this.generation;
         this.setSnapshot({ status: 'restoring', error: null });
         try {
@@ -178,6 +200,8 @@ export class SessionEngine {
     }
     async signIn(credentials) {
         var _a;
+        if (this.deps.temporary)
+            void this.signOut();
         const thisGen = ++this.generation;
         this.setSnapshot({ error: null });
         // Revoga sessão anterior se havia pendência
@@ -190,21 +214,34 @@ export class SessionEngine {
             }
             this.setSnapshot({ revocationPending: false });
         }
+        const startedAt = this.now();
         const grant = await this.deps.transport.login(credentials);
         if (thisGen !== this.generation)
             return;
-        this.currentRefreshToken = (_a = grant.refreshToken) !== null && _a !== void 0 ? _a : null;
-        const storedSession = {
-            accessToken: grant.accessToken,
-            refreshToken: grant.refreshToken,
-            accessExpiresAt: grant.accessExpiresAt,
-            sessionExpiresAt: grant.sessionExpiresAt,
-            hasSession: true,
-        };
-        await this.saveSession(storedSession);
+        const deadline = startedAt + (Date.parse(grant.accessExpiresAt) - Date.parse(grant.serverTime));
+        if (this.deps.temporary && (!Number.isFinite(deadline) || deadline <= this.now())) {
+            throw new Error('A sessão expirou. Entre novamente.');
+        }
+        if (!this.deps.temporary) {
+            this.currentRefreshToken = (_a = grant.refreshToken) !== null && _a !== void 0 ? _a : null;
+            await this.saveSession({
+                accessToken: grant.accessToken,
+                refreshToken: grant.refreshToken,
+                accessExpiresAt: grant.accessExpiresAt,
+                sessionExpiresAt: grant.sessionExpiresAt,
+                hasSession: true,
+            });
+        }
         const [identity, memberships] = await Promise.all([this.deps.loadIdentity(grant.accessToken), this.deps.loadMemberships(grant.accessToken)]);
         if (thisGen !== this.generation)
             return;
+        if (this.deps.temporary) {
+            const remaining = deadline - this.now();
+            if (remaining <= 0)
+                throw new Error('A sessão expirou. Entre novamente.');
+            this.accessDeadline = deadline;
+            this.expirationTimer = setTimeout(() => this.expireIfNeeded(), remaining);
+        }
         let selectedShopId = null;
         if (memberships.length > 0) {
             const ownerShop = memberships.find((m) => m.role === 'OWNER');
@@ -220,6 +257,8 @@ export class SessionEngine {
         });
     }
     async refresh() {
+        if (this.deps.temporary)
+            throw new Error('A sessão temporária exige um novo login.');
         const thisGen = this.generation;
         if (this.activeRefreshPromise && this.refreshGeneration === thisGen)
             return this.activeRefreshPromise;
@@ -258,6 +297,11 @@ export class SessionEngine {
         const hadSession = Boolean(refreshToken || this.snapshot.accessToken);
         this.currentRefreshToken = null;
         this.setSnapshot({ status: 'unauthenticated', identity: null, memberships: [], selectedShopId: null, accessToken: null, error: null });
+        if (this.deps.temporary) {
+            clearTimeout(this.expirationTimer);
+            this.accessDeadline = 0;
+            return;
+        }
         try {
             await this.markSessionLogout(thisGen);
             if (hadSession) {
