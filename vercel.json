@@ -55,11 +55,11 @@
     },
     {
       "source": "/barbershops/:shopId/services",
-      "destination": "/barbershops/[shopId]/services.html"
+      "destination": "/barbershops/[shopId]/services"
     },
     {
       "source": "/barbershops/:shopId/book",
-      "destination": "/barbershops/[shopId]/book.html"
+      "destination": "/barbershops/[shopId]/book"
     },
     {
       "source": "/(.*)",

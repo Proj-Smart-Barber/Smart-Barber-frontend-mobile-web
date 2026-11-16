@@ -6,7 +6,7 @@ const DEFAULT_WEB_URL = 'https://app.smartbarber.wellingtonsp.uk';
 const MOCK_BARBERSHOP_ID = 'barbershop-seed-0001';
 const availabilitySource = process.env.EXPO_PUBLIC_AVAILABILITY_SOURCE === 'mock' ? 'mock' : 'http';
 const publicWebUrl = (process.env.EXPO_PUBLIC_WEB_URL ||
-    (Platform.OS === 'web' && typeof window !== 'undefined'
+    (!SNACK_HTTP_WEB && Platform.OS === 'web' && typeof window !== 'undefined'
         ? window.location.origin
         : DEFAULT_WEB_URL)).replace(/\/$/, '');
 export const ENV = {

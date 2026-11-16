@@ -12,7 +12,7 @@ const availabilitySource =
 
 const publicWebUrl = (
   process.env.EXPO_PUBLIC_WEB_URL ||
-  (Platform.OS === 'web' && typeof window !== 'undefined'
+  (!SNACK_HTTP_WEB && Platform.OS === 'web' && typeof window !== 'undefined'
     ? window.location.origin
     : DEFAULT_WEB_URL)
 ).replace(/\/$/, '');
