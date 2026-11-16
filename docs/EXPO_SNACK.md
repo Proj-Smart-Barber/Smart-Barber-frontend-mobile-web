@@ -22,6 +22,30 @@ Após gerar a variante web, rode `node scripts/verify-snack.mjs` e
 `npx vitest run --config scripts/snack-tests/vitest.config.mts` para validar
 os módulos gerados, a sessão com HTTP simulado e o transporte de demonstração.
 
+### Google Maps no preview Web
+
+O mapa usa a Maps JavaScript API no iframe `https://snack-runtime.eascdn.net`.
+No Google Cloud do projeto, confirme faturamento e API habilitados. Na chave Web,
+selecione a restrição de aplicativo **Sites**, permita
+`https://snack-runtime.eascdn.net/*` e limite a chave à **Maps JavaScript API**.
+Defina cotas compatíveis com o teste e alertas de orçamento. O domínio do iframe
+é compartilhado, então a restrição de referenciador não distingue este Snack.
+Confirme a autorização do responsável pela chave antes de torná-la pública.
+
+Para configurar a chave no editor após a aprovação, abra uma cópia sob sua conta,
+selecione **Web** e abra `src/shared/config/env.js`. Na propriedade
+`GOOGLE_MAPS_WEB_API_KEY`, substitua a expressão pelo valor da chave Web como
+uma string JavaScript. O editor e o bundle do Snack poderão expor esse valor.
+Faça o teste em **Explorar → Mapa** e conceda a localização no navegador se
+quiser testar o GPS. A aplicação continua exibindo a visualização de
+contingência quando o SDK fica indisponível.
+
+Para guardar a cópia na conta Expo, abra o link no desktop, entre na conta,
+edite o nome para um nome novo e clique em **Save**. Se aparecer o diálogo de
+publicação, escolha **Save to Profile** ou **Save to your Expo Profile**.
+Confirme o endereço `snack.expo.dev/@seu-usuario/nome-do-snack` no perfil e
+use esse endereço nas próximas edições.
+
 ## Objetivo e isolamento
 
 Adaptação acadêmica do repositório https://github.com/Proj-Smart-Barber/Smart-Barber-frontend-mobile-web, baseada na `main` em `99da9f8`. Branch exclusiva: `feature/expo-snack-entrega`. **Não realizar merge sem revisão e autorização.**

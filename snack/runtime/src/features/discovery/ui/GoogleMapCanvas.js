@@ -20,6 +20,7 @@ if (Platform.OS !== 'web') {
         PROVIDER_GOOGLE = null;
     }
 }
+const GOOGLE_MAPS_LOAD_TIMEOUT_MS = 12000;
 let googleMapsLoaderPromise = null;
 const authFailureListeners = new Set();
 let hasAuthFailed = false;
@@ -89,60 +90,49 @@ export function loadGoogleMapsWebSdk(apiKey) {
         return googleMapsLoaderPromise;
     }
     googleMapsLoaderPromise = new Promise((resolve, reject) => {
-        var _a, _b;
-        const existing = document.getElementById('smart-barber-google-maps-sdk');
-        if (existing) {
-            if (hasAuthFailed) {
-                googleMapsLoaderPromise = null;
-                reject(new Error(authFailureReason || 'Autorização do Google Maps recusada.'));
-                return;
-            }
-            if ((_b = (_a = win.google) === null || _a === void 0 ? void 0 : _a.maps) === null || _b === void 0 ? void 0 : _b.Map) {
-                resolve(win.google.maps);
-                return;
-            }
-            existing.addEventListener('load', () => {
-                var _a, _b;
-                if (hasAuthFailed) {
-                    googleMapsLoaderPromise = null;
-                    reject(new Error(authFailureReason || 'Autorização do Google Maps recusada.'));
-                }
-                else if ((_b = (_a = win.google) === null || _a === void 0 ? void 0 : _a.maps) === null || _b === void 0 ? void 0 : _b.Map) {
-                    resolve(win.google.maps);
-                }
-                else {
-                    googleMapsLoaderPromise = null;
-                    reject(new Error('Google Maps SDK carregou sem construtor Map.'));
-                }
-            });
-            existing.addEventListener('error', () => {
-                googleMapsLoaderPromise = null;
-                reject(new Error('Falha ao carregar o script do Google Maps.'));
-            });
-            return;
-        }
+        var _a;
+        (_a = document.getElementById('smart-barber-google-maps-sdk')) === null || _a === void 0 ? void 0 : _a.remove();
         const script = document.createElement('script');
         script.id = 'smart-barber-google-maps-sdk';
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly`;
+        const url = new URL('https://maps.googleapis.com/maps/api/js');
+        url.searchParams.set('key', apiKey);
+        url.searchParams.set('v', 'weekly');
+        if (ENV.SNACK_HTTP_WEB) {
+            script.referrerPolicy = 'strict-origin-when-cross-origin';
+            url.searchParams.set('auth_referrer_policy', 'origin');
+        }
+        script.src = url.toString();
         script.async = true;
         script.defer = true;
+        const cleanup = () => {
+            clearTimeout(timeout);
+            script.onload = null;
+            script.onerror = null;
+        };
+        const fail = (message) => {
+            cleanup();
+            script.remove();
+            googleMapsLoaderPromise = null;
+            reject(new Error(message));
+        };
+        const timeout = setTimeout(() => {
+            fail('O Google Maps demorou para carregar.');
+        }, GOOGLE_MAPS_LOAD_TIMEOUT_MS);
         script.onload = () => {
             var _a, _b;
             if (hasAuthFailed) {
-                googleMapsLoaderPromise = null;
-                reject(new Error(authFailureReason || 'Autorização do Google Maps recusada.'));
+                fail(authFailureReason || 'Autorização do Google Maps recusada.');
             }
             else if ((_b = (_a = win.google) === null || _a === void 0 ? void 0 : _a.maps) === null || _b === void 0 ? void 0 : _b.Map) {
+                cleanup();
                 resolve(win.google.maps);
             }
             else {
-                googleMapsLoaderPromise = null;
-                reject(new Error('Google Maps SDK indisponível após carregamento.'));
+                fail('Google Maps SDK indisponível após carregamento.');
             }
         };
         script.onerror = () => {
-            googleMapsLoaderPromise = null;
-            reject(new Error('Não foi possível carregar o Google Maps SDK.'));
+            fail('Não foi possível carregar o Google Maps SDK.');
         };
         document.head.appendChild(script);
     });

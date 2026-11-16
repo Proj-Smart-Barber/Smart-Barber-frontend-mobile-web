@@ -26,6 +26,11 @@ function renderWithTheme(ui: React.ReactElement) {
 describe('GoogleMapCanvas - Auth Failure and Resilience', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    const append = document.head.appendChild.bind(document.head);
+    vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
+      if (node instanceof HTMLScriptElement) node.type = 'application/json';
+      return append(node);
+    });
     resetGoogleMapsLoaderForTests();
     // Limpar scripts do DOM
     document.querySelectorAll('#smart-barber-google-maps-sdk').forEach((s) => s.remove());
@@ -34,6 +39,8 @@ describe('GoogleMapCanvas - Auth Failure and Resilience', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
     resetGoogleMapsLoaderForTests();
   });
 
@@ -76,6 +83,56 @@ describe('GoogleMapCanvas - Auth Failure and Resilience', () => {
 
     const gmaps = await loadGoogleMapsWebSdk('test-key-fake');
     expect(gmaps.Map).toBe(mockMapConstructor);
+  });
+
+  it('remove o script após timeout e permite uma nova tentativa', async () => {
+    vi.useFakeTimers();
+    const loaded = loadGoogleMapsWebSdk('test-key-fake');
+    const rejected = expect(loaded).rejects.toThrow(/demorou para carregar/);
+    await vi.advanceTimersByTimeAsync(12_000);
+    await rejected;
+    expect(document.getElementById('smart-barber-google-maps-sdk')).toBeNull();
+
+    const retried = loadGoogleMapsWebSdk('test-key-fake');
+    expect(retried).not.toBe(loaded);
+    const map = vi.fn();
+    (window as any).google = { maps: { Map: map } };
+    const script = document.getElementById('smart-barber-google-maps-sdk') as HTMLScriptElement;
+    script.dispatchEvent(new Event('load'));
+    await expect(retried).resolves.toMatchObject({ Map: map });
+  });
+
+  it('usa coordenadas e encaminha a seleção e o ajuste do pino do SDK', () => {
+    const callbacks: Record<string, (...args: any[]) => void> = {};
+    const map = vi.fn(() => ({ setCenter: vi.fn() }));
+    const marker = vi.fn(function () {
+      return {
+        setMap: vi.fn(),
+        addListener: (event: string, callback: (...args: any[]) => void) => {
+          callbacks[event] = callback;
+        },
+      };
+    });
+    (window as any).google = { maps: { Map: map, Marker: marker } };
+    const select = vi.fn();
+    const drag = vi.fn();
+    const pin = { latitude: -23.6, longitude: -46.7 };
+    renderWithTheme(
+      <GoogleMapCanvas
+        markers={[{ id: 'shop-1', title: 'Barbearia', coordinates: { latitude: -23.5, longitude: -46.6 } }]}
+        draggablePin={pin}
+        onSelectMarker={select}
+        onPinDragEnd={drag}
+      />,
+    );
+    expect(map).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ center: { lat: -23.6, lng: -46.7 } }));
+    expect(marker).toHaveBeenCalledWith(expect.objectContaining({ position: { lat: -23.5, lng: -46.6 } }));
+    act(() => {
+      callbacks.click();
+      callbacks.dragend({ latLng: { lat: () => -23.61, lng: () => -46.71 } });
+    });
+    expect(select).toHaveBeenCalledWith('shop-1');
+    expect(drag).toHaveBeenCalledWith({ latitude: -23.61, longitude: -46.71 });
   });
 
   it('gm_authFailure dispara fallback na UI e limpa superfície sem deixar ready falso', async () => {
