@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateLabelShort } from '@/shared/lib/civil-time';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,18 +12,22 @@ import { formatCurrency, mapStatusBadgeTone, mapStatusLabel } from '../model/das
 interface TodayTimelineProps {
   appointments: DashboardAppointment[];
   isLoading?: boolean;
+  selectedDate?: string;
+  isToday?: boolean;
+  showDates?: boolean;
 }
 
 export function TodayTimeline({
   appointments,
   isLoading = false,
+  selectedDate, isToday = true, showDates = false,
 }: TodayTimelineProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact } = useAdaptiveLayout();
   const router = useRouter();
 
   const handleOpenAgenda = () => {
-    router.push('/(app)/agenda' as any);
+    router.push({ pathname: '/(app)/agenda' as any, params: selectedDate ? { date: selectedDate } : {} });
   };
 
   return (
@@ -43,7 +48,7 @@ export function TodayTimeline({
             color={colors.text.primary}
             numberOfLines={1}
           >
-            Próximos da Fila
+            {isToday ? 'Próximos da Fila' : 'Agendamentos do período'}
           </Text>
           <Text
             variant="caption"
@@ -51,7 +56,7 @@ export function TodayTimeline({
             numberOfLines={2}
             ellipsizeMode="tail"
           >
-            Prévia dos próximos horários agendados
+            {isToday ? 'Prévia dos próximos horários agendados' : 'Prévia dos horários no filtro selecionado'}
           </Text>
         </View>
 
@@ -107,8 +112,8 @@ export function TodayTimeline({
           borderColor={isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(0, 0, 0, 0.08)'}
         >
           <EmptyState
-            title="Nenhum outro atendimento na fila"
-            description="Não há outros horários agendados além do destaque imediato."
+            title={isToday ? 'Nenhum outro atendimento na fila' : 'Nenhum agendamento no período'}
+            description={isToday ? 'Não há outros horários agendados além do destaque imediato.' : 'Selecione outra data para consultar seus atendimentos.'}
           />
         </LiquidGlassView>
       ) : (
@@ -163,7 +168,7 @@ export function TodayTimeline({
                   ]}
                 >
                   <Text variant="bodySm" color={colors.text.primary} weight="bold">
-                    {item.scheduledTime}
+                    {showDates && item.date ? `${formatDateLabelShort(item.date)} · ` : ''}{item.scheduledTime}
                   </Text>
                 </View>
 

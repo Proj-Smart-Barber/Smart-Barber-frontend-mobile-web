@@ -7,6 +7,10 @@ vi.mock('react-native-safe-area-context', () => ({
 import { clampInsets } from '../use-app-safe-area';
 
 describe('use-app-safe-area clampInsets', () => {
+  it('limita o topo inflado do dashboard no iPhone PWA sem perder a área do gesto', () => {
+    expect(clampInsets({ top: 360, bottom: 180, left: 0, right: 0 }, true, true, 852))
+      .toEqual({ top: 64, bottom: 34, left: 0, right: 0 });
+  });
   it('limita insets.bottom inflado por bug de overflow no WebKit para 34px', () => {
     const inflatedInsets = { top: 48, bottom: 184, left: 0, right: 0 };
     const clamped = clampInsets(inflatedInsets, true, true, 844);
