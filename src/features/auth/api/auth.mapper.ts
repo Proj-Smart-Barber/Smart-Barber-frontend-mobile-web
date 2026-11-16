@@ -1,6 +1,7 @@
 import { RawStaffDto, Staff, normalizeStaffRole } from '@/entities/staff';
 import type { AuthIdentity, AccountType } from '@/entities/user';
 import type { SessionDto, SessionGrant, MeResponseDto } from './auth.dto';
+import { decodeJwt } from '../lib/jwt-helper';
 
 export function mapStaffDtoToEntity(raw: RawStaffDto): Staff {
   return {
@@ -31,6 +32,31 @@ export function mapSessionDtoToGrant(dto: SessionDto): SessionGrant {
     accessExpiresAt,
     sessionExpiresAt,
     serverTime,
+  };
+}
+
+export function mapTemporarySessionDtoToGrant(dto: SessionDto): SessionGrant {
+  const token = dto.access_token;
+  // Read the JWT only to decide when to end the local session.
+  const jwt = decodeJwt(token);
+  const expiration = jwt?.exp;
+  const tokenExpiresAt = typeof expiration === 'number' ? new Date(expiration * 1000) : null;
+  if (!tokenExpiresAt || !Number.isFinite(tokenExpiresAt.getTime()) || tokenExpiresAt.getTime() <= 0) {
+    throw new Error('O servidor retornou uma sessão inválida.');
+  }
+
+  const serverTime = Date.parse(dto.serverTime ?? '');
+  const reportedExpiry = Date.parse(dto.accessExpiresAt ?? '');
+  const hasServerTiming = Number.isFinite(serverTime) && Number.isFinite(reportedExpiry);
+  const accessExpiresAt = hasServerTiming
+    ? new Date(Math.min(tokenExpiresAt.getTime(), reportedExpiry)).toISOString()
+    : tokenExpiresAt.toISOString();
+
+  return {
+    accessToken: token,
+    accessExpiresAt,
+    sessionExpiresAt: accessExpiresAt,
+    serverTime: hasServerTiming ? new Date(serverTime).toISOString() : new Date().toISOString(),
   };
 }
 

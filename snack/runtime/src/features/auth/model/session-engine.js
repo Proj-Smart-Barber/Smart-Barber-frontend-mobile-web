@@ -1,3 +1,4 @@
+const TEMPORARY_EXPIRATION_MARGIN_MS = 30000;
 export class SessionEngine {
     now() {
         var _a, _b, _c;
@@ -218,7 +219,8 @@ export class SessionEngine {
         const grant = await this.deps.transport.login(credentials);
         if (thisGen !== this.generation)
             return;
-        const deadline = startedAt + (Date.parse(grant.accessExpiresAt) - Date.parse(grant.serverTime));
+        const deadline = startedAt + (Date.parse(grant.accessExpiresAt) - Date.parse(grant.serverTime))
+            - TEMPORARY_EXPIRATION_MARGIN_MS;
         if (this.deps.temporary && (!Number.isFinite(deadline) || deadline <= this.now())) {
             throw new Error('A sessão expirou. Entre novamente.');
         }

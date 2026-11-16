@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { httpClient } from '../../../shared/api';
 import { ENV } from '../../../shared/config/env';
-import { mapSessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
+import { mapSessionDtoToGrant, mapTemporarySessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
 // Public authentication endpoints must not inherit an existing session.
 const PUBLIC_AUTH_OPTIONS = { token: null, credentials: 'omit' };
 export class AuthApi {
@@ -22,22 +22,16 @@ export class AuthApi {
                 throw err;
             }
         }
-        const grant = mapSessionDtoToGrant(dto);
         if (ENV.SNACK_HTTP_WEB) {
-            if (!dto.accessExpiresAt || !dto.serverTime) {
-                throw new Error('O servidor não informou a validade da sessão.');
-            }
+            const grant = mapTemporarySessionDtoToGrant(dto);
             return {
                 access_token: grant.accessToken,
-                accessToken: grant.accessToken,
-                accessExpiresAt: grant.accessExpiresAt,
-                sessionExpiresAt: grant.sessionExpiresAt,
-                serverTime: grant.serverTime,
+                ...grant,
             };
         }
         return {
             ...dto,
-            ...grant,
+            ...mapSessionDtoToGrant(dto),
         };
     }
     /**

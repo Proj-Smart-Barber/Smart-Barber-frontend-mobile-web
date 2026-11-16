@@ -19,7 +19,7 @@ import {
   UpdateProfileRequestDto,
   UpdateProfileResponseDto,
 } from './auth.dto';
-import { mapSessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
+import { mapSessionDtoToGrant, mapTemporarySessionDtoToGrant, mapMeResponseToIdentity, mapStaffDtoToEntity } from './auth.mapper';
 
 
 // Public authentication endpoints must not inherit an existing session.
@@ -42,22 +42,16 @@ export class AuthApi {
       }
     }
 
-    const grant = mapSessionDtoToGrant(dto);
     if (ENV.SNACK_HTTP_WEB) {
-      if (!dto.accessExpiresAt || !dto.serverTime) {
-        throw new Error('O servidor não informou a validade da sessão.');
-      }
+      const grant = mapTemporarySessionDtoToGrant(dto);
       return {
         access_token: grant.accessToken,
-        accessToken: grant.accessToken,
-        accessExpiresAt: grant.accessExpiresAt,
-        sessionExpiresAt: grant.sessionExpiresAt,
-        serverTime: grant.serverTime,
+        ...grant,
       };
     }
     return {
       ...dto,
-      ...grant,
+      ...mapSessionDtoToGrant(dto),
     };
   }
 

@@ -20,6 +20,8 @@ export interface SessionSnapshot {
 
 export type SessionSubscriber = (snapshot: SessionSnapshot) => void;
 
+const TEMPORARY_EXPIRATION_MARGIN_MS = 30_000;
+
 export interface SessionEngineDependencies {
   transport: {
     login: (credentials: LoginRequestDto) => Promise<SessionGrant>;
@@ -264,7 +266,8 @@ export class SessionEngine {
     const grant = await this.deps.transport.login(credentials);
     if (thisGen !== this.generation) return;
 
-    const deadline = startedAt + (Date.parse(grant.accessExpiresAt) - Date.parse(grant.serverTime));
+    const deadline = startedAt + (Date.parse(grant.accessExpiresAt) - Date.parse(grant.serverTime))
+      - TEMPORARY_EXPIRATION_MARGIN_MS;
     if (this.deps.temporary && (!Number.isFinite(deadline) || deadline <= this.now())) {
       throw new Error('A sessão expirou. Entre novamente.');
     }
