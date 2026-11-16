@@ -12,9 +12,10 @@ interface DashboardHeaderProps {
   staff: Staff | null;
   greeting: string;
   isOwner: boolean;
+  dateLabel?: string;
 }
 
-export function DashboardHeader({ greeting }: DashboardHeaderProps) {
+export function DashboardHeader({ greeting, dateLabel }: DashboardHeaderProps) {
   const { colors, spacing, radius, isDark } = useTheme();
   const { isCompact, isExpanded } = useAdaptiveLayout();
   const router = useRouter();
@@ -121,7 +122,7 @@ export function DashboardHeader({ greeting }: DashboardHeaderProps) {
             </Text>
           </View>
           <Text variant="caption" color={colors.text.muted} numberOfLines={1}>
-            {capitalizedDate}
+            {dateLabel ?? capitalizedDate}
           </Text>
         </View>
       </View>
@@ -145,6 +146,7 @@ export function DashboardHeader({ greeting }: DashboardHeaderProps) {
 const styles = StyleSheet.create({
   headerContainer: {
     width: '100%',
+    flexShrink: 0,
     borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',

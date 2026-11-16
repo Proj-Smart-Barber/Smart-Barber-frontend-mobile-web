@@ -66,6 +66,13 @@ export default function Root({ children, pathname }: PropsWithChildren<{ pathnam
                 width: 100%;
                 overflow: hidden;
               }
+              /* In standalone WebKit, dvh can exclude the home-gesture strip.
+                 Percentage heights keep the app on the full layout viewport. */
+              @media (display-mode: standalone) {
+                html, body, #root {
+                  height: 100%;
+                }
+              }
               body {
                 background-color: #0B0B0B;
                 color: #FFFFFF;

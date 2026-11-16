@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, RefreshControl, ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppSafeAreaView as SafeAreaView } from '@/shared/theme/AppSafeAreaView';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
 import { useNavigation } from '@/shared/navigation/navigation-context';
 import { ErrorState } from '@/shared/ui';
@@ -9,6 +9,7 @@ import { DashboardHeader } from './DashboardHeader';
 import { MetricsOverview } from './MetricsOverview';
 import { NextAppointmentCard } from './NextAppointmentCard';
 import { TodayTimeline } from './TodayTimeline';
+import { DashboardDateFilter } from './DashboardDateFilter';
 
 export function DashboardView() {
   const { colors, spacing, isDark } = useTheme();
@@ -26,6 +27,7 @@ export function DashboardView() {
 
   const {
     staff,
+    period, setPeriod, selectedDate, todayIso, selectDate, goToToday, dateLabel, isToday,
     isOwner,
     greeting,
     metricCards,
@@ -49,10 +51,11 @@ export function DashboardView() {
         staff={staff}
         greeting={greeting}
         isOwner={isOwner}
+        dateLabel={dateLabel}
       />
 
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         onScroll={onContentScroll}
         scrollEventThrottle={16}
         refreshControl={
@@ -72,6 +75,8 @@ export function DashboardView() {
         }}
       >
         <View style={{ width: '100%', maxWidth: contentMaxWidth, gap: spacing[5] }}>
+          <DashboardDateFilter selectedDate={selectedDate} todayIso={todayIso} label={dateLabel}
+            period={period} onPeriodChange={setPeriod} onSelectDate={selectDate} onToday={goToToday} />
           {isError ? (
             <ErrorState
               title="Erro ao carregar o dashboard"
@@ -82,13 +87,13 @@ export function DashboardView() {
           ) : (
             <>
               {/* 1. Atenção Imediata: Próximo Atendimento na Cadeira (Hero Card) */}
-              <NextAppointmentCard
+              {isToday ? <NextAppointmentCard
                 appointment={nextAppointment}
                 isIndeterminate={isIndeterminate}
                 isLoading={isLoading}
                 isUpdating={isUpdatingStatus}
                 onUpdateStatus={handleUpdateStatus}
-              />
+              /> : null}
 
               {/* 2. Resumo Compacto do Dia (Até 2 KPIs do Dia) */}
               <MetricsOverview metrics={metricCards} isLoading={isLoading} />
@@ -96,6 +101,9 @@ export function DashboardView() {
               {/* 3. Prévia dos Próximos Atendimentos (Até 3 linhas + Link para Agenda) */}
               <TodayTimeline
                 appointments={previewAppointments}
+                selectedDate={selectedDate}
+                isToday={isToday}
+                showDates={period === 'WEEK'}
                 isLoading={isLoading}
               />
             </>

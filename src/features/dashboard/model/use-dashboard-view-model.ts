@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useSession, getOperationalContext } from '@/features/auth';
-import type { AppointmentStatus, DashboardAppointment } from '../api/dashboard.contract';
+import type { AppointmentStatus } from '../api/dashboard.contract';
 import { useUnitBookings } from '@/features/bookings/model/use-unit-bookings';
 import { useOwnerReviewSummary } from '@/features/reviews';
-import { projectDashboardAppointments } from '../api/dashboard.http';
 import {
-  findNextAppointment,
   formatCurrency,
   getGreetingByHour,
   mapStatusBadgeTone,
   mapStatusLabel,
 } from './dashboard.helpers';
+import { useDashboardPeriod } from './use-dashboard-period';
+import { dashboardPeriodLabel, type DashboardPeriod } from './dashboard-period';
 import type { DashboardMetricCardData, TimelineFilter } from './dashboard.types';
 
 export function useDashboardViewModel() {
@@ -23,6 +23,9 @@ export function useDashboardViewModel() {
   const isOwner = context?.role === 'OWNER';
   const role = isOwner ? 'OWNER' : 'BARBER';
   const unit = useUnitBookings(context);
+  const [period, setPeriod] = useState<DashboardPeriod>('DAY');
+  const periodData = useDashboardPeriod(unit, period);
+  const isToday = period === 'DAY' && unit.selectedDate === unit.unitTodayDate;
 
   const shopId = session.barbershop?.id;
   const { data: reviewSummary } = useOwnerReviewSummary(
@@ -30,10 +33,10 @@ export function useDashboardViewModel() {
     { source: 'ALL' },
     { enabled: Boolean(isOwner && shopId) },
   );
-  const rawAppointments = useMemo(() => projectDashboardAppointments(unit.items, unit.selectedDate), [unit.items, unit.selectedDate]);
-  const metrics = unit.summary ? {
-    totalRevenueInCents: unit.summary.hasIncompleteData || unit.summary.totalRevenueInCents === null ? null : unit.summary.totalRevenueInCents,
-    totalAppointments: unit.summary.totalBookings ?? null,
+  const rawAppointments = periodData.appointments;
+  const metrics = periodData.summary ? {
+    totalRevenueInCents: periodData.summary.hasIncompleteData || periodData.summary.totalRevenueInCents === null ? null : periodData.summary.totalRevenueInCents,
+    totalAppointments: periodData.summary.totalBookings ?? null,
   } : undefined;
 
   // Filtra lista de agendamentos para a timeline
@@ -48,7 +51,7 @@ export function useDashboardViewModel() {
     return true;
   });
 
-  const nextAppointment = unit.nextAppointment ? rawAppointments.find(a => a.id === unit.nextAppointment!.id) ?? null : null;
+  const nextAppointment = isToday && unit.nextAppointment ? rawAppointments.find(a => a.id === unit.nextAppointment!.id) ?? null : null;
 
   // Prévia enxuta do dia: até 3 agendamentos, excluindo o destaque atual
   const previewAppointments = useMemo(() => {
@@ -78,7 +81,7 @@ export function useDashboardViewModel() {
           id: 'total',
           title: 'Total de Agendamentos',
           value: metrics.totalAppointments === null ? 'A confirmar' : `${metrics.totalAppointments}`,
-          subtitle: metrics.totalAppointments === null ? 'Resumo indisponível' : metrics.totalAppointments > 0 ? 'Horários reservados' : 'Nenhum agendamento hoje',
+          subtitle: metrics.totalAppointments === null ? 'Resumo indisponível' : metrics.totalAppointments > 0 ? 'Horários reservados' : isToday ? 'Nenhum agendamento hoje' : 'Nenhum agendamento no período',
           tone: 'neutral',
           iconName: 'calendar-outline',
         },
@@ -88,9 +91,9 @@ export function useDashboardViewModel() {
         const avg = reviewSummary.metrics.averageRating;
         metricCards.push({
           id: 'reviews',
-          title: 'Avaliações',
+          title: 'Avaliações gerais',
           value: avg !== null ? `${avg.toFixed(1)} ★` : 'Sem notas',
-          subtitle: `${reviewSummary.metrics.reviewCount} avaliaç${reviewSummary.metrics.reviewCount === 1 ? 'ão' : 'ões'} • Ver painel`,
+          subtitle: `${reviewSummary.metrics.reviewCount} avaliaç${reviewSummary.metrics.reviewCount === 1 ? 'ão' : 'ões'} • Todas as datas`,
           tone: 'brand',
           iconName: 'star-outline',
           onPress: () => router.push('/(app)/reviews'),
@@ -100,9 +103,9 @@ export function useDashboardViewModel() {
       metricCards.push(
         {
           id: 'appointments',
-          title: 'Meus Agendamentos Hoje',
+          title: isToday ? 'Meus Agendamentos Hoje' : period === 'WEEK' ? 'Meus Agendamentos na Semana' : 'Meus Agendamentos no Dia',
           value: metrics.totalAppointments === null ? 'A confirmar' : `${metrics.totalAppointments}`,
-          subtitle: metrics.totalAppointments === null ? 'Resumo indisponível' : metrics.totalAppointments > 0 ? 'Horários reservados' : 'Agenda livre hoje',
+          subtitle: metrics.totalAppointments === null ? 'Resumo indisponível' : metrics.totalAppointments > 0 ? 'Horários reservados' : isToday ? 'Agenda livre hoje' : 'Agenda livre no período',
           tone: 'brand',
           iconName: 'cut-outline',
         },
@@ -118,19 +121,26 @@ export function useDashboardViewModel() {
     }
   }
 
-  const isLoading = unit.isLoading || unit.clockStatus === 'syncing';
-  const isError = !context || unit.isError || unit.clockStatus === 'error';
+  const isLoading = periodData.isLoading || unit.clockStatus === 'syncing';
+  const isError = !context || periodData.isError || unit.clockStatus === 'error';
   const handleUpdateStatus = (_id: string, _status: AppointmentStatus) => {};
-  const handleRefetch = () => { void unit.refetch(); void restoreSession(); };
+  const handleRefetch = () => { void periodData.refetch(); void restoreSession(); };
 
   return {
     staff,
+    period, setPeriod,
+    selectedDate: unit.selectedDate,
+    todayIso: unit.unitTodayDate ?? '',
+    selectDate: unit.setSelectedDate,
+    goToToday: () => { setPeriod('DAY'); unit.followToday(); },
+    dateLabel: dashboardPeriodLabel(periodData.dates),
+    isToday,
     isOwner: role === 'OWNER',
     greeting,
     metricCards,
     appointments,
     previewAppointments,
-    totalCount: unit.total ?? rawAppointments.length,
+    totalCount: periodData.summary?.totalBookings ?? rawAppointments.length,
     isIndeterminate: unit.isPartial || unit.clockStatus !== 'valid',
     nextAppointment,
     filter,

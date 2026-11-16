@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Platform, RefreshControl, ScrollView, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppSafeAreaView as SafeAreaView } from '@/shared/theme/AppSafeAreaView';
+import { useAppSafeArea } from '@/shared/theme/use-app-safe-area';
 import { useRouter } from 'expo-router';
 import { useNavigation } from '@/shared/navigation/navigation-context';
 import { useAdaptiveLayout, useTheme } from '@/shared/theme';
@@ -21,7 +22,7 @@ import { AgendaTimeline } from './AgendaTimeline';
 export function AgendaView() {
   const { colors, spacing, isDark } = useTheme();
   const { contentMaxWidth, isCompact, isExpanded } = useAdaptiveLayout();
-  const insets = useSafeAreaInsets();
+  const insets = useAppSafeArea();
   const { onContentScroll } = useNavigation();
 
   const {
@@ -156,7 +157,7 @@ export function AgendaView() {
       />
 
       <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
+        contentInsetAdjustmentBehavior="never"
         onScroll={onContentScroll}
         scrollEventThrottle={16}
         refreshControl={
