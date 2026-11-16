@@ -18,12 +18,13 @@ it.each(['OWNER', 'BARBERMAN'] as const)('loads six additional days with the sam
   const unit = {
     context: { userId: 'actor', shopId: 'shop', role }, isAuthorized: true,
     clockStatus: 'valid', selectedDate: '2026-11-18', effectiveBarbermanId: role === 'BARBERMAN' ? 'actor' : undefined,
-    summary: { totalBookings: 4, totalRevenueInCents: 4000 }, items: [], isLoading: false, isError: false,
+    summary: { totalBookings: 4, totalRevenueInCents: 4000 }, items: [{ id: "cancelled", status: "CANCELLED", services: [], startTime: "10:00" }], isLoading: false, isError: false,
   } as unknown as UnitBookingsState;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client);
   const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   const hook = renderHook(({ mode }) => useDashboardPeriod(unit, mode), { wrapper, initialProps: { mode: 'WEEK' as 'DAY' | 'WEEK' } });
   await waitFor(() => expect(hook.result.current.summary?.totalBookings).toBe(76));
+  expect(hook.result.current.appointments.some(item => item.id === "cancelled")).toBe(false);
   expect(fetch).toHaveBeenCalledTimes(6);
   for (const [shop, params] of fetch.mock.calls) {
     expect(shop).toBe('shop'); expect(params?.barbermanId).toBe(role === 'BARBERMAN' ? 'actor' : undefined);

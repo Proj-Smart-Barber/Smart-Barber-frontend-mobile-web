@@ -113,7 +113,7 @@ export async function fetchMyBookings(
     options?.signal ? { signal: options.signal } : undefined
   );
   const parsed = fetchMyBookingsResponseSchema.parse(response);
-  return parsed.bookings;
+  return parsed.bookings.filter(booking => booking.status !== 'CANCELLED');
 }
 
 export async function fetchUnitBookings(
