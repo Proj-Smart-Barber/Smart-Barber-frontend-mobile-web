@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '@/features/auth';
 import { useTheme } from '@/shared/theme';
@@ -20,6 +21,8 @@ import { ReviewMetricsSummaryCard } from '@/features/reviews/ui/owner/ReviewMetr
 import { ReviewStarDistributionCard } from '@/features/reviews/ui/owner/ReviewStarDistributionCard';
 import { ReviewResponseRateCard } from '@/features/reviews/ui/owner/ReviewResponseRateCard';
 import { ReviewServiceCoverageCard } from '@/features/reviews/ui/owner/ReviewServiceCoverageCard';
+import { ReviewTimeSeriesCard } from '@/features/reviews/ui/owner/ReviewTimeSeriesCard';
+import { ReviewErrorBanner } from '@/features/reviews/ui/owner/ReviewErrorBanner';
 import { OwnerServicesTab } from '@/features/reviews/ui/owner/OwnerServicesTab';
 import { OwnerProfessionalsTab } from '@/features/reviews/ui/owner/OwnerProfessionalsTab';
 import { OwnerFeedbacksTab } from '@/features/reviews/ui/owner/OwnerFeedbacksTab';
@@ -43,25 +46,34 @@ export default function OwnerReviewsScreen() {
     );
   }, [isOwner, memberships, selectedShopId]);
 
+  const queryClient = useQueryClient();
   const [periodDays, setPeriodDays] = useState<number>(30);
+  const [granularity, setGranularity] = useState<'WEEK' | 'MONTH'>('WEEK');
+  const [windowAnchor, setWindowAnchor] = useState<number>(() => Date.now());
   const [selectedSource, setSelectedSource] = useState<ReviewSourceDto>('CUSTOMER');
   const [activeTab, setActiveTab] = useState<OwnerReviewsTab>('services');
   const [filterTargetId, setFilterTargetId] = useState<string | undefined>(undefined);
 
   const { startDate, endDate } = useMemo(() => {
-    const end = new Date();
-    const start = new Date(end.getTime() - periodDays * 24 * 60 * 60 * 1000);
+    const end = new Date(windowAnchor);
+    const start = new Date(windowAnchor - periodDays * 24 * 60 * 60 * 1000);
     return {
       startDate: start.toISOString(),
       endDate: end.toISOString(),
     };
-  }, [periodDays]);
+  }, [periodDays, windowAnchor]);
 
-  const shopId = barbershop?.id;
+  const shopId = selectedShopId ?? barbershop?.id;
+
+  useEffect(() => {
+    setFilterTargetId(undefined);
+  }, [shopId]);
 
   const {
     data: summary,
     isLoading: isSummaryLoading,
+    isError: isSummaryError,
+    error: summaryError,
     refetch,
     isRefetching,
   } = useOwnerReviewSummary(
@@ -70,21 +82,20 @@ export default function OwnerReviewsScreen() {
       source: selectedSource,
       startDate,
       endDate,
+      granularity,
     },
     { enabled: Boolean(shopId) && isOwnerActive },
   );
 
-  // Se a barbearia estiver em ambiente exclusivamente demonstrativo e source for CUSTOMER sem dados,
-  // ajusta o toggle para que o usuário perceba claramente os dados disponíveis
-  React.useEffect(() => {
-    if (
-      summary &&
-      summary.flags.isDemoEnvironment &&
-      selectedSource === 'CUSTOMER'
-    ) {
-      setSelectedSource('DEMO');
+  const handleRefresh = useCallback(async () => {
+    setWindowAnchor(Date.now());
+    if (shopId) {
+      await queryClient.invalidateQueries({
+        queryKey: ['owner-reviews', shopId],
+      });
     }
-  }, [summary, selectedSource]);
+    await refetch();
+  }, [queryClient, refetch, shopId]);
 
   if (!isOwnerActive) {
     return (
@@ -155,7 +166,9 @@ export default function OwnerReviewsScreen() {
       refreshControl={
         <RefreshControl
           refreshing={isRefetching}
-          onRefresh={() => void refetch()}
+          onRefresh={() => {
+            void handleRefresh();
+          }}
           tintColor={colors.brand.primary}
         />
       }
@@ -187,13 +200,32 @@ export default function OwnerReviewsScreen() {
       </View>
 
       {/* Cartão de Resumo e Filtro de Período */}
-      {isSummaryLoading || !summary ? (
+      {isSummaryError && !summary ? (
+        <ReviewErrorBanner
+          error={summaryError}
+          hasCachedData={false}
+          onRetry={() => {
+            void handleRefresh();
+          }}
+          onRelogin={() => router.replace('/(auth)/login')}
+        />
+      ) : isSummaryLoading && !summary ? (
         <View style={{ gap: spacing[3] }}>
           <Skeleton width="100%" height={160} />
           <Skeleton width="100%" height={120} />
         </View>
-      ) : (
+      ) : summary ? (
         <>
+          {isSummaryError ? (
+            <ReviewErrorBanner
+              error={summaryError}
+              hasCachedData
+              onRetry={() => {
+                void handleRefresh();
+              }}
+              onRelogin={() => router.replace('/(auth)/login')}
+            />
+          ) : null}
           <ReviewMetricsSummaryCard
             summary={summary}
             selectedSource={selectedSource}
@@ -207,6 +239,12 @@ export default function OwnerReviewsScreen() {
             distribution={summary.metrics.distribution}
             totalReviews={summary.metrics.reviewCount}
             percentage1to2Stars={summary.metrics.percentage1to2Stars}
+          />
+
+          <ReviewTimeSeriesCard
+            timeSeries={summary.timeSeries ?? []}
+            granularity={granularity}
+            onSelectGranularity={setGranularity}
           />
 
           <View
@@ -234,7 +272,7 @@ export default function OwnerReviewsScreen() {
             </View>
           </View>
         </>
-      )}
+      ) : null}
 
       {/* Abas de Detalhamento: Serviços, Profissionais e Feedbacks */}
       <View style={{ marginTop: spacing[3], gap: spacing[4] }}>

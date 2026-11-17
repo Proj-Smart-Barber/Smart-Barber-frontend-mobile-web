@@ -6,7 +6,17 @@ export type StarDistributionDto = {
   5: number;
 };
 
-export type ReviewSourceDto = 'CUSTOMER' | 'DEMO' | 'ALL';
+export type ReviewDataSourceDto = 'CUSTOMER' | 'DEMO' | 'UNKNOWN';
+export type ReviewSourceDto = 'CUSTOMER' | 'DEMO' | 'UNKNOWN' | 'ALL';
+export type ReviewTimeSeriesGranularityDto = 'WEEK' | 'MONTH';
+
+export interface ReviewTimeSeriesPointDto {
+  bucketStart: string;
+  bucketEnd: string;
+  label: string;
+  reviewCount: number;
+  averageRating: number | null;
+}
 
 export interface ReviewSummaryMetricsDto {
   metrics: {
@@ -24,16 +34,20 @@ export interface ReviewSummaryMetricsDto {
     ratingDiff: number | null;
     reviewCountDiff: number;
   };
+  timeSeries: ReviewTimeSeriesPointDto[];
+  granularity: ReviewTimeSeriesGranularityDto;
   responseRate: {
     cohortCompletedBookings: number;
     reviewedBookings: number;
     ratePercentage: number | null;
     cohortDefinition: string;
+    originScope: ReviewSourceDto;
   };
   serviceCoverage: {
     totalActiveServices: number;
     evaluatedActiveServices: number;
     coveragePercentage: number | null;
+    scope: 'PERIOD';
   };
   latestReview: {
     id: string;
@@ -41,13 +55,15 @@ export interface ReviewSummaryMetricsDto {
     rating: number;
     comment: string | null;
     customerName: string;
-    source: 'CUSTOMER' | 'DEMO';
+    source: ReviewDataSourceDto;
   } | null;
   flags: {
     hasAnyReviews: boolean;
     hasDemoReviews: boolean;
     hasCustomerReviews: boolean;
+    hasUnknownReviews: boolean;
     isDemoEnvironment: boolean;
+    isMixedEnvironment: boolean;
     appliedSource: ReviewSourceDto;
   };
   period: {
@@ -77,12 +93,17 @@ export interface ServiceMetricsResponseDto {
   totalServices: number;
   evaluatedServices: number;
   coveragePercentage: number | null;
+  page: number;
+  limit: number;
+  total: number;
+  hasNext: boolean;
 }
 
 export interface ProfessionalReviewMetricItemDto {
   professionalId: string;
   name: string;
   avatarUrl: string | null;
+  isActive: boolean;
   averageRating: number | null;
   reviewCount: number;
   distribution: StarDistributionDto;
@@ -94,6 +115,10 @@ export interface ProfessionalReviewMetricItemDto {
 export interface ProfessionalMetricsResponseDto {
   items: ProfessionalReviewMetricItemDto[];
   totalProfessionals: number;
+  page: number;
+  limit: number;
+  total: number;
+  hasNext: boolean;
 }
 
 export interface OwnerFeedbackReviewItemDto {
@@ -106,7 +131,7 @@ export interface OwnerFeedbackReviewItemDto {
 export interface OwnerFeedbackItemDto {
   id: string;
   bookingId: string;
-  source: 'CUSTOMER' | 'DEMO';
+  source: ReviewDataSourceDto;
   createdAt: string;
   customer: {
     name: string;
@@ -130,6 +155,7 @@ export interface OwnerReviewSummaryFilters {
   startDate?: string;
   endDate?: string;
   source?: ReviewSourceDto;
+  granularity?: ReviewTimeSeriesGranularityDto;
 }
 
 export interface OwnerServiceMetricsFilters {
@@ -138,6 +164,8 @@ export interface OwnerServiceMetricsFilters {
   endDate?: string;
   source?: ReviewSourceDto;
   includeInactive?: boolean;
+  page?: number;
+  limit?: number;
 }
 
 export interface OwnerProfessionalMetricsFilters {
@@ -145,6 +173,8 @@ export interface OwnerProfessionalMetricsFilters {
   startDate?: string;
   endDate?: string;
   source?: ReviewSourceDto;
+  page?: number;
+  limit?: number;
 }
 
 export interface OwnerFeedbacksFilters {

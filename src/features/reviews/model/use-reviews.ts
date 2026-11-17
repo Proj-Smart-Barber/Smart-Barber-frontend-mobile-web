@@ -38,6 +38,9 @@ export function invalidateRelevantReviewCaches(
 
   if (scope.barbershopId) {
     queryClient.invalidateQueries({
+      queryKey: ['owner-reviews', scope.barbershopId],
+    });
+    queryClient.invalidateQueries({
       queryKey: ['reviews', 'barbershop', scope.barbershopId],
     });
     queryClient.invalidateQueries({
@@ -73,6 +76,7 @@ export function invalidateRelevantReviewCaches(
       });
     }
   } else {
+    queryClient.invalidateQueries({ queryKey: ['owner-reviews'] });
     queryClient.invalidateQueries({ queryKey: reviewQueryKeys.all });
     queryClient.invalidateQueries({ queryKey: ['barbershop'] });
     queryClient.invalidateQueries({ queryKey: ['services'] });
@@ -226,12 +230,12 @@ export function useModerateReview(onSuccessCallback?: () => void) {
       action: 'HIDE' | 'RESTORE';
       expectedVersion: number;
       note?: string;
+      barbershopId?: string;
     }) => reviewsApi.moderateReview(reviewId, action, expectedVersion, note),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: reviewQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: ['barbershop'] });
-      queryClient.invalidateQueries({ queryKey: ['discovery'] });
-      queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
+    onSuccess: (_, variables) => {
+      invalidateRelevantReviewCaches(queryClient, {
+        barbershopId: variables.barbershopId,
+      });
       onSuccessCallback?.();
     },
   });

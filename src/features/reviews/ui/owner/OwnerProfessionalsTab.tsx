@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/theme';
@@ -7,6 +7,7 @@ import { LiquidGlassView } from '@/shared/navigation';
 import { StarRating } from '../StarRating';
 import { useOwnerProfessionalMetrics } from '../../model/use-owner-reviews';
 import type { ReviewSourceDto } from '../../api/owner-reviews.types';
+import { ReviewErrorBanner } from './ReviewErrorBanner';
 
 interface OwnerProfessionalsTabProps {
   shopId: string;
@@ -24,14 +25,22 @@ export function OwnerProfessionalsTab({
   onSelectProfessionalToFilter,
 }: OwnerProfessionalsTabProps) {
   const { colors, spacing, radius } = useTheme();
+  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useOwnerProfessionalMetrics(shopId, {
-    source,
-    startDate,
-    endDate,
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [shopId, source, startDate, endDate]);
 
-  if (isLoading) {
+  const { data, isLoading, isError, error, refetch } =
+    useOwnerProfessionalMetrics(shopId, {
+      source,
+      startDate,
+      endDate,
+      page,
+      limit: 10,
+    });
+
+  if (isLoading && !data) {
     return (
       <View style={{ gap: spacing[3] }}>
         <Skeleton width="100%" height={80} />
@@ -40,12 +49,36 @@ export function OwnerProfessionalsTab({
     );
   }
 
+  if (isError && !data) {
+    return (
+      <ReviewErrorBanner
+        error={error}
+        hasCachedData={false}
+        onRetry={() => {
+          void refetch();
+        }}
+      />
+    );
+  }
+
   const items = data?.items ?? [];
+  const totalItems = data?.total ?? items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / 10));
 
   return (
     <View style={{ gap: spacing[3] }}>
+      {isError ? (
+        <ReviewErrorBanner
+          error={error}
+          hasCachedData={Boolean(data)}
+          onRetry={() => {
+            void refetch();
+          }}
+        />
+      ) : null}
+
       <Text variant="subhead" weight="bold" color={colors.text.primary}>
-        Profissionais ({items.length})
+        Profissionais ({totalItems})
       </Text>
 
       {items.length === 0 ? (
@@ -103,9 +136,14 @@ export function OwnerProfessionalsTab({
                     <Text variant="body" weight="bold" color={colors.text.primary}>
                       {professional.name}
                     </Text>
-                    <Text variant="caption" color={colors.text.muted}>
-                      Barbeiro da unidade
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing[2] }}>
+                      <Text variant="caption" color={colors.text.muted}>
+                        Barbeiro da unidade
+                      </Text>
+                      {professional.isActive === false ? (
+                        <Badge label="Inativo na equipe" tone="warning" size="sm" />
+                      ) : null}
+                    </View>
                   </View>
                 </View>
 
@@ -200,6 +238,45 @@ export function OwnerProfessionalsTab({
           );
         })
       )}
+
+      {totalPages > 1 ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: spacing[2],
+          }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Página anterior de profissionais"
+            disabled={page <= 1}
+            onPress={() => setPage((p) => Math.max(1, p - 1))}
+            style={{ opacity: page <= 1 ? 0.4 : 1, padding: spacing[2] }}
+          >
+            <Text variant="caption" weight="bold" color={colors.brand.primary}>
+              Anterior
+            </Text>
+          </Pressable>
+
+          <Text variant="caption" color={colors.text.muted}>
+            Página {page} de {totalPages}
+          </Text>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Próxima página de profissionais"
+            disabled={page >= totalPages}
+            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
+            style={{ opacity: page >= totalPages ? 0.4 : 1, padding: spacing[2] }}
+          >
+            <Text variant="caption" weight="bold" color={colors.brand.primary}>
+              Próxima
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
